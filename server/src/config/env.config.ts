@@ -18,6 +18,14 @@ export default () => ({
         refreshJwtSecret: process.env.AUTH_REFRESH_JWT || ''
     },
 
+    redis: {
+        host: process.env.REDIS_HOST || 'localhost',
+        port: Number(process.env.REDIS_PORT) || 6379,
+        password: process.env.REDIS_PASSWORD || undefined,
+        tls: process.env.REDIS_TLS === 'true',
+        mailQueueName: process.env.MAIL_QUEUE_NAME || 'mail'
+    },
+
     mail: {
         host: process.env.SMTP_HOST || '',
         port: Number(process.env.SMTP_PORT) || 587,

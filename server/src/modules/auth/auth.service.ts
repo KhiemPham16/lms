@@ -1,0 +1,275 @@
+import { BadRequestException, Injectable, UnauthorizedException } from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
+import { JwtPayload } from '~/common/guards/jwt-auth.guard';
+import { ConfigService } from '@nestjs/config';
+import * as bcrypt from 'bcrypt';
+import { SignOptions } from 'jsonwebtoken';
+
+import { UsersService } from '../users/users.service';
+import { LoginDto } from './dto/login.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
+import { MailQueueService } from '~/modules/mail/mail-queue.service';
+
+@Injectable()
+export class AuthService {
+    constructor(
+        private readonly usersService: UsersService,
+        private readonly jwtService: JwtService,
+        private readonly configService: ConfigService,
+        private readonly mailQueueService: MailQueueService
+    ) {}
+
+    async login(dto: LoginDto) {
+        const user = await this.usersService.findByEmail(dto.email);
+
+        if (!user) {
+            throw new UnauthorizedException('Email hoặc mật khẩu không đúng');
+        }
+
+        if (user.status !== 'ACTIVE') {
+            throw new UnauthorizedException('Tài khoản không hoạt động');
+        }
+
+        const isPasswordValid = await bcrypt.compare(dto.password, user.password);
+
+        if (!isPasswordValid) {
+            throw new UnauthorizedException('Email hoặc mật khẩu không đúng');
+        }
+
+        await this.usersService.updateLastLogin(user.id);
+
+        const accessToken = await this.generateAccessToken({
+            publicId: user.publicId,
+            role: user.role
+        });
+
+        const refreshToken = await this.generateRefreshToken({
+            publicId: user.publicId,
+            role: user.role
+        });
+
+        const refreshTokenExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+        const hashedRefreshToken = await bcrypt.hash(refreshToken, 10);
+
+        await this.usersService.createSession(user.id, hashedRefreshToken, refreshTokenExpiresAt);
+
+        return {
+            message: 'Đăng nhập thành công',
+            accessToken,
+            refreshToken
+        };
+    }
+
+    async me(publicId: string) {
+        return this.usersService.findByPublicIdOrThrow(publicId);
+    }
+
+    async forgotPassword(dto: ForgotPasswordDto) {
+        const user = await this.usersService.findByEmail(dto.email);
+
+        if (!user) {
+            return {
+                message: 'Nếu email tồn tại, hệ thống sẽ gửi mã đặt lại mật khẩu'
+            };
+        }
+
+        const otp = Math.floor(100000 + Math.random() * 900000).toString();
+
+        const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
+
+        await this.usersService.updateResetPasswordOtp(user.id, otp, expiresAt);
+
+        this.mailQueueService
+            .sendForgotPassword({
+                email: user.email,
+                fullName: user.fullName,
+                otp
+            })
+            .catch((error) => {
+                console.error('[AUTH_FORGOT_PASSWORD_MAIL_QUEUE_ERROR]', error);
+            });
+
+        return {
+            message: 'Nếu email tồn tại, hệ thống sẽ gửi mã đặt lại mật khẩu'
+        };
+    }
+
+    async resetPassword(dto: ResetPasswordDto) {
+        const user = await this.usersService.findByEmail(dto.email);
+
+        if (!user || !user.resetPasswordOtp || !user.resetPasswordOtpExpiresAt) {
+            throw new BadRequestException('OTP không hợp lệ');
+        }
+
+        if (user.resetPasswordOtp !== dto.otp) {
+            throw new BadRequestException('OTP không đúng');
+        }
+
+        if (user.resetPasswordOtpExpiresAt < new Date()) {
+            throw new BadRequestException('OTP đã hết hạn');
+        }
+
+        const hashedPassword = await bcrypt.hash(dto.newPassword, 10);
+
+        await this.usersService.updatePassword(user.id, hashedPassword);
+
+        await this.usersService.clearResetPasswordOtp(user.id);
+
+        return {
+            message: 'Đặt lại mật khẩu thành công'
+        };
+    }
+
+    async refresh(refreshToken?: string) {
+        if (!refreshToken) {
+            throw new UnauthorizedException('Refresh token không tồn tại');
+        }
+
+        const secret = this.configService.get<string>('auth.refreshJwtSecret');
+
+        if (!secret) {
+            throw new Error('auth.refreshJwtSecret is missing');
+        }
+
+        let payload: JwtPayload & { type?: string };
+
+        try {
+            payload = await this.jwtService.verifyAsync(refreshToken, {
+                secret
+            });
+        } catch {
+            throw new UnauthorizedException('Refresh token không hợp lệ');
+        }
+
+        if (payload.type !== 'refresh') {
+            throw new UnauthorizedException('Refresh token không hợp lệ');
+        }
+
+        const user = await this.usersService.findByPublicIdRaw(payload.sub);
+
+        if (!user) {
+            throw new UnauthorizedException('Người dùng không tồn tại');
+        }
+
+        const session = await this.findSessionByRefreshToken(user.id, refreshToken);
+
+        if (!session) {
+            throw new UnauthorizedException('Phiên đăng nhập không hợp lệ');
+        }
+
+        if (!session) {
+            throw new UnauthorizedException('Phiên đăng nhập không tồn tại');
+        }
+
+        const isValidSession = await bcrypt.compare(refreshToken, session.refreshToken);
+
+        if (!isValidSession) {
+            throw new UnauthorizedException('Phiên đăng nhập không hợp lệ');
+        }
+
+        const accessToken = await this.generateAccessToken({
+            publicId: user.publicId,
+            role: user.role
+        });
+
+        return {
+            message: 'Làm mới token thành công',
+            accessToken
+        };
+    }
+
+    async logout(refreshToken?: string) {
+        if (!refreshToken) {
+            return {
+                message: 'Đăng xuất thành công'
+            };
+        }
+
+        const secret = this.configService.get<string>('auth.refreshJwtSecret');
+
+        if (!secret) {
+            throw new Error('auth.refreshJwtSecret is missing');
+        }
+
+        try {
+            const payload = await this.jwtService.verifyAsync(refreshToken, {
+                secret
+            });
+
+            const user = await this.usersService.findByPublicIdRaw(payload.sub);
+
+            if (user) {
+                const session = await this.findSessionByRefreshToken(user.id, refreshToken);
+
+                if (session) {
+                    await this.usersService.deleteSession(session.id);
+                }
+            }
+        } catch (error) {
+            console.error('[AUTH_LOGOUT_ERROR]', error);
+        }
+
+        return {
+            message: 'Đăng xuất thành công'
+        };
+    }
+
+    private async generateAccessToken(user: { publicId: string; role: string }) {
+        const expiresIn = this.configService.get<string>('auth.accessTokenExpires') ?? '15m';
+
+        const secret = this.configService.get<string>('auth.accessJwtSecret');
+
+        if (!secret) {
+            throw new Error('auth.accessJwtSecret is missing');
+        }
+
+        return this.jwtService.signAsync(
+            {
+                sub: user.publicId,
+                role: user.role
+            },
+            {
+                secret,
+                expiresIn
+            } as SignOptions
+        );
+    }
+
+    private async generateRefreshToken(user: { publicId: string; role: string }) {
+        const expiresIn = this.configService.get<string>('auth.refreshTokenExpires') ?? '7d';
+
+        const secret = this.configService.get<string>('auth.refreshJwtSecret');
+
+        if (!secret) {
+            throw new Error('auth.refreshJwtSecret is missing');
+        }
+
+        return this.jwtService.signAsync(
+            {
+                sub: user.publicId,
+                role: user.role,
+                type: 'refresh'
+            },
+            {
+                secret,
+                expiresIn
+            } as SignOptions
+        );
+    }
+
+    private async findSessionByRefreshToken(userId: number, refreshToken: string) {
+        const sessions = await this.usersService.findActiveSessionsByUserId(userId);
+
+        for (const session of sessions) {
+            const isMatch = await bcrypt.compare(refreshToken, session.refreshToken);
+
+            if (isMatch) {
+                return session;
+            }
+        }
+
+        return null;
+    }
+}
