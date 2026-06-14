@@ -1,0 +1,60 @@
+import { Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import * as nodemailer from 'nodemailer';
+import * as ejs from 'ejs';
+import * as path from 'path';
+
+@Injectable()
+export class MailService {
+    private readonly transporter: nodemailer.Transporter;
+
+    constructor(private readonly configService: ConfigService) {
+        this.transporter = nodemailer.createTransport({
+            host: this.configService.get<string>('mail.host'),
+            port: this.configService.get<number>('mail.port'),
+            secure: this.configService.get<boolean>('mail.secure'),
+            auth: {
+                user: this.configService.get<string>('mail.user'),
+                pass: this.configService.get<string>('mail.pass')
+            },
+            tls: {
+                rejectUnauthorized: false
+            }
+        });
+
+        this.transporter.verify().catch((error) => {
+            console.error('[MAIL_VERIFY_ERROR]', error);
+        });
+    }
+
+    async sendForgotPassword(data: { email: string; fullName: string; otp: string }) {
+        return this.sendMail({
+            to: data.email,
+            subject: 'Đặt lại mật khẩu LMS',
+            template: 'forgot-password',
+            data: {
+                fullName: data.fullName,
+                otp: data.otp
+            }
+        });
+    }
+
+    private async sendMail(options: { to: string; subject: string; template: string; data: Record<string, unknown> }) {
+        const html = await this.renderTemplate(options.template, options.data);
+
+        const result = await this.transporter.sendMail({
+            from: this.configService.get<string>('mail.from'),
+            to: options.to,
+            subject: options.subject,
+            html
+        });
+
+        return result;
+    }
+
+    private readonly templatesPath = path.join(process.cwd(), 'src', 'modules', 'mail', 'templates');
+
+    private renderTemplate(templateName: string, data: Record<string, unknown>) {
+        return ejs.renderFile(path.join(this.templatesPath, `${templateName}.ejs`), data);
+    }
+}

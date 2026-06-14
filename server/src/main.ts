@@ -3,15 +3,14 @@ import { AppModule } from '~/app.module';
 import { ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
+import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 
 async function bootstrap() {
     const app = await NestFactory.create(AppModule);
-
     const configService = app.get(ConfigService);
 
     const port = configService.get<number>('app.port') || 3500;
-
     const corsOrigin = configService.get<string>('app.frontendUrl');
 
     app.setGlobalPrefix('api/v1');
@@ -28,6 +27,8 @@ async function bootstrap() {
     );
 
     app.use(helmet());
+
+    app.use(cookieParser());
 
     app.enableCors({
         origin: corsOrigin,

@@ -10,3 +10,239 @@ generator client {
 datasource db {
   provider = "mysql"
 }
+
+enum UserRole {
+  ADMIN
+  STUDENT
+  LECTURER
+  DEPARTMENT_HEAD
+  TRAINING_OFFICER
+  PRINCIPAL
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  LOCKED
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+enum CourseStatus {
+  DRAFT
+
+  PENDING_PDT
+  PDT_APPROVED
+  PDT_REJECTED
+
+  PENDING_PRINCIPAL
+  PRINCIPAL_APPROVED
+  PRINCIPAL_REJECTED
+
+  ACTIVE
+  INACTIVE
+}
+
+enum ApprovalAction {
+  APPROVED
+  REJECTED
+}
+
+enum ApprovalLevel {
+  PDT
+  PRINCIPAL
+}
+
+enum ClassStatus {
+  UPCOMING
+  OPEN
+  CLOSED
+  COMPLETED
+  CANCELLED
+}
+
+enum EnrollmentStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  COMPLETED
+  DROPPED
+}
+
+model User {
+  id       Int    @id @default(autoincrement())
+  publicId String @unique @default(uuid())
+
+  code     String @unique // MSSV / MSGV / mã nhân sự
+  fullName String
+
+  email    String  @unique
+  phone    String? @unique
+  password String
+
+  role   UserRole   @default(STUDENT)
+  status UserStatus @default(ACTIVE)
+
+  gender    Gender?
+  avatarUrl String?
+
+  dateOfBirth DateTime?
+  address     String?
+
+  // dùng cho forgot password
+  resetPasswordOtp          String?
+  resetPasswordOtpExpiresAt DateTime?
+
+  // dùng cho refresh token/session
+  sessions Session[]
+
+  // khoa / phòng ban
+  departmentId Int?
+  department   Department? @relation(fields: [departmentId], references: [id])
+
+  lastLoginAt DateTime?
+  deletedAt   DateTime?
+
+  proposedCourses    Course[]         @relation("ProposedCourses")
+  teachingClasses    Class[]          @relation("TeachingClasses")
+  studentEnrollments Enrollment[]     @relation("StudentEnrollments")
+  courseApprovals    CourseApproval[] @relation("CourseApprovals")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([role])
+  @@index([status])
+  @@index([departmentId])
+}
+
+model Session {
+  id Int @id @default(autoincrement())
+
+  userId Int
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  refreshToken String   @db.Text
+  expiresAt    DateTime
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+model Department {
+  id       Int    @id @default(autoincrement())
+  publicId String @unique @default(uuid())
+
+  name String @unique
+  code String @unique
+
+  users User[]
+
+  courses Course[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Course {
+  id       Int    @id @default(autoincrement())
+  publicId String @unique @default(uuid())
+
+  code String @unique
+  name String
+
+  description String? @db.Text
+  credits     Int
+
+  departmentId Int
+  department   Department @relation(fields: [departmentId], references: [id])
+
+  status CourseStatus @default(DRAFT)
+
+  proposedById Int
+  proposedBy   User @relation("ProposedCourses", fields: [proposedById], references: [id])
+
+  approvals CourseApproval[]
+  classes   Class[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([departmentId])
+  @@index([proposedById])
+  @@index([status])
+}
+
+model CourseApproval {
+  id Int @id @default(autoincrement())
+
+  courseId Int
+  course   Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  approverId Int
+  approver   User @relation("CourseApprovals", fields: [approverId], references: [id])
+
+  level  ApprovalLevel
+  action ApprovalAction
+
+  note String? @db.Text
+
+  createdAt DateTime @default(now())
+
+  @@index([courseId])
+  @@index([approverId])
+}
+
+model Class {
+  id       Int    @id @default(autoincrement())
+  publicId String @unique @default(uuid())
+
+  code String @unique
+  name String
+
+  courseId Int
+  course   Course @relation(fields: [courseId], references: [id])
+
+  lecturerId Int
+  lecturer   User @relation("TeachingClasses", fields: [lecturerId], references: [id])
+
+  maxStudents Int
+
+  startDate DateTime
+  endDate   DateTime
+
+  status ClassStatus @default(UPCOMING)
+
+  enrollments Enrollment[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([courseId])
+  @@index([lecturerId])
+  @@index([status])
+}
+
+model Enrollment {
+  id Int @id @default(autoincrement())
+
+  studentId Int
+  student   User @relation("StudentEnrollments", fields: [studentId], references: [id])
+
+  classId Int
+  class   Class @relation(fields: [classId], references: [id], onDelete: Cascade)
+
+  status EnrollmentStatus @default(APPROVED)
+
+  enrolledAt DateTime @default(now())
+
+  @@unique([studentId, classId])
+  @@index([studentId])
+  @@index([classId])
+  @@index([status])
+}
