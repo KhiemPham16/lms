@@ -1,0 +1,64 @@
+import { IsDateString, IsEmail, IsEnum, IsInt, IsNotEmpty, IsOptional, IsString, MinLength } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Gender, UserRole, UserStatus } from '@prisma/client';
+
+export class CreateUserDto {
+    @ApiProperty({ example: 'SV001' })
+    @IsString()
+    @IsNotEmpty()
+    code: string;
+
+    @ApiProperty({ example: 'Student One' })
+    @IsString()
+    @IsNotEmpty()
+    fullName: string;
+
+    @ApiProperty({ example: 'student1@lms.com' })
+    @IsEmail()
+    email: string;
+
+    @ApiPropertyOptional({ example: '0901234567' })
+    @IsOptional()
+    @IsString()
+    phone?: string;
+
+    @ApiPropertyOptional({ example: '123456' })
+    @IsOptional()
+    @IsString()
+    @MinLength(6)
+    password?: string;
+
+    @ApiProperty({ enum: UserRole, example: UserRole.STUDENT })
+    @IsEnum(UserRole)
+    role: UserRole;
+
+    @ApiPropertyOptional({ enum: UserStatus, example: UserStatus.ACTIVE })
+    @IsOptional()
+    @IsEnum(UserStatus)
+    status?: UserStatus;
+
+    @ApiPropertyOptional({ enum: Gender, example: Gender.MALE })
+    @IsOptional()
+    @IsEnum(Gender)
+    gender?: Gender;
+
+    @ApiPropertyOptional({ example: 'https://example.com/avatar.png' })
+    @IsOptional()
+    @IsString()
+    avatarUrl?: string;
+
+    @ApiPropertyOptional({ example: '2004-01-01' })
+    @IsOptional()
+    @IsDateString()
+    dateOfBirth?: string;
+
+    @ApiPropertyOptional({ example: 'TP. Hồ Chí Minh' })
+    @IsOptional()
+    @IsString()
+    address?: string;
+
+    @ApiPropertyOptional({ example: 1 })
+    @IsOptional()
+    @IsInt()
+    departmentId?: number;
+}
