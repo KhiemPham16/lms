@@ -7,6 +7,7 @@ import configuration from '~/config/env.config';
 import { QueueModule } from './queue/queue.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
+import { DepartmentsModule } from './modules/departments/departments.module';
 
 @Module({
     imports: [
@@ -18,7 +19,8 @@ import { UsersModule } from './modules/users/users.module';
         PrismaModule,
         QueueModule,
         AuthModule,
-        UsersModule
+        UsersModule,
+        DepartmentsModule
     ],
     controllers: [AppController],
     providers: []

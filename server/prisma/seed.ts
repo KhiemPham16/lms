@@ -55,48 +55,6 @@ async function main() {
             email: 'gv2@lms.com',
             password,
             role: UserRole.LECTURER
-        },
-        {
-            code: 'SV001',
-            fullName: 'Phạm Gia Khiêm',
-            email: 'khiem@lms.com',
-            password,
-            role: UserRole.STUDENT
-        },
-        {
-            code: 'SV002',
-            fullName: 'Nguyễn Đức Tính',
-            email: 'tinh@lms.com',
-            password,
-            role: UserRole.STUDENT
-        },
-        {
-            code: 'SV003',
-            fullName: 'Nguyễn Lê Thiên Phát',
-            email: 'phat@lms.com',
-            password,
-            role: UserRole.STUDENT
-        },
-        {
-            code: 'SV004',
-            fullName: 'Nguyễn Thanh Quang',
-            email: 'quang@lms.com',
-            password,
-            role: UserRole.STUDENT
-        },
-        {
-            code: 'SV005',
-            fullName: 'Thái Đăng Quang',
-            email: 'quang2@lms.com',
-            password,
-            role: UserRole.STUDENT
-        },
-        {
-            code: 'SV006',
-            fullName: 'Lê Minh Khang',
-            email: 'khang@lms.com',
-            password,
-            role: UserRole.STUDENT
         }
     ];
 
@@ -114,6 +72,41 @@ async function main() {
     }
 
     console.log('✅ Users seeded');
+
+    await prisma.department.upsert({
+        where: {
+            code: 'CNTT'
+        },
+        update: {},
+        create: {
+            code: 'CNTT',
+            name: 'Khoa Công Nghệ Thông Tin'
+        }
+    });
+
+    await prisma.department.upsert({
+        where: {
+            code: 'PDT'
+        },
+        update: {},
+        create: {
+            code: 'PDT',
+            name: 'Phòng Đào Tạo'
+        }
+    });
+
+    await prisma.department.upsert({
+        where: {
+            code: 'BGH'
+        },
+        update: {},
+        create: {
+            code: 'BGH',
+            name: 'Ban Giám Hiệu'
+        }
+    });
+
+    console.log('✅ Departments seeded');
 
     console.log('✅ Seeding completed');
 }

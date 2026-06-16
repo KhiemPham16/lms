@@ -47,10 +47,10 @@ Chạy migration:
 npm run prisma:migrate
 ```
 
-Mở Prisma Studio:
+Chạy seed:
 
 ```bash
-npx prisma studio
+npm run prisma:seed
 ```
 
 ### Chạy Dự Án
