@@ -6,7 +6,7 @@ import { BiReset } from 'react-icons/bi';
 import classNames from 'classnames/bind';
 
 import { routes } from '~/config/routes';
-import { forgotPassword } from '~/services/authService';
+import { authService } from '~/services/authService';
 
 import styles from './Auth.module.scss';
 
@@ -14,23 +14,28 @@ const cx = classNames.bind(styles);
 
 export default function ForgotPassword() {
     const navigate = useNavigate();
+
     const [email, setEmail] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
 
     const handleSubmit = async (event) => {
         event.preventDefault();
+
         setIsLoading(true);
         setError('');
 
         try {
             const trimmedEmail = email.trim();
-            const result = await forgotPassword({ email: trimmedEmail });
 
-            toast.success(result.message || 'Kiểm tra email để lấy mã OTP');
+            const result = await authService.forgotPassword(trimmedEmail);
+
+            toast.success(result?.message || 'Kiểm tra email để lấy mã OTP');
+
             navigate(`${routes.resetPassword}?email=${encodeURIComponent(trimmedEmail)}`);
         } catch (error) {
-            const message = error.response?.data?.message || 'Không thể gửi yêu cầu đặt lại mật khẩu';
+            const message = error?.response?.data?.message || 'Không thể gửi yêu cầu đặt lại mật khẩu';
+
             setError(message);
             toast.error(message);
         } finally {
@@ -48,11 +53,13 @@ export default function ForgotPassword() {
                 </div>
 
                 <h2 className={cx('title')}>Quên mật khẩu</h2>
+
                 <p className={cx('subtitle')}>Nhập email tài khoản để nhận mã OTP đặt lại mật khẩu</p>
 
                 <form onSubmit={handleSubmit} className={cx('form')}>
                     <div className={cx('inputGroup')}>
                         <label htmlFor="email">Email</label>
+
                         <div className={cx('inputWrapper')}>
                             <input
                                 type="email"
@@ -63,6 +70,7 @@ export default function ForgotPassword() {
                                 disabled={isLoading}
                                 required
                             />
+
                             <MdEmail className={cx('inputIcon')} />
                         </div>
                     </div>

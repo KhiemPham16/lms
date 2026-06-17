@@ -6,7 +6,7 @@ import { BiReset } from 'react-icons/bi';
 import classNames from 'classnames/bind';
 
 import { routes } from '~/config/routes';
-import { resetPassword } from '~/services/authService';
+import { authService } from '~/services/authService';
 
 import styles from './Auth.module.scss';
 
@@ -38,16 +38,13 @@ export default function ResetPassword() {
         setIsLoading(true);
 
         try {
-            const result = await resetPassword({
-                email: email.trim(),
-                otp: otp.trim(),
-                newPassword
-            });
+            const result = await authService.resetPassword(email.trim(), otp.trim(), newPassword);
 
             toast.success(result.message || 'Đặt lại mật khẩu thành công');
             navigate(routes.login, { replace: true });
         } catch (error) {
             const message = error.response?.data?.message || 'Không thể đặt lại mật khẩu';
+
             setError(message);
             toast.error(message);
         } finally {
