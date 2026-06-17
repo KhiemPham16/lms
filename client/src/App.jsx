@@ -1,7 +1,7 @@
 import { Navigate, Routes, Route } from 'react-router-dom';
 
-import ProtectedRoute from '~/components/routes/ProtectedRoute';
-import DashboardLayout from '~/layouts/DashboardLayout';
+import ProtectedRoute from '~/components/ProtectedRoute';
+import DashboardLayout from './layouts/DashboardLayout';
 
 import Login from '~/pages/Auth/Login';
 import ForgotPassword from '~/pages/Auth/ForgotPassword';

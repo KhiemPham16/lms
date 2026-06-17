@@ -1,26 +1,53 @@
-import axiosClient from './axiosClient';
+import { axiosInstance as api } from '~/lib/axios';
 
-export async function login(payload) {
-    const response = await axiosClient.post('/auth/login', payload);
-    return response.data;
-}
+export const authService = {
+    login: async (email, password) => {
+        const res = await api.post('/auth/login', {
+            email,
+            password
+        });
 
-export async function getMe() {
-    const response = await axiosClient.get('/users/me');
-    return response.data;
-}
+        return res.data;
+    },
 
-export async function logout() {
-    const response = await axiosClient.post('/auth/logout');
-    return response.data;
-}
+    verifyEmail: async (token) => {
+        const res = await api.get('/auth/verify-email', {
+            params: { token }
+        });
 
-export async function forgotPassword(payload) {
-    const response = await axiosClient.post('/auth/forgot-password', payload);
-    return response.data;
-}
+        return res.data;
+    },
 
-export async function resetPassword(payload) {
-    const response = await axiosClient.post('/auth/reset-password', payload);
-    return response.data;
-}
+    logout: async () => {
+        const res = await api.post('/auth/logout');
+        return res.data;
+    },
+
+    refresh: async () => {
+        const res = await api.post('/auth/refresh');
+        return res.data;
+    },
+
+    forgotPassword: async (email) => {
+        const res = await api.post('/auth/forgot-password', {
+            email
+        });
+
+        return res.data;
+    },
+
+    resetPassword: async (email, otp, newPassword) => {
+        const res = await api.post('/auth/reset-password', {
+            email,
+            otp,
+            newPassword
+        });
+
+        return res.data;
+    },
+
+    fetchMe: async () => {
+        const res = await api.get('/users/me');
+        return res.data;
+    }
+};
