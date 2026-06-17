@@ -21,7 +21,6 @@ let refreshPromise = null;
 const publicAuthRoutes = [
     '/auth/login',
     '/auth/refresh',
-    '/auth/verify-email',
     '/auth/forgot-password',
     '/auth/reset-password'
 ];
