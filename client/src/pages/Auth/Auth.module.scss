@@ -1,4 +1,6 @@
 // Định nghĩa các biến màu sắc tương đồng với thiết kế
+@use 'sass:color';
+
 $color-bg: #d6cfcf;
 $color-card-bg: #ffffff;
 $color-primary-blue: #0084ff;
@@ -125,7 +127,7 @@ $color-input-bg: #dbdbdb;
         }
 
         &:focus {
-            background-color: darken($color-input-bg, 3%);
+            background-color: color.adjust($color-input-bg, $lightness: -3%);
         }
     }
 
@@ -150,7 +152,7 @@ $color-input-bg: #dbdbdb;
         padding: 0;
 
         &:hover {
-            color: darken(#9b9b9b, 15%);
+            color: color.adjust(#9b9b9b, $lightness: -15%);
         }
     }
 }
@@ -190,11 +192,11 @@ $color-input-bg: #dbdbdb;
     transition: background-color 0.2s;
 
     &:hover {
-        background-color: darken($color-primary-blue, 5%);
+        background-color: color.adjust($color-primary-blue, $lightness: -5%);
     }
 
     &:active {
-        background-color: darken($color-primary-blue, 10%);
+        background-color: color.adjust($color-primary-blue, $lightness: -10%);
     }
 
     &:disabled {
