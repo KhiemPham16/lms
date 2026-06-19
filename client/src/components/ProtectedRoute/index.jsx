@@ -8,7 +8,6 @@ export default function ProtectedRoute() {
     const location = useLocation();
 
     const accessToken = useAuthStore((state) => state.accessToken);
-    const user = useAuthStore((state) => state.user);
     const loading = useAuthStore((state) => state.loading);
     const refresh = useAuthStore((state) => state.refresh);
     const fetchMe = useAuthStore((state) => state.fetchMe);
