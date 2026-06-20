@@ -12,6 +12,8 @@ export class UsersService {
     constructor(private readonly prisma: PrismaService) {}
 
     async create(dto: CreateUserDto) {
+        const roleId = await this.resolveRoleId(dto.roleId, dto.role);
+
         const existedUser = await this.prisma.user.findFirst({
             where: {
                 OR: [{ code: dto.code }, { email: dto.email }, ...(dto.phone ? [{ phone: dto.phone }] : [])]
@@ -24,14 +26,14 @@ export class UsersService {
 
         const password = await bcrypt.hash(dto.password ?? '123456', 10);
 
-        return this.prisma.user.create({
+        const user = await this.prisma.user.create({
             data: {
                 code: dto.code,
                 fullName: dto.fullName,
                 email: dto.email,
                 phone: dto.phone,
                 password,
-                role: dto.role,
+                roleId,
                 status: dto.status ?? UserStatus.ACTIVE,
                 gender: dto.gender,
                 avatarUrl: dto.avatarUrl,
@@ -41,6 +43,8 @@ export class UsersService {
             },
             select: this.defaultSelect()
         });
+
+        return this.formatUser(user);
     }
 
     async findAll(query: QueryUserDto) {
@@ -71,7 +75,8 @@ export class UsersService {
                       ]
                   }
                 : {}),
-            ...(query.role ? { role: query.role } : {}),
+            ...(query.role ? { role: { code: query.role } } : {}),
+            ...(query.roleId ? { roleId: query.roleId } : {}),
             ...(query.status ? { status: query.status } : {}),
             ...(query.departmentId ? { departmentId: query.departmentId } : {})
         };
@@ -90,7 +95,7 @@ export class UsersService {
         ]);
 
         return {
-            items,
+            items: items.map((user) => this.formatUser(user)),
             meta: {
                 page,
                 limit,
@@ -113,13 +118,16 @@ export class UsersService {
             throw new NotFoundException('Không tìm thấy người dùng');
         }
 
-        return user;
+        return this.formatUser(user);
     }
 
     findByEmail(email: string) {
         return this.prisma.user.findUnique({
             where: {
                 email
+            },
+            include: {
+                role: true
             }
         });
     }
@@ -128,6 +136,9 @@ export class UsersService {
         return this.prisma.user.findUnique({
             where: {
                 publicId
+            },
+            include: {
+                role: true
             }
         });
     }
@@ -145,25 +156,31 @@ export class UsersService {
 
     async update(publicId: string, dto: UpdateUserDto) {
         await this.findByPublicIdOrThrow(publicId);
+        const roleId = dto.roleId || dto.role ? await this.resolveRoleId(dto.roleId, dto.role) : undefined;
 
-        const duplicateUser = await this.prisma.user.findFirst({
-            where: {
-                publicId: {
-                    not: publicId
-                },
-                OR: [
-                    ...(dto.code ? [{ code: dto.code }] : []),
-                    ...(dto.email ? [{ email: dto.email }] : []),
-                    ...(dto.phone ? [{ phone: dto.phone }] : [])
-                ]
-            }
-        });
+        const duplicateFilters = [
+            ...(dto.code ? [{ code: dto.code }] : []),
+            ...(dto.email ? [{ email: dto.email }] : []),
+            ...(dto.phone ? [{ phone: dto.phone }] : [])
+        ];
+
+        const duplicateUser =
+            duplicateFilters.length > 0
+                ? await this.prisma.user.findFirst({
+                      where: {
+                          publicId: {
+                              not: publicId
+                          },
+                          OR: duplicateFilters
+                      }
+                  })
+                : null;
 
         if (duplicateUser) {
             throw new ConflictException('Mã người dùng, email hoặc số điện thoại đã tồn tại');
         }
 
-        return this.prisma.user.update({
+        const user = await this.prisma.user.update({
             where: {
                 publicId
             },
@@ -172,7 +189,7 @@ export class UsersService {
                 fullName: dto.fullName,
                 email: dto.email,
                 phone: dto.phone,
-                role: dto.role,
+                roleId,
                 status: dto.status,
                 gender: dto.gender,
                 avatarUrl: dto.avatarUrl,
@@ -182,6 +199,8 @@ export class UsersService {
             },
             select: this.defaultSelect()
         });
+
+        return this.formatUser(user);
     }
 
     async softDelete(publicId: string) {
@@ -191,7 +210,7 @@ export class UsersService {
             throw new BadRequestException('Tài khoản đã bị khóa');
         }
 
-        return this.prisma.user.update({
+        const updatedUser = await this.prisma.user.update({
             where: {
                 publicId
             },
@@ -201,12 +220,14 @@ export class UsersService {
             },
             select: this.defaultSelect()
         });
+
+        return this.formatUser(updatedUser);
     }
 
     async updateStatus(publicId: string, status: UserStatus) {
         await this.findByPublicIdOrThrow(publicId);
 
-        return this.prisma.user.update({
+        const user = await this.prisma.user.update({
             where: {
                 publicId
             },
@@ -215,6 +236,8 @@ export class UsersService {
             },
             select: this.defaultSelect()
         });
+
+        return this.formatUser(user);
     }
 
     updateResetPasswordOtp(userId: number, otp: string, expiresAt: Date) {
@@ -291,7 +314,14 @@ export class UsersService {
             fullName: true,
             email: true,
             phone: true,
-            role: true,
+            roleId: true,
+            role: {
+                select: {
+                    publicId: true,
+                    code: true,
+                    name: true
+                }
+            },
             status: true,
             gender: true,
             avatarUrl: true,
@@ -301,6 +331,28 @@ export class UsersService {
             lastLoginAt: true,
             createdAt: true,
             updatedAt: true
+        };
+    }
+
+    private async resolveRoleId(roleId?: number, roleCode?: string) {
+        const role = await this.prisma.role.findFirst({
+            where: roleId ? { id: roleId } : { code: roleCode ?? 'STUDENT' }
+        });
+
+        if (!role) {
+            throw new BadRequestException('Vai trò không hợp lệ');
+        }
+
+        return role.id;
+    }
+
+    private formatUser(user: any) {
+        const { role, ...rest } = user;
+
+        return {
+            ...rest,
+            role: role?.code,
+            roleDetail: role
         };
     }
 }
