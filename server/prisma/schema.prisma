@@ -11,15 +11,6 @@ datasource db {
   provider = "mysql"
 }
 
-enum UserRole {
-  ADMIN
-  STUDENT
-  LECTURER
-  DEPARTMENT_HEAD
-  TRAINING_OFFICER
-  PRINCIPAL
-}
-
 enum UserStatus {
   ACTIVE
   INACTIVE
@@ -84,7 +75,8 @@ model User {
   phone    String? @unique
   password String
 
-  role   UserRole   @default(STUDENT)
+  roleId Int
+  role   Role       @relation(fields: [roleId], references: [id])
   status UserStatus @default(ACTIVE)
 
   gender    Gender?
@@ -115,9 +107,57 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@index([role])
+  @@index([roleId])
   @@index([status])
   @@index([departmentId])
+}
+
+model Role {
+  id       Int    @id @default(autoincrement())
+  publicId String @unique @default(uuid())
+
+  code        String  @unique
+  name        String
+  description String? @db.Text
+  isSystem    Boolean @default(false)
+
+  users       User[]
+  permissions RolePermission[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([code])
+}
+
+model Permission {
+  id       Int    @id @default(autoincrement())
+  publicId String @unique @default(uuid())
+
+  code        String @unique
+  name        String
+  module      String
+  description String? @db.Text
+
+  roles RolePermission[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([module])
+}
+
+model RolePermission {
+  roleId       Int
+  permissionId Int
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@id([roleId, permissionId])
+  @@index([permissionId])
 }
 
 model Session {

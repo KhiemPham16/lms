@@ -1,12 +1,11 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
-import { UserRole } from '@prisma/client';
 
 import { JwtAuthGuard } from '~/common/guards/jwt-auth.guard';
 import type { JwtPayload } from '~/common/guards/jwt-auth.guard';
 import { CurrentUser } from '~/common/decorators/current-user.decorator';
-import { Roles } from '~/common/decorators/roles.decorator';
-import { RolesGuard } from '~/common/guards/roles.guard';
+import { Permissions } from '~/common/decorators/permissions.decorator';
+import { PermissionsGuard } from '~/common/guards/permissions.guard';
 
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -29,8 +28,8 @@ export class UsersController {
 
     @Post()
     @ApiBearerAuth()
-    @UseGuards(JwtAuthGuard, RolesGuard)
-    @Roles(UserRole.ADMIN)
+    @UseGuards(JwtAuthGuard, PermissionsGuard)
+    @Permissions('users.create')
     @ApiOperation({ summary: 'Tạo người dùng' })
     create(@Body() dto: CreateUserDto) {
         return this.usersService.create(dto);
@@ -38,8 +37,8 @@ export class UsersController {
 
     @Get()
     @ApiBearerAuth()
-    @UseGuards(JwtAuthGuard, RolesGuard)
-    @Roles(UserRole.ADMIN)
+    @UseGuards(JwtAuthGuard, PermissionsGuard)
+    @Permissions('users.read')
     @ApiOperation({ summary: 'Danh sách người dùng' })
     findAll(@Query() query: QueryUserDto) {
         return this.usersService.findAll(query);
@@ -47,8 +46,8 @@ export class UsersController {
 
     @Get(':publicId')
     @ApiBearerAuth()
-    @UseGuards(JwtAuthGuard, RolesGuard)
-    @Roles(UserRole.ADMIN)
+    @UseGuards(JwtAuthGuard, PermissionsGuard)
+    @Permissions('users.read')
     @ApiOperation({ summary: 'Chi tiết người dùng' })
     findOne(@Param('publicId') publicId: string) {
         return this.usersService.findByPublicIdOrThrow(publicId);
@@ -56,8 +55,8 @@ export class UsersController {
 
     @Patch(':publicId')
     @ApiBearerAuth()
-    @UseGuards(JwtAuthGuard, RolesGuard)
-    @Roles(UserRole.ADMIN)
+    @UseGuards(JwtAuthGuard, PermissionsGuard)
+    @Permissions('users.update')
     @ApiOperation({ summary: 'Cập nhật người dùng' })
     update(@Param('publicId') publicId: string, @Body() dto: UpdateUserDto) {
         return this.usersService.update(publicId, dto);
@@ -65,8 +64,8 @@ export class UsersController {
 
     @Patch(':publicId/status')
     @ApiBearerAuth()
-    @UseGuards(JwtAuthGuard, RolesGuard)
-    @Roles(UserRole.ADMIN)
+    @UseGuards(JwtAuthGuard, PermissionsGuard)
+    @Permissions('users.status')
     @ApiOperation({ summary: 'Cập nhật trạng thái người dùng' })
     updateStatus(@Param('publicId') publicId: string, @Body() dto: ChangeUserStatusDto) {
         return this.usersService.updateStatus(publicId, dto.status);
@@ -74,8 +73,8 @@ export class UsersController {
 
     @Delete(':publicId')
     @ApiBearerAuth()
-    @UseGuards(JwtAuthGuard, RolesGuard)
-    @Roles(UserRole.ADMIN)
+    @UseGuards(JwtAuthGuard, PermissionsGuard)
+    @Permissions('users.update')
     @ApiOperation({ summary: 'Xóa mềm người dùng' })
     softDelete(@Param('publicId') publicId: string) {
         return this.usersService.softDelete(publicId);

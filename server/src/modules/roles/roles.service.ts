@@ -1,0 +1,235 @@
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+
+import { PrismaService } from '~/prisma/prisma.service';
+import { CreateRoleDto } from './dto/create-role.dto';
+import { UpdateRoleDto } from './dto/update-role.dto';
+import { UpdateRolePermissionsDto } from './dto/update-role-permissions.dto';
+
+@Injectable()
+export class RolesService {
+    constructor(private readonly prisma: PrismaService) {}
+
+    async create(dto: CreateRoleDto) {
+        const existed = await this.prisma.role.findUnique({
+            where: {
+                code: dto.code
+            }
+        });
+
+        if (existed) {
+            throw new ConflictException('Mã vai trò đã tồn tại');
+        }
+
+        const role = await this.prisma.role.create({
+            data: {
+                code: dto.code,
+                name: dto.name,
+                description: dto.description,
+                isSystem: dto.isSystem ?? false
+            },
+            select: this.defaultSelect()
+        });
+
+        return this.formatRole(role);
+    }
+
+    async findAll() {
+        const roles = await this.prisma.role.findMany({
+            orderBy: {
+                createdAt: 'asc'
+            },
+            select: this.defaultSelect()
+        });
+
+        return roles.map((role) => this.formatRole(role));
+    }
+
+    async findByPublicIdOrThrow(publicId: string) {
+        const role = await this.prisma.role.findUnique({
+            where: {
+                publicId
+            },
+            select: this.defaultSelect()
+        });
+
+        if (!role) {
+            throw new NotFoundException('Không tìm thấy vai trò');
+        }
+
+        return this.formatRole(role);
+    }
+
+    async update(publicId: string, dto: UpdateRoleDto) {
+        await this.findByPublicIdOrThrow(publicId);
+
+        if (dto.code) {
+            const duplicate = await this.prisma.role.findFirst({
+                where: {
+                    publicId: {
+                        not: publicId
+                    },
+                    code: dto.code
+                }
+            });
+
+            if (duplicate) {
+                throw new ConflictException('Mã vai trò đã tồn tại');
+            }
+        }
+
+        const role = await this.prisma.role.update({
+            where: {
+                publicId
+            },
+            data: {
+                code: dto.code,
+                name: dto.name,
+                description: dto.description,
+                isSystem: dto.isSystem
+            },
+            select: this.defaultSelect()
+        });
+
+        return this.formatRole(role);
+    }
+
+    async remove(publicId: string) {
+        const role = await this.findByPublicIdOrThrow(publicId);
+
+        if (role.isSystem) {
+            throw new BadRequestException('Không thể xóa vai trò hệ thống');
+        }
+
+        const userCount = await this.prisma.user.count({
+            where: {
+                role: {
+                    publicId
+                },
+                deletedAt: null
+            }
+        });
+
+        if (userCount > 0) {
+            throw new ConflictException('Không thể xóa vai trò đang có người dùng');
+        }
+
+        const deletedRole = await this.prisma.role.delete({
+            where: {
+                publicId
+            },
+            select: this.defaultSelect()
+        });
+
+        return this.formatRole(deletedRole);
+    }
+
+    async findPermissions() {
+        const items = await this.prisma.permission.findMany({
+            orderBy: [{ module: 'asc' }, { id: 'asc' }],
+            select: {
+                id: true,
+                publicId: true,
+                code: true,
+                name: true,
+                module: true,
+                description: true
+            }
+        });
+
+        const groups = items.reduce<Record<string, typeof items>>((result, permission) => {
+            result[permission.module] = result[permission.module] ?? [];
+            result[permission.module].push(permission);
+            return result;
+        }, {});
+
+        return {
+            items,
+            groups
+        };
+    }
+
+    async updatePermissions(publicId: string, dto: UpdateRolePermissionsDto) {
+        const role = await this.findByPublicIdOrThrow(publicId);
+        const permissionCodes = dto.permissionCodes ?? [];
+        const permissionIds = dto.permissionIds ?? [];
+
+        const permissions =
+            permissionCodes.length + permissionIds.length > 0
+                ? await this.prisma.permission.findMany({
+                      where: {
+                          OR: [
+                              ...(permissionCodes.length > 0 ? [{ code: { in: permissionCodes } }] : []),
+                              ...(permissionIds.length > 0 ? [{ id: { in: permissionIds } }] : [])
+                          ]
+                      },
+                      select: {
+                          id: true
+                      }
+                  })
+                : [];
+
+        if (permissionCodes.length + permissionIds.length > 0 && permissions.length === 0) {
+            throw new BadRequestException('Danh sách quyền không hợp lệ');
+        }
+
+        const operations = [
+            this.prisma.rolePermission.deleteMany({
+                where: {
+                    roleId: role.id
+                }
+            })
+        ];
+
+        if (permissions.length > 0) {
+            operations.push(
+                this.prisma.rolePermission.createMany({
+                    data: permissions.map((permission) => ({
+                        roleId: role.id,
+                        permissionId: permission.id
+                    })),
+                    skipDuplicates: true
+                })
+            );
+        }
+
+        await this.prisma.$transaction(operations);
+
+        return this.findByPublicIdOrThrow(publicId);
+    }
+
+    private defaultSelect() {
+        return {
+            id: true,
+            publicId: true,
+            code: true,
+            name: true,
+            description: true,
+            isSystem: true,
+            permissions: {
+                select: {
+                    permission: {
+                        select: {
+                            id: true,
+                            publicId: true,
+                            code: true,
+                            name: true,
+                            module: true
+                        }
+                    }
+                }
+            },
+            createdAt: true,
+            updatedAt: true
+        };
+    }
+
+    private formatRole(role: any) {
+        const permissions = role.permissions.map((item) => item.permission);
+
+        return {
+            ...role,
+            permissions,
+            permissionCodes: permissions.map((permission) => permission.code)
+        };
+    }
+}
