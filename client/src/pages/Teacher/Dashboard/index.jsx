@@ -1,7 +1,5 @@
+import FlowWorkbench from '~/pages/FlowWorkbench';
+
 export default function TeacherDashboard() {
-    return (
-        <>
-            <div>TeacherDashboard</div>
-        </>
-    );
+    return <FlowWorkbench workspaceKey="teacher" />;
 }

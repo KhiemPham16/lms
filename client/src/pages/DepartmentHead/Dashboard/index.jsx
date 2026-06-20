@@ -1,7 +1,5 @@
+import FlowWorkbench from '~/pages/FlowWorkbench';
+
 export default function DepartmentDashboard() {
-    return (
-        <>
-            <div>DepartmentDashboard</div>
-        </>
-    );
+    return <FlowWorkbench workspaceKey="department" />;
 }

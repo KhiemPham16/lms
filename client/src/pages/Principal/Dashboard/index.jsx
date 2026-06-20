@@ -1,7 +1,5 @@
+import FlowWorkbench from '~/pages/FlowWorkbench';
+
 export default function PrincipalDashboard() {
-    return (
-        <>
-            <div>PrincipalDashboard</div>
-        </>
-    );
+    return <FlowWorkbench workspaceKey="principal" />;
 }

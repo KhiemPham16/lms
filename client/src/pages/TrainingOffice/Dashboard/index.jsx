@@ -1,7 +1,5 @@
+import FlowWorkbench from '~/pages/FlowWorkbench';
+
 export default function TrainingDashboard() {
-    return (
-        <>
-            <div>TrainingDashboard</div>
-        </>
-    );
+    return <FlowWorkbench workspaceKey="training" />;
 }
