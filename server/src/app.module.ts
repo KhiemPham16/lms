@@ -8,6 +8,7 @@ import { QueueModule } from './queue/queue.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
 import { DepartmentsModule } from './modules/departments/departments.module';
+import { RolesModule } from './modules/roles/roles.module';
 
 @Module({
     imports: [
@@ -20,7 +21,8 @@ import { DepartmentsModule } from './modules/departments/departments.module';
         QueueModule,
         AuthModule,
         UsersModule,
-        DepartmentsModule
+        DepartmentsModule,
+        RolesModule
     ],
     controllers: [AppController],
     providers: []

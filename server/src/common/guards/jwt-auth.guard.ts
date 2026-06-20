@@ -10,7 +10,9 @@ import { Request } from 'express';
 
 export type JwtPayload = {
     sub: string;
-    role: string;
+    role?: string;
+    roleId?: number;
+    permissions?: string[];
 };
 
 export type AuthenticatedRequest = Request & {
@@ -51,7 +53,8 @@ export class JwtAuthGuard implements CanActivate {
 
             request.user = {
                 sub: payload.sub,
-                role: payload.role
+                role: payload.role,
+                roleId: payload.roleId
             };
 
             return true;

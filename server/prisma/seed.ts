@@ -1,6 +1,6 @@
 import 'dotenv/config';
 
-import { PrismaClient, UserRole, UserStatus } from '@prisma/client';
+import { PrismaClient, UserStatus } from '@prisma/client';
 import { PrismaMariaDb } from '@prisma/adapter-mariadb';
 import bcrypt from 'bcrypt';
 
@@ -10,52 +10,108 @@ const prisma = new PrismaClient({
     adapter
 });
 
+const roles = [
+    { code: 'ADMIN', name: 'Administrator', description: 'System administrator' },
+    { code: 'HR', name: 'HR', description: 'Human resources' },
+    { code: 'PRINCIPAL', name: 'Principal', description: 'Principal' },
+    { code: 'TRAINING_OFFICER', name: 'Training Officer', description: 'Training office' },
+    { code: 'DEPARTMENT_HEAD', name: 'Department Head', description: 'Department head' },
+    { code: 'LECTURER', name: 'Lecturer', description: 'Lecturer' },
+    { code: 'STUDENT', name: 'Student', description: 'Student' }
+];
+
+const permissions = [
+    { code: 'users.read', name: 'Xem danh sach', module: 'users' },
+    { code: 'users.create', name: 'Tao moi', module: 'users' },
+    { code: 'users.update', name: 'Chinh sua', module: 'users' },
+    { code: 'users.status', name: 'Khoa/Mo khoa', module: 'users' },
+    { code: 'departments.read', name: 'Xem khoa/phong ban', module: 'departments' },
+    { code: 'departments.create', name: 'Tao khoa/phong ban', module: 'departments' },
+    { code: 'departments.update', name: 'Cap nhat khoa/phong ban', module: 'departments' },
+    { code: 'departments.delete', name: 'Xoa khoa/phong ban', module: 'departments' },
+    { code: 'system.permissions.manage', name: 'Quan ly phan quyen', module: 'system' },
+    { code: 'system.audit.read', name: 'Xem Audit Log', module: 'system' },
+    { code: 'curriculum.read', name: 'Xem chuong trinh', module: 'curriculum' },
+    { code: 'curriculum.create', name: 'Tao chuong trinh', module: 'curriculum' },
+    { code: 'courses.read', name: 'Xem mon hoc', module: 'courses' },
+    { code: 'courses.update', name: 'Cap nhat mon hoc', module: 'courses' },
+    { code: 'course_proposals.create', name: 'Tao de xuat', module: 'course_proposals' },
+    { code: 'course_proposals.approve', name: 'Duyet de xuat', module: 'course_proposals' },
+    { code: 'course_proposals.history.read', name: 'Xem lich su xu ly', module: 'course_proposals' },
+    { code: 'classes.read', name: 'Xem lop hoc', module: 'classes' },
+    { code: 'classes.create', name: 'Tao lop', module: 'classes' },
+    { code: 'classes.assign_lecturer', name: 'Gan giang vien', module: 'classes' },
+    { code: 'classes.registration.toggle', name: 'Mo/Dong dang ky', module: 'classes' },
+    { code: 'lessons.read', name: 'Xem bai hoc', module: 'lessons' },
+    { code: 'lessons.create', name: 'Tao bai hoc', module: 'lessons' },
+    { code: 'exams.read', name: 'Xem bai thi', module: 'exams' },
+    { code: 'exams.create', name: 'Tao bai thi', module: 'exams' },
+    { code: 'exams.submit', name: 'Lam bai thi', module: 'exams' },
+    { code: 'exams.grade', name: 'Cham diem', module: 'exams' },
+    { code: 'grades.read', name: 'Xem diem', module: 'grades' },
+    { code: 'grades.calculate', name: 'Tinh diem', module: 'grades' },
+    { code: 'grades.export', name: 'Xuat bang diem', module: 'grades' }
+];
+
 async function main() {
+    for (const role of roles) {
+        await prisma.role.upsert({
+            where: { code: role.code },
+            update: {
+                name: role.name,
+                description: role.description,
+                isSystem: true
+            },
+            create: {
+                ...role,
+                isSystem: true
+            }
+        });
+    }
+
+    for (const permission of permissions) {
+        await prisma.permission.upsert({
+            where: { code: permission.code },
+            update: {
+                name: permission.name,
+                module: permission.module
+            },
+            create: permission
+        });
+    }
+
+    const adminRole = await prisma.role.findUniqueOrThrow({ where: { code: 'ADMIN' } });
+    const allPermissions = await prisma.permission.findMany({ select: { id: true } });
+
+    await prisma.rolePermission.createMany({
+        data: allPermissions.map((permission) => ({
+            roleId: adminRole.id,
+            permissionId: permission.id
+        })),
+        skipDuplicates: true
+    });
+
+    const roleMap = new Map(
+        (
+            await prisma.role.findMany({
+                select: {
+                    id: true,
+                    code: true
+                }
+            })
+        ).map((role) => [role.code, role.id])
+    );
+
     const password = await bcrypt.hash('123456', 10);
 
     const users = [
-        {
-            code: 'ADMIN001',
-            fullName: 'System Administrator',
-            email: 'admin@lms.com',
-            password,
-            role: UserRole.ADMIN
-        },
-        {
-            code: 'P001',
-            fullName: 'Hiệu Trưởng',
-            email: 'ht@lms.com',
-            password,
-            role: UserRole.PRINCIPAL
-        },
-        {
-            code: 'PDT001',
-            fullName: 'Phòng Đào Tạo',
-            email: 'pdt@lms.com',
-            password,
-            role: UserRole.TRAINING_OFFICER
-        },
-        {
-            code: 'TK001',
-            fullName: 'Trưởng Khoa CNTT',
-            email: 'cntt@lms.com',
-            password,
-            role: UserRole.DEPARTMENT_HEAD
-        },
-        {
-            code: 'GV001',
-            fullName: 'Nguyễn Văn A',
-            email: 'gv1@lms.com',
-            password,
-            role: UserRole.LECTURER
-        },
-        {
-            code: 'GV002',
-            fullName: 'Trần Văn B',
-            email: 'gv2@lms.com',
-            password,
-            role: UserRole.LECTURER
-        }
+        { code: 'ADMIN001', fullName: 'System Administrator', email: 'admin@lms.com', role: 'ADMIN' },
+        { code: 'HR001', fullName: 'Human Resources', email: 'hr@lms.com', role: 'HR' },
+        { code: 'P001', fullName: 'Principal', email: 'ht@lms.com', role: 'PRINCIPAL' },
+        { code: 'PDT001', fullName: 'Training Office', email: 'pdt@lms.com', role: 'TRAINING_OFFICER' },
+        { code: 'TK001', fullName: 'Department Head', email: 'cntt@lms.com', role: 'DEPARTMENT_HEAD' },
+        { code: 'GV001', fullName: 'Lecturer One', email: 'gv1@lms.com', role: 'LECTURER' },
+        { code: 'GV002', fullName: 'Lecturer Two', email: 'gv2@lms.com', role: 'LECTURER' }
     ];
 
     for (const user of users) {
@@ -63,15 +119,21 @@ async function main() {
             where: {
                 email: user.email
             },
-            update: {},
+            update: {
+                roleId: roleMap.get(user.role) ?? roleMap.get('STUDENT')!
+            },
             create: {
-                ...user,
+                code: user.code,
+                fullName: user.fullName,
+                email: user.email,
+                password,
+                roleId: roleMap.get(user.role) ?? roleMap.get('STUDENT')!,
                 status: UserStatus.ACTIVE
             }
         });
     }
 
-    console.log('✅ Users seeded');
+    console.log('Dynamic roles, permissions and users seeded');
 
     await prisma.department.upsert({
         where: {
@@ -80,7 +142,7 @@ async function main() {
         update: {},
         create: {
             code: 'CNTT',
-            name: 'Khoa Công Nghệ Thông Tin'
+            name: 'Khoa Cong Nghe Thong Tin'
         }
     });
 
@@ -91,7 +153,7 @@ async function main() {
         update: {},
         create: {
             code: 'PDT',
-            name: 'Phòng Đào Tạo'
+            name: 'Phong Dao Tao'
         }
     });
 
@@ -102,13 +164,11 @@ async function main() {
         update: {},
         create: {
             code: 'BGH',
-            name: 'Ban Giám Hiệu'
+            name: 'Ban Giam Hieu'
         }
     });
 
-    console.log('✅ Departments seeded');
-
-    console.log('✅ Seeding completed');
+    console.log('Seeding completed');
 }
 
 main()

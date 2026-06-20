@@ -41,12 +41,14 @@ export class AuthService {
 
         const accessToken = await this.generateAccessToken({
             publicId: user.publicId,
-            role: user.role
+            roleId: user.roleId,
+            role: user.role.code
         });
 
         const refreshToken = await this.generateRefreshToken({
             publicId: user.publicId,
-            role: user.role
+            roleId: user.roleId,
+            role: user.role.code
         });
 
         const refreshTokenExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
@@ -171,7 +173,8 @@ export class AuthService {
 
         const accessToken = await this.generateAccessToken({
             publicId: user.publicId,
-            role: user.role
+            roleId: user.roleId,
+            role: user.role.code
         });
 
         return {
@@ -216,7 +219,7 @@ export class AuthService {
         };
     }
 
-    private async generateAccessToken(user: { publicId: string; role: string }) {
+    private async generateAccessToken(user: { publicId: string; roleId: number; role: string }) {
         const expiresIn = this.configService.get<string>('auth.accessTokenExpires') ?? '15m';
 
         const secret = this.configService.get<string>('auth.accessJwtSecret');
@@ -228,6 +231,7 @@ export class AuthService {
         return this.jwtService.signAsync(
             {
                 sub: user.publicId,
+                roleId: user.roleId,
                 role: user.role
             },
             {
@@ -237,7 +241,7 @@ export class AuthService {
         );
     }
 
-    private async generateRefreshToken(user: { publicId: string; role: string }) {
+    private async generateRefreshToken(user: { publicId: string; roleId: number; role: string }) {
         const expiresIn = this.configService.get<string>('auth.refreshTokenExpires') ?? '7d';
 
         const secret = this.configService.get<string>('auth.refreshJwtSecret');
@@ -249,6 +253,7 @@ export class AuthService {
         return this.jwtService.signAsync(
             {
                 sub: user.publicId,
+                roleId: user.roleId,
                 role: user.role,
                 type: 'refresh'
             },
