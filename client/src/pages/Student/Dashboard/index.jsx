@@ -1,9 +1,5 @@
-import React from 'react';
+import FlowWorkbench from '~/pages/FlowWorkbench';
 
 export default function StudentDashboard() {
-    return (
-        <>
-            <div>StudentDashboard</div>
-        </>
-    );
+    return <FlowWorkbench workspaceKey="student" />;
 }

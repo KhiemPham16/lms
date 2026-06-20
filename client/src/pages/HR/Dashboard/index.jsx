@@ -1,9 +1,5 @@
-import React from 'react';
+import FlowWorkbench from '~/pages/FlowWorkbench';
 
 export default function HRDashboard() {
-    return (
-        <>
-            <div>HRDashboard</div>
-        </>
-    );
+    return <FlowWorkbench workspaceKey="hr" />;
 }
