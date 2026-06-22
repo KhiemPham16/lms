@@ -319,7 +319,18 @@ export class UsersService {
                 select: {
                     publicId: true,
                     code: true,
-                    name: true
+                    name: true,
+                    permissions: {
+                        select: {
+                            permission: {
+                                select: {
+                                    code: true,
+                                    name: true,
+                                    module: true
+                                }
+                            }
+                        }
+                    }
                 }
             },
             status: true,
@@ -348,11 +359,23 @@ export class UsersService {
 
     private formatUser(user: any) {
         const { role, ...rest } = user;
+        const permissions = role?.permissions?.map((item) => item.permission) ?? [];
+        const roleDetail = role
+            ? {
+                  publicId: role.publicId,
+                  code: role.code,
+                  name: role.name,
+                  permissions,
+                  permissionCodes: permissions.map((permission) => permission.code)
+              }
+            : null;
 
         return {
             ...rest,
             role: role?.code,
-            roleDetail: role
+            roleDetail,
+            permissions,
+            permissionCodes: permissions.map((permission) => permission.code)
         };
     }
 }

@@ -32,6 +32,10 @@ export const useAuthStore = create(
             login: async (email, password) => {
                 try {
                     set({ loading: true });
+                    set({
+                        accessToken: null,
+                        user: null
+                    });
 
                     const data = await authService.login(email, password);
 
@@ -64,9 +68,11 @@ export const useAuthStore = create(
                 }
             },
 
-            fetchMe: async () => {
+            fetchMe: async (options = {}) => {
                 try {
-                    set({ loading: true });
+                    if (!options.silent) {
+                        set({ loading: true });
+                    }
 
                     const data = await authService.fetchMe();
 
@@ -84,7 +90,9 @@ export const useAuthStore = create(
 
                     return false;
                 } finally {
-                    set({ loading: false });
+                    if (!options.silent) {
+                        set({ loading: false });
+                    }
                 }
             },
 

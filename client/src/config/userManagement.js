@@ -1,11 +1,16 @@
 export const userRoleOptions = [
+    { value: 'ADMIN', label: 'Admin' },
+    { value: 'HR', label: 'HR' },
     { value: 'PRINCIPAL', label: 'Hiệu trưởng' },
     { value: 'TRAINING_OFFICER', label: 'Phòng đào tạo' },
     { value: 'DEPARTMENT_HEAD', label: 'Trưởng bộ môn' },
     { value: 'LECTURER', label: 'Giảng viên' },
-    { value: 'STUDENT', label: 'Sinh viên' },
-    { value: 'ADMIN', label: 'Admin' }
+    { value: 'STUDENT', label: 'Sinh viên' }
 ];
+
+export const hrManagedRoleOptions = userRoleOptions.filter(
+    (role) => !['ADMIN', 'HR', 'PRINCIPAL'].includes(role.value)
+);
 
 export const userStatusOptions = [
     { value: 'ACTIVE', label: 'Đang hoạt động' },

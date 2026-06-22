@@ -3,6 +3,43 @@ import { flowWorkspaces, sharedRoutes } from '~/config/flowNavigation';
 export const DASHBOARD_PERMISSIONS_STORAGE_KEY = 'dashboard-role-permissions';
 export const DASHBOARD_PERMISSIONS_UPDATED_EVENT = 'dashboard-permissions-updated';
 
+export const clientToBackendPermissionMap = {
+    'users.view': 'users.read',
+    'users.create': 'users.create',
+    'users.update': 'users.update',
+    'users.lock': 'users.status',
+    'permissions.manage': 'system.permissions.manage',
+    'audit.view': 'system.audit.read',
+    'programs.view': 'curriculum.read',
+    'programs.create': 'curriculum.create',
+    'subjects.view': 'courses.read',
+    'subjects.update': 'courses.update',
+    'proposals.create': 'course_proposals.create',
+    'proposals.approve': 'course_proposals.approve',
+    'proposals.history': 'course_proposals.history.read',
+    'classes.view': 'classes.read',
+    'classes.create': 'classes.create',
+    'classes.assignLecturer': 'classes.assign_lecturer',
+    'classes.registration': 'classes.registration.toggle',
+    'lessons.view': 'lessons.read',
+    'lessons.create': 'lessons.create',
+    'exams.view': 'exams.read',
+    'exams.create': 'exams.create',
+    'exams.take': 'exams.submit',
+    'exams.grade': 'exams.grade',
+    'scores.view': 'grades.read',
+    'scores.calculate': 'grades.calculate',
+    'scores.export': 'grades.export'
+};
+
+export const backendToClientPermissionMap = Object.entries(clientToBackendPermissionMap).reduce(
+    (acc, [clientPermission, backendPermission]) => ({
+        ...acc,
+        [backendPermission]: clientPermission
+    }),
+    {}
+);
+
 export const defaultRolePermissions = {
     ADMIN: ['*'],
     HR: [],
@@ -40,6 +77,27 @@ export const dashboardRoutes = [
 
 export const normalizeRole = (role) => String(role || '').toUpperCase();
 
+export const toBackendPermission = (permission) => clientToBackendPermissionMap[permission] || permission;
+
+export const toClientPermission = (permission) => backendToClientPermissionMap[permission] || permission;
+
+export const toBackendPermissions = (permissions = []) =>
+    permissions.includes('*') ? ['*'] : [...new Set(permissions.map(toBackendPermission))];
+
+export const toClientPermissions = (permissions = []) =>
+    permissions.includes('*') ? ['*'] : [...new Set(permissions.map(toClientPermission))];
+
+export const buildDashboardPermissionsFromUser = (user) => {
+    const role = normalizeRole(user?.role);
+    const permissionCodes = user?.permissionCodes || user?.roleDetail?.permissionCodes || [];
+
+    return {
+        ...defaultRolePermissions,
+        ...(role ? { [role]: role === 'ADMIN' ? ['*'] : toClientPermissions(permissionCodes) } : {}),
+        ADMIN: ['*']
+    };
+};
+
 export const readDashboardPermissions = () => {
     if (typeof window === 'undefined') return defaultRolePermissions;
 
@@ -56,7 +114,6 @@ export const readDashboardPermissions = () => {
 export const saveDashboardPermissions = (permissions) => {
     if (typeof window === 'undefined') return;
     const nextPermissions = { ...permissions, ADMIN: ['*'] };
-    window.localStorage.setItem(DASHBOARD_PERMISSIONS_STORAGE_KEY, JSON.stringify(nextPermissions));
     window.dispatchEvent(new CustomEvent(DASHBOARD_PERMISSIONS_UPDATED_EVENT, { detail: nextPermissions }));
 };
 
