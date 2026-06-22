@@ -2,7 +2,16 @@ import { FaTimes } from 'react-icons/fa';
 
 import { userRoleOptions, userStatusOptions } from '~/config/userManagement';
 
-export default function UserFormModal({ mode, form, saving, disableRoleStatus = false, onChange, onClose, onSubmit }) {
+export default function UserFormModal({
+    mode,
+    form,
+    saving,
+    disableRoleStatus = false,
+    roleOptions = userRoleOptions,
+    onChange,
+    onClose,
+    onSubmit
+}) {
     return (
         <div className="user-modal" role="presentation">
             <button className="user-modal__backdrop" type="button" aria-label="Đóng form" onClick={onClose} />
@@ -68,7 +77,7 @@ export default function UserFormModal({ mode, form, saving, disableRoleStatus = 
                             disabled={disableRoleStatus}
                             required
                         >
-                            {userRoleOptions.map((role) => (
+                            {roleOptions.map((role) => (
                                 <option key={role.value} value={role.value}>
                                     {role.label}
                                 </option>

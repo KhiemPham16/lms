@@ -53,6 +53,69 @@ const permissions = [
     { code: 'grades.export', name: 'Xuat bang diem', module: 'grades' }
 ];
 
+const rolePermissionDefaults: Record<string, string[]> = {
+    ADMIN: permissions.map((permission) => permission.code),
+    HR: [
+        'users.read',
+        'users.create',
+        'users.update',
+        'users.status',
+        'departments.read',
+        'system.audit.read'
+    ],
+    PRINCIPAL: [
+        'departments.read',
+        'system.audit.read',
+        'curriculum.read',
+        'courses.read',
+        'course_proposals.approve',
+        'course_proposals.history.read',
+        'classes.read',
+        'grades.read',
+        'grades.export'
+    ],
+    TRAINING_OFFICER: [
+        'departments.read',
+        'curriculum.read',
+        'curriculum.create',
+        'courses.read',
+        'courses.update',
+        'course_proposals.approve',
+        'course_proposals.history.read',
+        'classes.read',
+        'classes.create',
+        'classes.assign_lecturer',
+        'classes.registration.toggle',
+        'grades.read',
+        'grades.calculate',
+        'grades.export'
+    ],
+    DEPARTMENT_HEAD: [
+        'departments.read',
+        'courses.read',
+        'courses.update',
+        'course_proposals.create',
+        'course_proposals.history.read',
+        'classes.read',
+        'classes.assign_lecturer',
+        'lessons.read',
+        'exams.read',
+        'grades.read'
+    ],
+    LECTURER: [
+        'courses.read',
+        'classes.read',
+        'lessons.read',
+        'lessons.create',
+        'exams.read',
+        'exams.create',
+        'exams.grade',
+        'grades.read',
+        'grades.calculate'
+    ],
+    STUDENT: ['courses.read', 'classes.read', 'lessons.read', 'exams.read', 'exams.submit', 'grades.read']
+};
+
 async function main() {
     for (const role of roles) {
         await prisma.role.upsert({
@@ -80,17 +143,6 @@ async function main() {
         });
     }
 
-    const adminRole = await prisma.role.findUniqueOrThrow({ where: { code: 'ADMIN' } });
-    const allPermissions = await prisma.permission.findMany({ select: { id: true } });
-
-    await prisma.rolePermission.createMany({
-        data: allPermissions.map((permission) => ({
-            roleId: adminRole.id,
-            permissionId: permission.id
-        })),
-        skipDuplicates: true
-    });
-
     const roleMap = new Map(
         (
             await prisma.role.findMany({
@@ -101,6 +153,58 @@ async function main() {
             })
         ).map((role) => [role.code, role.id])
     );
+
+    const permissionMap = new Map(
+        (
+            await prisma.permission.findMany({
+                select: {
+                    id: true,
+                    code: true
+                }
+            })
+        ).map((permission) => [permission.code, permission.id])
+    );
+
+    const rolePermissionRows = Object.entries(rolePermissionDefaults).flatMap(([roleCode, permissionCodes]) => {
+        const roleId = roleMap.get(roleCode);
+
+        if (!roleId) {
+            return [];
+        }
+
+        return permissionCodes
+            .map((permissionCode) => {
+                const permissionId = permissionMap.get(permissionCode);
+
+                if (!permissionId) {
+                    return null;
+                }
+
+                return {
+                    roleId,
+                    permissionId
+                };
+            })
+            .filter((item): item is { roleId: number; permissionId: number } => Boolean(item));
+    });
+
+    await prisma.rolePermission.createMany({
+        data: rolePermissionRows,
+        skipDuplicates: true
+    });
+
+    await prisma.rolePermission.deleteMany({
+        where: {
+            permission: {
+                code: 'system.permissions.manage'
+            },
+            role: {
+                code: {
+                    not: 'ADMIN'
+                }
+            }
+        }
+    });
 
     const password = await bcrypt.hash('123456', 10);
 

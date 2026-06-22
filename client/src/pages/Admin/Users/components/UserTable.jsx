@@ -11,6 +11,7 @@ export default function UserTable({
     canUpdate = true,
     canLock = true,
     currentUserPublicId,
+    canManageUser = () => true,
     onEdit,
     onChangeStatus,
     onChangePage
@@ -30,6 +31,7 @@ export default function UserTable({
                 ) : users.length ? (
                     users.map((user) => {
                         const isCurrentUser = user.publicId === currentUserPublicId;
+                        const canManageThisUser = canManageUser(user);
 
                         return (
                         <div className="user-table__row" key={user.publicId}>
@@ -48,12 +50,12 @@ export default function UserTable({
                             </em>
                             <time>{formatDate(user.createdAt)}</time>
                             <div className="row-actions">
-                                {canUpdate ? (
+                                {canUpdate && canManageThisUser ? (
                                     <button type="button" onClick={() => onEdit(user)} title="Cập nhật tài khoản">
                                         <FaEdit />
                                     </button>
                                 ) : null}
-                                {canLock && !isCurrentUser ? (
+                                {canLock && canManageThisUser && !isCurrentUser ? (
                                     <button
                                         type="button"
                                         className={user.status === 'LOCKED' ? 'is-unlock' : 'is-lock'}

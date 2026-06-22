@@ -163,13 +163,20 @@ export class RolesService {
                           ]
                       },
                       select: {
-                          id: true
+                          id: true,
+                          code: true
                       }
                   })
                 : [];
 
         if (permissionCodes.length + permissionIds.length > 0 && permissions.length === 0) {
             throw new BadRequestException('Danh sách quyền không hợp lệ');
+        }
+
+        const hasPermissionManagement = permissions.some((permission) => permission.code === 'system.permissions.manage');
+
+        if (role.code !== 'ADMIN' && hasPermissionManagement) {
+            throw new BadRequestException('Chỉ ADMIN được quản lý phân quyền');
         }
 
         const operations = [

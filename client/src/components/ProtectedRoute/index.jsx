@@ -17,16 +17,13 @@ export default function ProtectedRoute() {
     useEffect(() => {
         const init = async () => {
             const currentToken = useAuthStore.getState().accessToken;
-            const currentUser = useAuthStore.getState().user;
 
             if (!currentToken) {
                 await refresh();
             }
 
             const latestToken = useAuthStore.getState().accessToken;
-            const latestUser = useAuthStore.getState().user;
-
-            if (latestToken && !latestUser && !currentUser) {
+            if (latestToken) {
                 await fetchMe();
             }
 
@@ -35,6 +32,32 @@ export default function ProtectedRoute() {
 
         init();
     }, [refresh, fetchMe]);
+
+    useEffect(() => {
+        const syncCurrentUser = () => {
+            const currentToken = useAuthStore.getState().accessToken;
+
+            if (currentToken) {
+                fetchMe({ silent: true });
+            }
+        };
+
+        const syncWhenVisible = () => {
+            if (document.visibilityState === 'visible') {
+                syncCurrentUser();
+            }
+        };
+
+        window.addEventListener('focus', syncCurrentUser);
+        document.addEventListener('visibilitychange', syncWhenVisible);
+        const intervalId = window.setInterval(syncCurrentUser, 5000);
+
+        return () => {
+            window.removeEventListener('focus', syncCurrentUser);
+            document.removeEventListener('visibilitychange', syncWhenVisible);
+            window.clearInterval(intervalId);
+        };
+    }, [fetchMe]);
 
     if (starting || loading) {
         return <div>Đang tải trang...</div>;
