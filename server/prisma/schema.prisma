@@ -115,6 +115,7 @@ model User {
 
   proposedCourses    Course[]         @relation("ProposedCourses")
   teachingClasses    Class[]          @relation("TeachingClasses")
+  managedClasses     Class[]          @relation("ManagedClasses")
   studentEnrollments Enrollment[]     @relation("StudentEnrollments")
   courseApprovals    CourseApproval[] @relation("CourseApprovals")
   auditLogs          AuditLog[]       @relation("AuditLogs")
@@ -219,6 +220,7 @@ model Course {
   department   Department @relation(fields: [departmentId], references: [id])
 
   status CourseStatus @default(DRAFT)
+  requiresPrincipalApproval Boolean @default(true)
 
   proposedById Int
   proposedBy   User @relation("ProposedCourses", fields: [proposedById], references: [id])
@@ -293,8 +295,11 @@ model Class {
   courseId Int
   course   Course @relation(fields: [courseId], references: [id])
 
-  lecturerId Int
-  lecturer   User @relation("TeachingClasses", fields: [lecturerId], references: [id])
+  lecturerId Int?
+  lecturer   User? @relation("TeachingClasses", fields: [lecturerId], references: [id])
+
+  departmentHeadId Int
+  departmentHead   User @relation("ManagedClasses", fields: [departmentHeadId], references: [id])
 
   maxStudents Int
 
@@ -310,6 +315,7 @@ model Class {
 
   @@index([courseId])
   @@index([lecturerId])
+  @@index([departmentHeadId])
   @@index([status])
 }
 

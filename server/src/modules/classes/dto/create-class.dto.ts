@@ -13,9 +13,10 @@ export class CreateClassDto {
     @IsNotEmpty()
     name: string;
 
-    @ApiProperty({ example: 6 })
+    @ApiPropertyOptional({ example: 6 })
+    @IsOptional()
     @IsInt()
-    lecturerId: number;
+    lecturerId?: number;
 
     @ApiProperty({ example: 40 })
     @IsInt()
