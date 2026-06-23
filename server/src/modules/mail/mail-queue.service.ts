@@ -10,7 +10,11 @@ export class MailQueueService {
     ) {}
 
     async sendForgotPassword(data: { email: string; fullName: string; otp: string }) {
-        return this.mailQueue.add('forgot-password', data, {
+        return this.addMailJob('forgot-password', data);
+    }
+
+    private addMailJob(name: string, data: unknown) {
+        return this.mailQueue.add(name, data, {
             attempts: 3,
             backoff: {
                 type: 'exponential',

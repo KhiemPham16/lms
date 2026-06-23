@@ -1,12 +1,23 @@
-import { IsDateString, IsEmail, IsEnum, IsInt, IsNotEmpty, IsOptional, IsString, MinLength } from 'class-validator';
+import {
+    IsDateString,
+    IsEmail,
+    IsEnum,
+    IsInt,
+    IsNotEmpty,
+    IsOptional,
+    IsString,
+    Max,
+    Min,
+    MinLength
+} from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Gender, UserStatus } from '@prisma/client';
 
 export class CreateUserDto {
-    @ApiProperty({ example: 'SV001' })
+    @ApiPropertyOptional({ example: '922210001', description: 'Bỏ trống để hệ thống tự sinh mã theo role và năm khóa' })
+    @IsOptional()
     @IsString()
-    @IsNotEmpty()
-    code: string;
+    code?: string;
 
     @ApiProperty({ example: 'Student One' })
     @IsString()
@@ -33,7 +44,7 @@ export class CreateUserDto {
     @IsString()
     role?: string;
 
-    @ApiPropertyOptional({ example: 1 })
+    @ApiPropertyOptional({ example: 4 })
     @IsOptional()
     @IsInt()
     roleId?: number;
@@ -67,4 +78,11 @@ export class CreateUserDto {
     @IsOptional()
     @IsInt()
     departmentId?: number;
+
+    @ApiPropertyOptional({ example: 2022, description: 'Năm khóa/năm định danh để sinh mã người dùng' })
+    @IsOptional()
+    @IsInt()
+    @Min(2000)
+    @Max(2099)
+    cohortYear?: number;
 }

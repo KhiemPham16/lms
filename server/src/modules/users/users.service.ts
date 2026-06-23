@@ -12,11 +12,12 @@ export class UsersService {
     constructor(private readonly prisma: PrismaService) {}
 
     async create(dto: CreateUserDto) {
-        const roleId = await this.resolveRoleId(dto.roleId, dto.role);
+        const role = await this.resolveRole(dto.roleId, dto.role);
+        const code = dto.code ?? (await this.generateUserCode(role.code, dto.cohortYear));
 
         const existedUser = await this.prisma.user.findFirst({
             where: {
-                OR: [{ code: dto.code }, { email: dto.email }, ...(dto.phone ? [{ phone: dto.phone }] : [])]
+                OR: [{ code }, { email: dto.email }, ...(dto.phone ? [{ phone: dto.phone }] : [])]
             }
         });
 
@@ -28,12 +29,12 @@ export class UsersService {
 
         const user = await this.prisma.user.create({
             data: {
-                code: dto.code,
+                code,
                 fullName: dto.fullName,
                 email: dto.email,
                 phone: dto.phone,
                 password,
-                roleId,
+                roleId: role.id,
                 status: dto.status ?? UserStatus.ACTIVE,
                 gender: dto.gender,
                 avatarUrl: dto.avatarUrl,
@@ -346,6 +347,12 @@ export class UsersService {
     }
 
     private async resolveRoleId(roleId?: number, roleCode?: string) {
+        const role = await this.resolveRole(roleId, roleCode);
+
+        return role.id;
+    }
+
+    private async resolveRole(roleId?: number, roleCode?: string) {
         const role = await this.prisma.role.findFirst({
             where: roleId ? { id: roleId } : { code: roleCode ?? 'STUDENT' }
         });
@@ -354,7 +361,50 @@ export class UsersService {
             throw new BadRequestException('Vai trò không hợp lệ');
         }
 
-        return role.id;
+        return role;
+    }
+
+    private async generateUserCode(roleCode: string, cohortYear?: number) {
+        const year = cohortYear ?? new Date().getFullYear();
+        const prefix = this.buildUserCodePrefix(roleCode, year);
+
+        const latestUser = await this.prisma.user.findFirst({
+            where: {
+                code: {
+                    startsWith: prefix
+                }
+            },
+            orderBy: {
+                code: 'desc'
+            },
+            select: {
+                code: true
+            }
+        });
+
+        const latestSequence = latestUser ? Number(latestUser.code.slice(prefix.length)) : 0;
+        const nextSequence = latestSequence + 1;
+
+        if (nextSequence > 999) {
+            throw new BadRequestException('Da het so thu tu ma nguoi dung cho nhom nay');
+        }
+
+        return `${prefix}${nextSequence.toString().padStart(3, '0')}`;
+    }
+
+    private buildUserCodePrefix(roleCode: string, year: number) {
+        const yearCode = (year % 100).toString().padStart(2, '0');
+        const rolePrefixMap: Record<string, string> = {
+            STUDENT: '92',
+            LECTURER: '93',
+            DEPARTMENT_HEAD: '94',
+            TRAINING_OFFICER: '95',
+            HR: '96',
+            PRINCIPAL: '97',
+            ADMIN: '98'
+        };
+
+        return `${rolePrefixMap[roleCode] ?? '49'}${yearCode}10`;
     }
 
     private formatUser(user: any) {

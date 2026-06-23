@@ -64,11 +64,28 @@ enum EnrollmentStatus {
   DROPPED
 }
 
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  LOGIN
+  LOGOUT
+  APPROVE
+  REJECT
+  ASSIGN
+  ENROLL
+  DROP
+  SUBMIT
+  GRADE
+  STATUS_CHANGE
+  PERMISSION_CHANGE
+}
+
 model User {
   id       Int    @id @default(autoincrement())
   publicId String @unique @default(uuid())
 
-  code     String @unique // MSSV / MSGV / mã nhân sự
+  code     String @unique
   fullName String
 
   email    String  @unique
@@ -85,14 +102,11 @@ model User {
   dateOfBirth DateTime?
   address     String?
 
-  // dùng cho forgot password
   resetPasswordOtp          String?
   resetPasswordOtpExpiresAt DateTime?
 
-  // dùng cho refresh token/session
   sessions Session[]
 
-  // khoa / phòng ban
   departmentId Int?
   department   Department? @relation(fields: [departmentId], references: [id])
 
@@ -103,6 +117,7 @@ model User {
   teachingClasses    Class[]          @relation("TeachingClasses")
   studentEnrollments Enrollment[]     @relation("StudentEnrollments")
   courseApprovals    CourseApproval[] @relation("CourseApprovals")
+  auditLogs          AuditLog[]       @relation("AuditLogs")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -134,7 +149,7 @@ model Permission {
   id       Int    @id @default(autoincrement())
   publicId String @unique @default(uuid())
 
-  code        String @unique
+  code        String  @unique
   name        String
   module      String
   description String? @db.Text
@@ -198,6 +213,7 @@ model Course {
 
   description String? @db.Text
   credits     Int
+  requestedClassCount Int?
 
   departmentId Int
   department   Department @relation(fields: [departmentId], references: [id])
@@ -216,6 +232,35 @@ model Course {
   @@index([departmentId])
   @@index([proposedById])
   @@index([status])
+}
+
+model AuditLog {
+  id       Int    @id @default(autoincrement())
+  publicId String @unique @default(uuid())
+
+  actorId Int?
+  actor   User? @relation("AuditLogs", fields: [actorId], references: [id], onDelete: SetNull)
+
+  action AuditAction
+  module String
+
+  targetType     String?
+  targetId       Int?
+  targetPublicId String?
+
+  oldValue Json?
+  newValue Json?
+
+  ipAddress String?
+  userAgent String?
+
+  createdAt DateTime @default(now())
+
+  @@index([actorId])
+  @@index([action])
+  @@index([module])
+  @@index([targetType, targetId])
+  @@index([targetPublicId])
 }
 
 model CourseApproval {

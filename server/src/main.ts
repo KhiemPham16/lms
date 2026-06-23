@@ -5,6 +5,7 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
 import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
+import { AppHealthService } from './app-health.service';
 
 async function bootstrap() {
     const app = await NestFactory.create(AppModule);
@@ -38,6 +39,16 @@ async function bootstrap() {
     const swaggerConfig = new DocumentBuilder().setTitle('LMS API').setVersion('1.0').addBearerAuth().build();
 
     const document = SwaggerModule.createDocument(app, swaggerConfig);
+    const apiCount = Object.values(document.paths).reduce((total, pathItem) => {
+        const methodCount = Object.keys(pathItem).filter((key) =>
+            ['get', 'post', 'put', 'patch', 'delete', 'options', 'head'].includes(key)
+        ).length;
+
+        return total + methodCount;
+    }, 0);
+
+    app.get(AppHealthService).setApiCount(apiCount);
+
     SwaggerModule.setup('api/docs', app, document);
 
     await app.listen(port);
