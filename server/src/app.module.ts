@@ -9,6 +9,10 @@ import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
 import { DepartmentsModule } from './modules/departments/departments.module';
 import { RolesModule } from './modules/roles/roles.module';
+import { CoursesModule } from './modules/courses/courses.module';
+import { AuditLogsModule } from './modules/audit-logs/audit-logs.module';
+import { ClassesModule } from './modules/classes/classes.module';
+import { AppHealthService } from './app-health.service';
 
 @Module({
     imports: [
@@ -22,9 +26,12 @@ import { RolesModule } from './modules/roles/roles.module';
         AuthModule,
         UsersModule,
         DepartmentsModule,
-        RolesModule
+        RolesModule,
+        AuditLogsModule,
+        CoursesModule,
+        ClassesModule
     ],
     controllers: [AppController],
-    providers: []
+    providers: [AppHealthService]
 })
 export class AppModule {}

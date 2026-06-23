@@ -1,5 +1,5 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiBody, ApiOperation, ApiTags } from '@nestjs/swagger';
 
 import { JwtAuthGuard } from '~/common/guards/jwt-auth.guard';
 import type { JwtPayload } from '~/common/guards/jwt-auth.guard';
@@ -31,6 +31,48 @@ export class UsersController {
     @UseGuards(JwtAuthGuard, PermissionsGuard)
     @Permissions('users.create')
     @ApiOperation({ summary: 'Tạo người dùng' })
+    @ApiBody({
+        type: CreateUserDto,
+        examples: {
+            student2022: {
+                summary: 'Tạo sinh viên khóa 2022, code tự sinh 922210xxx',
+                value: {
+                    fullName: 'Nguyen Van A',
+                    email: 'student2022@lms.com',
+                    password: '123456',
+                    role: 'STUDENT',
+                    departmentId: 1,
+                    cohortYear: 2022,
+                    gender: 'MALE',
+                    dateOfBirth: '2004-01-01',
+                    address: 'TP. Ho Chi Minh'
+                }
+            },
+            lecturer2026: {
+                summary: 'Tạo giảng viên năm 2026, code tự sinh 932610xxx',
+                value: {
+                    fullName: 'Tran Thi B',
+                    email: 'lecturer2026@lms.com',
+                    password: '123456',
+                    role: 'LECTURER',
+                    departmentId: 1,
+                    cohortYear: 2026,
+                    gender: 'FEMALE'
+                }
+            },
+            hr2026: {
+                summary: 'Tạo HR năm 2026, code tự sinh 962610xxx',
+                value: {
+                    fullName: 'Le Van HR',
+                    email: 'hr2026@lms.com',
+                    password: '123456',
+                    role: 'HR',
+                    departmentId: 4,
+                    cohortYear: 2026
+                }
+            }
+        }
+    })
     create(@Body() dto: CreateUserDto) {
         return this.usersService.create(dto);
     }

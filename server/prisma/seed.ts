@@ -1,6 +1,15 @@
 import 'dotenv/config';
 
-import { PrismaClient, UserStatus } from '@prisma/client';
+import {
+    ApprovalAction,
+    ApprovalLevel,
+    AuditAction,
+    ClassStatus,
+    CourseStatus,
+    EnrollmentStatus,
+    PrismaClient,
+    UserStatus
+} from '@prisma/client';
 import { PrismaMariaDb } from '@prisma/adapter-mariadb';
 import bcrypt from 'bcrypt';
 
@@ -42,6 +51,9 @@ const permissions = [
     { code: 'classes.create', name: 'Tao lop', module: 'classes' },
     { code: 'classes.assign_lecturer', name: 'Gan giang vien', module: 'classes' },
     { code: 'classes.registration.toggle', name: 'Mo/Dong dang ky', module: 'classes' },
+    { code: 'enrollments.read', name: 'Xem dang ky lop', module: 'enrollments' },
+    { code: 'enrollments.create', name: 'Dang ky lop', module: 'enrollments' },
+    { code: 'enrollments.drop', name: 'Huy dang ky lop', module: 'enrollments' },
     { code: 'lessons.read', name: 'Xem bai hoc', module: 'lessons' },
     { code: 'lessons.create', name: 'Tao bai hoc', module: 'lessons' },
     { code: 'exams.read', name: 'Xem bai thi', module: 'exams' },
@@ -72,7 +84,8 @@ const rolePermissionDefaults: Record<string, string[]> = {
         'course_proposals.history.read',
         'classes.read',
         'grades.read',
-        'grades.export'
+        'grades.export',
+        'enrollments.read'
     ],
     TRAINING_OFFICER: [
         'departments.read',
@@ -86,6 +99,7 @@ const rolePermissionDefaults: Record<string, string[]> = {
         'classes.create',
         'classes.assign_lecturer',
         'classes.registration.toggle',
+        'enrollments.read',
         'grades.read',
         'grades.calculate',
         'grades.export'
@@ -98,6 +112,7 @@ const rolePermissionDefaults: Record<string, string[]> = {
         'course_proposals.history.read',
         'classes.read',
         'classes.assign_lecturer',
+        'enrollments.read',
         'lessons.read',
         'exams.read',
         'grades.read'
@@ -105,6 +120,7 @@ const rolePermissionDefaults: Record<string, string[]> = {
     LECTURER: [
         'courses.read',
         'classes.read',
+        'enrollments.read',
         'lessons.read',
         'lessons.create',
         'exams.read',
@@ -113,7 +129,16 @@ const rolePermissionDefaults: Record<string, string[]> = {
         'grades.read',
         'grades.calculate'
     ],
-    STUDENT: ['courses.read', 'classes.read', 'lessons.read', 'exams.read', 'exams.submit', 'grades.read']
+    STUDENT: [
+        'courses.read',
+        'classes.read',
+        'enrollments.create',
+        'enrollments.drop',
+        'lessons.read',
+        'exams.read',
+        'exams.submit',
+        'grades.read'
+    ]
 };
 
 async function main() {
@@ -206,16 +231,107 @@ async function main() {
         }
     });
 
+    const departments = [
+        {
+            code: 'CNTT',
+            name: 'Khoa Cong Nghe Thong Tin'
+        },
+        {
+            code: 'PDT',
+            name: 'Phong Dao Tao'
+        },
+        {
+            code: 'BGH',
+            name: 'Ban Giam Hieu'
+        },
+        {
+            code: 'HR',
+            name: 'Phong Nhan Su'
+        }
+    ];
+
+    for (const department of departments) {
+        await prisma.department.upsert({
+            where: {
+                code: department.code
+            },
+            update: {
+                name: department.name
+            },
+            create: department
+        });
+    }
+
+    const departmentMap = new Map(
+        (
+            await prisma.department.findMany({
+                select: {
+                    id: true,
+                    code: true
+                }
+            })
+        ).map((department) => [department.code, department.id])
+    );
+
     const password = await bcrypt.hash('123456', 10);
 
     const users = [
-        { code: 'ADMIN001', fullName: 'System Administrator', email: 'admin@lms.com', role: 'ADMIN' },
-        { code: 'HR001', fullName: 'Human Resources', email: 'hr@lms.com', role: 'HR' },
-        { code: 'P001', fullName: 'Principal', email: 'ht@lms.com', role: 'PRINCIPAL' },
-        { code: 'PDT001', fullName: 'Training Office', email: 'pdt@lms.com', role: 'TRAINING_OFFICER' },
-        { code: 'TK001', fullName: 'Department Head', email: 'cntt@lms.com', role: 'DEPARTMENT_HEAD' },
-        { code: 'GV001', fullName: 'Lecturer One', email: 'gv1@lms.com', role: 'LECTURER' },
-        { code: 'GV002', fullName: 'Lecturer Two', email: 'gv2@lms.com', role: 'LECTURER' }
+        {
+            code: '982610001',
+            fullName: 'System Administrator',
+            email: 'admin@lms.com',
+            role: 'ADMIN',
+            department: 'BGH'
+        },
+        {
+            code: '962610001',
+            fullName: 'Human Resources',
+            email: 'hr@lms.com',
+            role: 'HR',
+            department: 'HR'
+        },
+        {
+            code: '972610001',
+            fullName: 'Principal',
+            email: 'ht@lms.com',
+            role: 'PRINCIPAL',
+            department: 'BGH'
+        },
+        {
+            code: '952610001',
+            fullName: 'Training Office',
+            email: 'pdt@lms.com',
+            role: 'TRAINING_OFFICER',
+            department: 'PDT'
+        },
+        {
+            code: '942610001',
+            fullName: 'Department Head',
+            email: 'cntt@lms.com',
+            role: 'DEPARTMENT_HEAD',
+            department: 'CNTT'
+        },
+        {
+            code: '932610001',
+            fullName: 'Lecturer One',
+            email: 'gv1@lms.com',
+            role: 'LECTURER',
+            department: 'CNTT'
+        },
+        {
+            code: '932610002',
+            fullName: 'Lecturer Two',
+            email: 'gv2@lms.com',
+            role: 'LECTURER',
+            department: 'CNTT'
+        },
+        {
+            code: '922210001',
+            fullName: 'Student One',
+            email: 'student1@lms.com',
+            role: 'STUDENT',
+            department: 'CNTT'
+        }
     ];
 
     for (const user of users) {
@@ -224,7 +340,9 @@ async function main() {
                 email: user.email
             },
             update: {
-                roleId: roleMap.get(user.role) ?? roleMap.get('STUDENT')!
+                code: user.code,
+                roleId: roleMap.get(user.role) ?? roleMap.get('STUDENT')!,
+                departmentId: departmentMap.get(user.department)
             },
             create: {
                 code: user.code,
@@ -232,6 +350,7 @@ async function main() {
                 email: user.email,
                 password,
                 roleId: roleMap.get(user.role) ?? roleMap.get('STUDENT')!,
+                departmentId: departmentMap.get(user.department),
                 status: UserStatus.ACTIVE
             }
         });
@@ -239,38 +358,237 @@ async function main() {
 
     console.log('Dynamic roles, permissions and users seeded');
 
-    await prisma.department.upsert({
+    const seededUsers = new Map(
+        (
+            await prisma.user.findMany({
+                where: {
+                    email: {
+                        in: users.map((user) => user.email)
+                    }
+                },
+                select: {
+                    id: true,
+                    email: true
+                }
+            })
+        ).map((user) => [user.email, user.id])
+    );
+
+    const javaCourse = await prisma.course.upsert({
         where: {
-            code: 'CNTT'
+            code: 'JAVA101'
         },
-        update: {},
+        update: {
+            name: 'Lap trinh Java co ban',
+            description: 'Mon hoc mau da duoc duyet trong seed',
+            credits: 3,
+            requestedClassCount: 2,
+            departmentId: departmentMap.get('CNTT')!,
+            proposedById: seededUsers.get('cntt@lms.com')!,
+            status: CourseStatus.ACTIVE
+        },
         create: {
-            code: 'CNTT',
-            name: 'Khoa Cong Nghe Thong Tin'
+            code: 'JAVA101',
+            name: 'Lap trinh Java co ban',
+            description: 'Mon hoc mau da duoc duyet trong seed',
+            credits: 3,
+            requestedClassCount: 2,
+            departmentId: departmentMap.get('CNTT')!,
+            proposedById: seededUsers.get('cntt@lms.com')!,
+            status: CourseStatus.ACTIVE
         }
     });
 
-    await prisma.department.upsert({
+    await prisma.courseApproval.deleteMany({
         where: {
-            code: 'PDT'
-        },
-        update: {},
-        create: {
-            code: 'PDT',
-            name: 'Phong Dao Tao'
+            courseId: javaCourse.id
         }
     });
 
-    await prisma.department.upsert({
+    await prisma.courseApproval.createMany({
+        data: [
+            {
+                courseId: javaCourse.id,
+                approverId: seededUsers.get('pdt@lms.com')!,
+                level: ApprovalLevel.PDT,
+                action: ApprovalAction.APPROVED,
+                note: 'Seed approval by training office'
+            },
+            {
+                courseId: javaCourse.id,
+                approverId: seededUsers.get('ht@lms.com')!,
+                level: ApprovalLevel.PRINCIPAL,
+                action: ApprovalAction.APPROVED,
+                note: 'Seed approval by principal'
+            }
+        ],
+        skipDuplicates: true
+    });
+
+    await prisma.course.upsert({
         where: {
-            code: 'BGH'
+            code: 'CNET101'
         },
-        update: {},
+        update: {
+            name: 'Mang may tinh can ban',
+            description: 'Mon hoc mau dang cho phong dao tao duyet',
+            credits: 3,
+            requestedClassCount: 1,
+            departmentId: departmentMap.get('CNTT')!,
+            proposedById: seededUsers.get('cntt@lms.com')!,
+            status: CourseStatus.PENDING_PDT
+        },
         create: {
-            code: 'BGH',
-            name: 'Ban Giam Hieu'
+            code: 'CNET101',
+            name: 'Mang may tinh can ban',
+            description: 'Mon hoc mau dang cho phong dao tao duyet',
+            credits: 3,
+            requestedClassCount: 1,
+            departmentId: departmentMap.get('CNTT')!,
+            proposedById: seededUsers.get('cntt@lms.com')!,
+            status: CourseStatus.PENDING_PDT
         }
     });
+
+    const javaClass = await prisma.class.upsert({
+        where: {
+            code: 'JAVA101-01'
+        },
+        update: {
+            name: 'Lop Java 01',
+            courseId: javaCourse.id,
+            lecturerId: seededUsers.get('gv1@lms.com')!,
+            maxStudents: 40,
+            startDate: new Date('2026-08-01'),
+            endDate: new Date('2026-12-15'),
+            status: ClassStatus.OPEN
+        },
+        create: {
+            code: 'JAVA101-01',
+            name: 'Lop Java 01',
+            courseId: javaCourse.id,
+            lecturerId: seededUsers.get('gv1@lms.com')!,
+            maxStudents: 40,
+            startDate: new Date('2026-08-01'),
+            endDate: new Date('2026-12-15'),
+            status: ClassStatus.OPEN
+        }
+    });
+
+    await prisma.class.upsert({
+        where: {
+            code: 'JAVA101-02'
+        },
+        update: {
+            name: 'Lop Java 02',
+            courseId: javaCourse.id,
+            lecturerId: seededUsers.get('gv2@lms.com')!,
+            maxStudents: 35,
+            startDate: new Date('2026-08-01'),
+            endDate: new Date('2026-12-15'),
+            status: ClassStatus.UPCOMING
+        },
+        create: {
+            code: 'JAVA101-02',
+            name: 'Lop Java 02',
+            courseId: javaCourse.id,
+            lecturerId: seededUsers.get('gv2@lms.com')!,
+            maxStudents: 35,
+            startDate: new Date('2026-08-01'),
+            endDate: new Date('2026-12-15'),
+            status: ClassStatus.UPCOMING
+        }
+    });
+
+    await prisma.enrollment.upsert({
+        where: {
+            studentId_classId: {
+                studentId: seededUsers.get('student1@lms.com')!,
+                classId: javaClass.id
+            }
+        },
+        update: {
+            status: EnrollmentStatus.APPROVED,
+            enrolledAt: new Date()
+        },
+        create: {
+            studentId: seededUsers.get('student1@lms.com')!,
+            classId: javaClass.id,
+            status: EnrollmentStatus.APPROVED
+        }
+    });
+
+    await prisma.auditLog.deleteMany({
+        where: {
+            OR: [
+                {
+                    targetPublicId: javaCourse.publicId
+                },
+                {
+                    targetPublicId: javaClass.publicId
+                },
+                {
+                    module: 'enrollments',
+                    actorId: seededUsers.get('student1@lms.com')!
+                }
+            ]
+        }
+    });
+
+    await prisma.auditLog.createMany({
+        data: [
+            {
+                actorId: seededUsers.get('cntt@lms.com')!,
+                action: AuditAction.CREATE,
+                module: 'courses',
+                targetType: 'Course',
+                targetId: javaCourse.id,
+                targetPublicId: javaCourse.publicId,
+                newValue: {
+                    code: javaCourse.code,
+                    status: javaCourse.status
+                }
+            },
+            {
+                actorId: seededUsers.get('pdt@lms.com')!,
+                action: AuditAction.APPROVE,
+                module: 'course_proposals',
+                targetType: 'Course',
+                targetId: javaCourse.id,
+                targetPublicId: javaCourse.publicId,
+                newValue: {
+                    level: ApprovalLevel.PDT,
+                    action: ApprovalAction.APPROVED
+                }
+            },
+            {
+                actorId: seededUsers.get('pdt@lms.com')!,
+                action: AuditAction.CREATE,
+                module: 'classes',
+                targetType: 'Class',
+                targetId: javaClass.id,
+                targetPublicId: javaClass.publicId,
+                newValue: {
+                    code: javaClass.code,
+                    status: javaClass.status
+                }
+            },
+            {
+                actorId: seededUsers.get('student1@lms.com')!,
+                action: AuditAction.ENROLL,
+                module: 'enrollments',
+                targetType: 'Enrollment',
+                newValue: {
+                    classId: javaClass.id,
+                    classPublicId: javaClass.publicId,
+                    status: EnrollmentStatus.APPROVED
+                }
+            }
+        ],
+        skipDuplicates: true
+    });
+
+    console.log('Courses, classes, enrollments and audit logs seeded');
 
     console.log('Seeding completed');
 }
