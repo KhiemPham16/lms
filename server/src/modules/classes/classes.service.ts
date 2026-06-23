@@ -19,21 +19,23 @@ export class ClassesService {
         const actor = await this.findUserByPublicIdOrThrow(actorPublicId);
         const course = await this.prisma.course.findUnique({
             where: { publicId: coursePublicId },
-            select: { id: true, status: true }
+            select: { id: true, status: true, proposedById: true }
         });
 
         if (!course) {
-            throw new NotFoundException('Khong tim thay mon hoc');
+            throw new NotFoundException('Không tìm thấy môn học');
         }
 
         const classReadyStatuses: CourseStatus[] = [CourseStatus.PRINCIPAL_APPROVED, CourseStatus.ACTIVE];
 
         if (!classReadyStatuses.includes(course.status)) {
-            throw new BadRequestException('Chi co the tao lop cho mon hoc da duoc Hieu truong duyet');
+            throw new BadRequestException('Chỉ có thể tạo lớp cho môn học đã được phê duyệt');
         }
 
         await this.ensureClassCodeAvailable(dto.code);
-        await this.ensureLecturer(dto.lecturerId);
+        if (dto.lecturerId) {
+            await this.ensureLecturer(dto.lecturerId);
+        }
         this.ensureValidClassDates(dto.startDate, dto.endDate);
 
         const createdClass = await this.prisma.class.create({
@@ -41,7 +43,8 @@ export class ClassesService {
                 code: dto.code,
                 name: dto.name,
                 courseId: course.id,
-                lecturerId: dto.lecturerId,
+                lecturerId: dto.lecturerId ?? null,
+                departmentHeadId: course.proposedById,
                 maxStudents: dto.maxStudents,
                 startDate: new Date(dto.startDate),
                 endDate: new Date(dto.endDate),
@@ -60,6 +63,8 @@ export class ClassesService {
             newValue: {
                 code: createdClass.code,
                 name: createdClass.name,
+                lecturerId: createdClass.lecturerId,
+                departmentHeadId: createdClass.departmentHeadId,
                 maxStudents: createdClass.maxStudents,
                 startDate: createdClass.startDate.toISOString(),
                 endDate: createdClass.endDate.toISOString(),
@@ -120,7 +125,7 @@ export class ClassesService {
         });
 
         if (!classItem) {
-            throw new NotFoundException('Khong tim thay lop hoc');
+            throw new NotFoundException('Không tìm thấy lớp học');
         }
 
         return this.formatClass(classItem);
@@ -130,7 +135,7 @@ export class ClassesService {
         const student = await this.findUserByPublicIdOrThrow(studentPublicId);
 
         if (student.role.code !== 'STUDENT') {
-            throw new ForbiddenException('Chi sinh vien moi co danh sach lop da dang ky');
+            throw new ForbiddenException('Chỉ sinh viên mới có danh sách lớp đã đăng ký');
         }
 
         return this.prisma.enrollment.findMany({
@@ -196,7 +201,7 @@ export class ClassesService {
         });
 
         if (!classItem) {
-            throw new NotFoundException('Khong tim thay lop hoc');
+            throw new NotFoundException('Không tìm thấy lớp học');
         }
 
         if (dto.code && dto.code !== classItem.code) {
@@ -264,14 +269,16 @@ export class ClassesService {
             select: {
                 id: true,
                 publicId: true,
-                lecturerId: true
+                lecturerId: true,
+                departmentHeadId: true
             }
         });
 
         if (!classItem) {
-            throw new NotFoundException('Khong tim thay lop hoc');
+            throw new NotFoundException('Không tìm thấy lớp học');
         }
 
+        this.ensureCanManageClass(actor, classItem);
         await this.ensureLecturer(dto.lecturerId);
 
         const updatedClass = await this.prisma.class.update({
@@ -304,6 +311,12 @@ export class ClassesService {
         const actor = await this.findUserByPublicIdOrThrow(actorPublicId);
         const classItem = await this.findClassRecordOrThrow(publicId);
 
+        this.ensureCanManageClass(actor, classItem);
+
+        if (status === ClassStatus.OPEN && !classItem.lecturerId) {
+            throw new BadRequestException('Phải gán giảng viên trước khi mở đăng ký lớp');
+        }
+
         const updatedClass = await this.prisma.class.update({
             where: { publicId },
             data: { status },
@@ -335,11 +348,11 @@ export class ClassesService {
         ]);
 
         if (student.role.code !== 'STUDENT') {
-            throw new ForbiddenException('Chi sinh vien moi duoc dang ky lop');
+            throw new ForbiddenException('Chỉ sinh viên mới được đăng ký lớp');
         }
 
         if (classItem.status !== ClassStatus.OPEN) {
-            throw new BadRequestException('Lop hoc chua mo dang ky');
+            throw new BadRequestException('Lớp học chưa mở đăng ký');
         }
 
         const approvedCount = await this.prisma.enrollment.count({
@@ -350,7 +363,7 @@ export class ClassesService {
         });
 
         if (approvedCount >= classItem.maxStudents) {
-            throw new BadRequestException('Lop hoc da du so luong sinh vien');
+            throw new BadRequestException('Lớp học đã đủ số lượng sinh viên');
         }
 
         const enrollment = await this.prisma.enrollment.upsert({
@@ -404,7 +417,7 @@ export class ClassesService {
         });
 
         if (!enrollment || enrollment.status === EnrollmentStatus.DROPPED) {
-            throw new NotFoundException('Sinh vien chua dang ky lop nay');
+            throw new NotFoundException('Sinh viên chưa đăng ký lớp này');
         }
 
         const droppedEnrollment = await this.prisma.enrollment.update({
@@ -448,7 +461,17 @@ export class ClassesService {
         });
 
         if (duplicate) {
-            throw new ConflictException('Ma lop hoc da ton tai');
+            throw new ConflictException('Mã lớp học đã tồn tại');
+        }
+    }
+
+    private ensureCanManageClass(actor: { id: number; role: { code: string } }, classItem: { departmentHeadId: number }) {
+        if (actor.role.code === 'ADMIN') {
+            return;
+        }
+
+        if (actor.role.code !== 'DEPARTMENT_HEAD' || actor.id !== classItem.departmentHeadId) {
+            throw new ForbiddenException('Chỉ trưởng bộ môn quản lý lớp này mới được thao tác');
         }
     }
 
@@ -467,7 +490,7 @@ export class ClassesService {
         });
 
         if (!lecturer) {
-            throw new BadRequestException('Giang vien khong hop le');
+            throw new BadRequestException('Giảng viên không hợp lệ');
         }
     }
 
@@ -476,7 +499,7 @@ export class ClassesService {
         const end = new Date(endDate);
 
         if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || start >= end) {
-            throw new BadRequestException('Thoi gian lop hoc khong hop le');
+            throw new BadRequestException('Thời gian lớp học không hợp lệ');
         }
     }
 
@@ -499,7 +522,7 @@ export class ClassesService {
         });
 
         if (!user) {
-            throw new NotFoundException('Khong tim thay nguoi dung');
+            throw new NotFoundException('Không tìm thấy người dùng');
         }
 
         return user;
@@ -512,12 +535,14 @@ export class ClassesService {
                 id: true,
                 publicId: true,
                 status: true,
-                maxStudents: true
+                maxStudents: true,
+                lecturerId: true,
+                departmentHeadId: true
             }
         });
 
         if (!classItem) {
-            throw new NotFoundException('Khong tim thay lop hoc');
+            throw new NotFoundException('Không tìm thấy lớp học');
         }
 
         return classItem;
@@ -527,8 +552,11 @@ export class ClassesService {
         return {
             id: true,
             publicId: true,
+            courseId: true,
             code: true,
             name: true,
+            lecturerId: true,
+            departmentHeadId: true,
             maxStudents: true,
             startDate: true,
             endDate: true,
@@ -542,6 +570,14 @@ export class ClassesService {
                 }
             },
             lecturer: {
+                select: {
+                    publicId: true,
+                    code: true,
+                    fullName: true,
+                    email: true
+                }
+            },
+            departmentHead: {
                 select: {
                     publicId: true,
                     code: true,
