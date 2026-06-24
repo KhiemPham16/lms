@@ -225,11 +225,6 @@ export class RolesService {
                     }
                 }
             },
-            _count: {
-                select: {
-                    users: true
-                }
-            },
             createdAt: true,
             updatedAt: true
         };
@@ -237,13 +232,11 @@ export class RolesService {
 
     private formatRole(role: any) {
         const permissions = role.permissions.map((item) => item.permission);
-        const { _count, ...roleData } = role;
 
         return {
-            ...roleData,
+            ...role,
             permissions,
-            permissionCodes: permissions.map((permission) => permission.code),
-            userCount: _count?.users ?? 0
+            permissionCodes: permissions.map((permission) => permission.code)
         };
     }
 }

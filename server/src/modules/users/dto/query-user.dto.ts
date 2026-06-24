@@ -1,6 +1,6 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { UserStatus } from '@prisma/client';
-import { IsEnum, IsInt, IsOptional, IsString, Min } from 'class-validator';
+import { IsBoolean, IsDateString, IsEnum, IsInt, IsOptional, IsString, Min } from 'class-validator';
 
 export class QueryUserDto {
     @ApiPropertyOptional({ example: 'student1' })
@@ -27,6 +27,31 @@ export class QueryUserDto {
     @IsOptional()
     @IsInt()
     departmentId?: number;
+
+    @ApiPropertyOptional({ example: '2026-06-01' })
+    @IsOptional()
+    @IsDateString()
+    createdFrom?: string;
+
+    @ApiPropertyOptional({ example: '2026-06-30' })
+    @IsOptional()
+    @IsDateString()
+    createdTo?: string;
+
+    @ApiPropertyOptional({ example: 'hr01' })
+    @IsOptional()
+    @IsString()
+    createdBy?: string;
+
+    @ApiPropertyOptional({ example: true })
+    @IsOptional()
+    @IsBoolean()
+    emailVerified?: boolean;
+
+    @ApiPropertyOptional({ example: true })
+    @IsOptional()
+    @IsBoolean()
+    roleAssigned?: boolean;
 
     @ApiPropertyOptional({ example: 1 })
     @IsOptional()

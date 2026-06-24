@@ -1,5 +1,7 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Header, Param, Patch, Post, Query, Req, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiBody, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { UserStatus } from '@prisma/client';
+import type { Request } from 'express';
 
 import { JwtAuthGuard } from '~/common/guards/jwt-auth.guard';
 import type { JwtPayload } from '~/common/guards/jwt-auth.guard';
@@ -12,6 +14,11 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { ChangeUserStatusDto } from './dto/change-user-status.dto';
 import { QueryUserDto } from './dto/query-user.dto';
+import { UpdateUserRoleDto } from './dto/update-user-role.dto';
+import { UserStatusActionDto } from './dto/user-status-action.dto';
+import { ResetUserPasswordDto } from './dto/reset-user-password.dto';
+import { BulkUserActionDto } from './dto/bulk-user-action.dto';
+import { BulkAssignRoleDto } from './dto/bulk-assign-role.dto';
 
 @ApiTags('Users')
 @Controller('users')
@@ -86,6 +93,53 @@ export class UsersController {
         return this.usersService.findAll(query);
     }
 
+    @Get('summary')
+    @ApiBearerAuth()
+    @UseGuards(JwtAuthGuard, PermissionsGuard)
+    @Permissions('users.read')
+    @ApiOperation({ summary: 'Tong hop so lieu nguoi dung' })
+    summary(@Query() query: QueryUserDto) {
+        return this.usersService.summary(query);
+    }
+
+    @Get('export')
+    @ApiBearerAuth()
+    @UseGuards(JwtAuthGuard, PermissionsGuard)
+    @Permissions('users.read')
+    @Header('Content-Type', 'text/csv; charset=utf-8')
+    @Header('Content-Disposition', 'attachment; filename="users.csv"')
+    @ApiOperation({ summary: 'Xuat danh sach nguoi dung CSV' })
+    export(@Query() query: QueryUserDto) {
+        return this.usersService.exportCsv(query);
+    }
+
+    @Post('bulk/lock')
+    @ApiBearerAuth()
+    @UseGuards(JwtAuthGuard, PermissionsGuard)
+    @Permissions('users.status')
+    @ApiOperation({ summary: 'Khoa nhieu tai khoan' })
+    bulkLock(@CurrentUser() actor: JwtPayload, @Body() dto: BulkUserActionDto, @Req() request: Request) {
+        return this.usersService.bulkUpdateStatus(dto.userIds, UserStatus.LOCKED, actor.sub, dto, request);
+    }
+
+    @Post('bulk/unlock')
+    @ApiBearerAuth()
+    @UseGuards(JwtAuthGuard, PermissionsGuard)
+    @Permissions('users.status')
+    @ApiOperation({ summary: 'Mo khoa nhieu tai khoan' })
+    bulkUnlock(@CurrentUser() actor: JwtPayload, @Body() dto: BulkUserActionDto, @Req() request: Request) {
+        return this.usersService.bulkUpdateStatus(dto.userIds, UserStatus.ACTIVE, actor.sub, dto, request);
+    }
+
+    @Post('bulk/assign-role')
+    @ApiBearerAuth()
+    @UseGuards(JwtAuthGuard, PermissionsGuard)
+    @Permissions('users.update')
+    @ApiOperation({ summary: 'Gan vai tro nhieu nguoi dung' })
+    bulkAssignRole(@CurrentUser() actor: JwtPayload, @Body() dto: BulkAssignRoleDto, @Req() request: Request) {
+        return this.usersService.bulkAssignRole(dto, actor.sub, request);
+    }
+
     @Get(':publicId')
     @ApiBearerAuth()
     @UseGuards(JwtAuthGuard, PermissionsGuard)
@@ -109,8 +163,59 @@ export class UsersController {
     @UseGuards(JwtAuthGuard, PermissionsGuard)
     @Permissions('users.status')
     @ApiOperation({ summary: 'Cập nhật trạng thái người dùng' })
-    updateStatus(@Param('publicId') publicId: string, @Body() dto: ChangeUserStatusDto) {
-        return this.usersService.updateStatus(publicId, dto.status);
+    updateStatus(
+        @Param('publicId') publicId: string,
+        @CurrentUser() actor: JwtPayload,
+        @Body() dto: ChangeUserStatusDto,
+        @Req() request: Request
+    ) {
+        return this.usersService.updateStatus(publicId, dto.status, actor.sub, dto, request);
+    }
+
+    @Patch(':publicId/role')
+    @ApiBearerAuth()
+    @UseGuards(JwtAuthGuard, PermissionsGuard)
+    @Permissions('users.update')
+    @ApiOperation({ summary: 'Cap nhat vai tro nguoi dung' })
+    updateRole(
+        @Param('publicId') publicId: string,
+        @CurrentUser() actor: JwtPayload,
+        @Body() dto: UpdateUserRoleDto,
+        @Req() request: Request
+    ) {
+        return this.usersService.updateRole(publicId, dto, actor.sub, request);
+    }
+
+    @Post(':publicId/reset-password')
+    @ApiBearerAuth()
+    @UseGuards(JwtAuthGuard, PermissionsGuard)
+    @Permissions('users.update')
+    @ApiOperation({ summary: 'Admin dat lai mat khau nguoi dung' })
+    resetPassword(
+        @Param('publicId') publicId: string,
+        @CurrentUser() actor: JwtPayload,
+        @Body() dto: ResetUserPasswordDto,
+        @Req() request: Request
+    ) {
+        return this.usersService.adminResetPassword(publicId, dto, actor.sub, request);
+    }
+
+    @Post(':publicId/resend-activation')
+    @ApiBearerAuth()
+    @UseGuards(JwtAuthGuard, PermissionsGuard)
+    @Permissions('users.update')
+    @ApiOperation({ summary: 'Gui lai email kich hoat tai khoan' })
+    resendActivation(@Param('publicId') publicId: string, @CurrentUser() actor: JwtPayload, @Req() request: Request) {
+        return this.usersService.resendActivation(publicId, actor.sub, request);
+    }
+
+    @Get(':publicId/activities')
+    @ApiBearerAuth()
+    @UseGuards(JwtAuthGuard, PermissionsGuard)
+    @Permissions('users.read')
+    @ApiOperation({ summary: 'Nhat ky hoat dong cua nguoi dung' })
+    activities(@Param('publicId') publicId: string, @Query() query: QueryUserDto) {
+        return this.usersService.activities(publicId, query);
     }
 
     @Delete(':publicId')

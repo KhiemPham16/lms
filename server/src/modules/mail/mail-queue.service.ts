@@ -13,6 +13,10 @@ export class MailQueueService {
         return this.addMailJob('forgot-password', data);
     }
 
+    async sendActivation(data: { email: string; fullName: string; status: string }) {
+        return this.addMailJob('activation', data);
+    }
+
     private addMailJob(name: string, data: unknown) {
         return this.mailQueue.add(name, data, {
             attempts: 3,

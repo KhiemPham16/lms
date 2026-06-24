@@ -12,6 +12,7 @@ import { RolesModule } from './modules/roles/roles.module';
 import { CoursesModule } from './modules/courses/courses.module';
 import { AuditLogsModule } from './modules/audit-logs/audit-logs.module';
 import { ClassesModule } from './modules/classes/classes.module';
+import { EnrollmentsModule } from './modules/enrollments/enrollments.module';
 import { AppHealthService } from './app-health.service';
 
 @Module({
@@ -29,7 +30,8 @@ import { AppHealthService } from './app-health.service';
         RolesModule,
         AuditLogsModule,
         CoursesModule,
-        ClassesModule
+        ClassesModule,
+        EnrollmentsModule
     ],
     controllers: [AppController],
     providers: [AppHealthService]
