@@ -489,7 +489,11 @@ export class CoursesService {
             throw new NotFoundException('Không tìm thấy người dùng');
         }
 
-        return user;
+        if (!user.role) {
+            throw new ForbiddenException('Nguoi dung chua duoc gan vai tro');
+        }
+
+        return { ...user, role: user.role };
     }
 
     private courseSelect() {

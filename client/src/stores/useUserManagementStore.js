@@ -110,27 +110,33 @@ export const useUserManagementStore = create((set, get) => ({
                     .then(getTotal)
                     .catch(() => 0);
 
-            const [total, active, locked, inactive] = await Promise.all([
+            const [total, active, pending, locked, newThisMonth, unassignedRole] = await Promise.all([
                 safeCount(),
                 safeCount({ status: 'ACTIVE' }),
+                safeCount({ status: 'PENDING' }),
                 safeCount({ status: 'LOCKED' }),
-                safeCount({ status: 'INACTIVE' })
+                safeCount({ createdFrom: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0, 10) }),
+                safeCount({ roleAssigned: 'false' })
             ]);
+
+            const toPercent = (value) => (total > 0 ? `${Math.round((value / total) * 100)}%` : '0%');
 
             set({
                 summary: {
                     ...defaultSummary,
                     total,
                     active,
+                    pending,
                     locked,
-                    pending: inactive,
+                    newThisMonth,
+                    unassignedRole,
                     trends: {
-                        total: '+0%',
-                        active: '+0%',
-                        pending: '0%',
-                        locked: '0%',
-                        newThisMonth: '0%',
-                        unassignedRole: '0%'
+                        total: total > 0 ? '100%' : '0%',
+                        active: toPercent(active),
+                        pending: toPercent(pending),
+                        locked: toPercent(locked),
+                        newThisMonth: toPercent(newThisMonth),
+                        unassignedRole: toPercent(unassignedRole)
                     }
                 }
             });

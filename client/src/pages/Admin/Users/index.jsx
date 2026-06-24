@@ -370,11 +370,11 @@ export default function AdminUsers({ workspaceKey = 'admin' }) {
     }, [queryState, setSearchParams, fetchUsers, fetchSummary]);
 
     const kpis = [
-        { key: 'total', label: 'Tổng người dùng', value: summary.total, trend: '+0%', icon: FiUsers, filter: {} },
-        { key: 'active', label: 'Đang hoạt động', value: summary.active, trend: '+0%', icon: FiUserCheck, filter: { status: 'ACTIVE' } },
-        { key: 'pending', label: 'Chờ kích hoạt', value: summary.pending, trend: '-0%', icon: FiClock, filter: { status: 'PENDING' } },
-        { key: 'locked', label: 'Bị khóa', value: summary.locked, trend: '-0%', icon: FiLock, filter: { status: 'LOCKED' } },
-        { key: 'newThisMonth', label: 'Người dùng mới trong tháng', value: summary.newThisMonth, trend: '+0%', icon: FiCalendar, filter: { createdFrom: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0, 10) } },
+        { key: 'total', label: 'Tổng người dùng', value: summary.total, trend: '0%', icon: FiUsers, filter: {} },
+        { key: 'active', label: 'Đang hoạt động', value: summary.active, trend: '0%', icon: FiUserCheck, filter: { status: 'ACTIVE' } },
+        { key: 'pending', label: 'Chờ kích hoạt', value: summary.pending, trend: '0%', icon: FiClock, filter: { status: 'PENDING' } },
+        { key: 'locked', label: 'Bị khóa', value: summary.locked, trend: '0%', icon: FiLock, filter: { status: 'LOCKED' } },
+        { key: 'newThisMonth', label: 'Người dùng mới trong tháng', value: summary.newThisMonth, trend: '0%', icon: FiCalendar, filter: { createdFrom: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0, 10) } },
         { key: 'unassignedRole', label: 'Chưa được gán vai trò', value: summary.unassignedRole, trend: '0%', icon: FiArchive, filter: { roleAssigned: 'false' } }
     ];
 

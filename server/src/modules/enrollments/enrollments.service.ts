@@ -188,7 +188,7 @@ export class EnrollmentsService {
             throw new NotFoundException('Không tìm thấy người dùng');
         }
 
-        if (user.role.code !== 'STUDENT') {
+        if (user.role?.code !== 'STUDENT') {
             throw new ForbiddenException('Chỉ sinh viên mới được thao tác đăng ký lớp');
         }
 

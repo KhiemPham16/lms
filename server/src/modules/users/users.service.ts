@@ -148,8 +148,10 @@ export class UsersService {
                     }
                 }
             }),
-            this.prisma.user.count({ where: { ...where, id: { in: [] } } })
+            this.prisma.user.count({ where: { ...where, roleId: null } })
         ]);
+
+        const toPercent = (value: number) => (total > 0 ? `${Math.round((value / total) * 100)}%` : '0%');
 
         return {
             total,
@@ -158,7 +160,14 @@ export class UsersService {
             locked,
             newThisMonth,
             unassignedRole,
-            trends: {}
+            trends: {
+                total: total > 0 ? '100%' : '0%',
+                active: toPercent(active),
+                pending: toPercent(pending),
+                locked: toPercent(locked),
+                newThisMonth: toPercent(newThisMonth),
+                unassignedRole: toPercent(unassignedRole)
+            }
         };
     }
 
@@ -260,7 +269,7 @@ export class UsersService {
         const roleId = role?.id;
 
         if (role) {
-            await this.assertCanAssignRole(actorPublicId, publicId, currentUser.role.code, role.code);
+            await this.assertCanAssignRole(actorPublicId, publicId, currentUser.role?.code ?? '', role.code);
             await this.assertSingleAdmin(role.code, publicId);
         }
 
@@ -393,7 +402,7 @@ export class UsersService {
 
         const currentUser = await this.findByPublicIdRawOrThrow(publicId);
         const role = await this.resolveRole(dto.roleId, dto.role);
-        await this.assertCanAssignRole(actorPublicId, publicId, currentUser.role.code, role.code);
+        await this.assertCanAssignRole(actorPublicId, publicId, currentUser.role?.code ?? '', role.code);
         await this.assertSingleAdmin(role.code, publicId);
 
         const user = await this.prisma.$transaction(async (tx) => {
@@ -417,7 +426,7 @@ export class UsersService {
                     targetPublicId: currentUser.publicId,
                     oldValue: {
                         roleId: currentUser.roleId,
-                        role: currentUser.role.code
+                        role: currentUser.role?.code ?? null
                     },
                     newValue: {
                         roleId: role.id,
@@ -824,7 +833,7 @@ export class UsersService {
             ...(!query.status && query.emailVerified !== undefined
                 ? { status: query.emailVerified ? { not: UserStatus.PENDING } : UserStatus.PENDING }
                 : {}),
-            ...(query.roleAssigned !== undefined ? (query.roleAssigned ? { roleId: { not: 0 } } : { id: { in: [] } }) : {}),
+            ...(query.roleAssigned !== undefined ? (query.roleAssigned ? { roleId: { not: null } } : { roleId: null }) : {}),
             ...(query.publicIds?.length ? { publicId: { in: query.publicIds } } : {}),
             ...(query.departmentId ? { departmentId: query.departmentId } : {}),
             ...(createdAt ? { createdAt } : {})
@@ -841,7 +850,7 @@ export class UsersService {
 
         const actor = await this.findActor(actorPublicId);
 
-        if (actor?.role.code === 'HR') {
+        if (actor?.role?.code === 'HR') {
             if (query.role && this.hrBlockedRoles.includes(query.role)) {
                 where.id = { in: [] };
             } else {
@@ -911,6 +920,10 @@ export class UsersService {
             throw new ForbiddenException('Khong xac dinh duoc nguoi thuc hien');
         }
 
+        if (!actor.role) {
+            throw new ForbiddenException('Nguoi thuc hien chua duoc gan vai tro');
+        }
+
         if (actor.role.code === 'ADMIN') {
             if (!this.adminCreatableRoles.includes(targetRoleCode)) {
                 throw new ForbiddenException('Admin chi duoc tao HR hoac Hieu truong');
@@ -946,6 +959,10 @@ export class UsersService {
             throw new ForbiddenException('Khong xac dinh duoc nguoi thuc hien');
         }
 
+        if (!actor.role) {
+            throw new ForbiddenException('Nguoi thuc hien chua duoc gan vai tro');
+        }
+
         if (actor.role.code === 'HR' && (this.hrBlockedRoles.includes(currentRoleCode) || this.hrBlockedRoles.includes(nextRoleCode))) {
             throw new ForbiddenException('HR khong duoc quan ly Admin, HR hoac Hieu truong');
         }
@@ -954,7 +971,7 @@ export class UsersService {
     private async assertCanUpdateStatus(actorPublicId: string | undefined, targetUser: Awaited<ReturnType<UsersService['findByPublicIdRawOrThrow']>>, status: UserStatus) {
         const actor = await this.findActor(actorPublicId);
 
-        if (actor?.role.code === 'HR' && this.hrBlockedRoles.includes(targetUser.role.code)) {
+        if (actor?.role?.code === 'HR' && targetUser.role && this.hrBlockedRoles.includes(targetUser.role.code)) {
             throw new ForbiddenException('HR khong duoc quan ly Admin, HR hoac Hieu truong');
         }
 
@@ -966,7 +983,7 @@ export class UsersService {
             throw new ForbiddenException(status === UserStatus.INACTIVE ? 'Không đươc vô hiệu hóa tài khoản của chính mình' : 'Không được khóa tài khoản của chính mình');
         }
 
-        if (targetUser.role.code === 'ADMIN') {
+        if (targetUser.role?.code === 'ADMIN') {
             const activeAdminCount = await this.prisma.user.count({
                 where: {
                     deletedAt: null,

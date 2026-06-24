@@ -42,19 +42,26 @@ export class AuthService {
             throw new UnauthorizedException('Email hoặc mật khẩu không đúng');
         }
 
+        if (!user.role || !user.roleId) {
+            throw new UnauthorizedException('Tai khoan chua duoc gan vai tro');
+        }
+
+        const role = user.role;
+        const roleId = user.roleId;
+
         await this.usersService.updateLastLogin(user.id);
-        await this.usersService.recordLogin(user, request);
+        await this.usersService.recordLogin({ ...user, role }, request);
 
         const accessToken = await this.generateAccessToken({
             publicId: user.publicId,
-            roleId: user.roleId,
-            role: user.role.code
+            roleId,
+            role: role.code
         });
 
         const refreshToken = await this.generateRefreshToken({
             publicId: user.publicId,
-            roleId: user.roleId,
-            role: user.role.code
+            roleId,
+            role: role.code
         });
 
         const refreshTokenExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
@@ -177,10 +184,17 @@ export class AuthService {
             throw new UnauthorizedException('Phiên đăng nhập không hợp lệ');
         }
 
+        if (!user.role || !user.roleId) {
+            throw new UnauthorizedException('Tai khoan chua duoc gan vai tro');
+        }
+
+        const refreshRole = user.role;
+        const refreshRoleId = user.roleId;
+
         const accessToken = await this.generateAccessToken({
             publicId: user.publicId,
-            roleId: user.roleId,
-            role: user.role.code
+            roleId: refreshRoleId,
+            role: refreshRole.code
         });
 
         return {
