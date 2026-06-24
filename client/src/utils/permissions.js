@@ -10,6 +10,10 @@ export const clientToBackendPermissionMap = {
     'users.lock': 'users.status',
     'permissions.manage': 'system.permissions.manage',
     'audit.view': 'system.audit.read',
+    'departments.view': 'departments.read',
+    'departments.create': 'departments.create',
+    'departments.update': 'departments.update',
+    'departments.delete': 'departments.delete',
     'programs.view': 'curriculum.read',
     'programs.create': 'curriculum.create',
     'subjects.view': 'courses.read',
@@ -133,7 +137,9 @@ export const canAccessDashboardRoute = (role, route, permissions = readDashboard
     const normalizedRole = normalizeRole(role);
 
     if (!route?.roles?.includes(normalizedRole)) return false;
-    return roleHasPermission(normalizedRole, route.permission, permissions);
+    if (!route.permission && !route.anyPermissions?.length) return true;
+    if (route.permission && roleHasPermission(normalizedRole, route.permission, permissions)) return true;
+    return route.anyPermissions?.some((permission) => roleHasPermission(normalizedRole, permission, permissions)) || false;
 };
 
 export const getDashboardRoutesByRole = (role, permissions = readDashboardPermissions()) =>

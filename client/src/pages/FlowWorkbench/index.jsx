@@ -14,6 +14,7 @@ const moduleTitles = {
     exams: 'Bài kiểm tra',
     grades: 'Điểm số',
     permissions: 'Phân quyền',
+    departments: 'Phòng ban / Bộ môn',
     proposals: 'Đề xuất',
     history: 'Lịch sử',
     registration: 'Đăng ký học'

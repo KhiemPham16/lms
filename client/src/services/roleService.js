@@ -26,9 +26,10 @@ export const roleService = {
         return res.data;
     },
 
-    updateRolePermissions: async (publicId, permissionCodes) => {
+    updateRolePermissions: async (publicId, permissionCodes, reason) => {
         const res = await api.put(`/roles/${publicId}/permissions`, {
-            permissionCodes
+            permissionCodes,
+            reason
         });
 
         return res.data;

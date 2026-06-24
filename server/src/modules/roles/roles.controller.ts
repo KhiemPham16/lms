@@ -1,8 +1,11 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Put, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Put, Req, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import type { Request } from 'express';
 
+import { CurrentUser } from '~/common/decorators/current-user.decorator';
 import { Permissions } from '~/common/decorators/permissions.decorator';
 import { JwtAuthGuard } from '~/common/guards/jwt-auth.guard';
+import type { JwtPayload } from '~/common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '~/common/guards/permissions.guard';
 import { CreateRoleDto } from './dto/create-role.dto';
 import { UpdateRoleDto } from './dto/update-role.dto';
@@ -49,8 +52,13 @@ export class RolesController {
 
     @Put(':publicId/permissions')
     @ApiOperation({ summary: 'Cập nhật quyền của vai trò' })
-    updatePermissions(@Param('publicId') publicId: string, @Body() dto: UpdateRolePermissionsDto) {
-        return this.rolesService.updatePermissions(publicId, dto);
+    updatePermissions(
+        @Param('publicId') publicId: string,
+        @Body() dto: UpdateRolePermissionsDto,
+        @CurrentUser() actor: JwtPayload,
+        @Req() request: Request
+    ) {
+        return this.rolesService.updatePermissions(publicId, dto, actor.sub, request);
     }
 
     @Delete(':publicId')

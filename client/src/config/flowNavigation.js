@@ -171,6 +171,17 @@ export const flowWorkspaces = {
                 icon: FaUserCog,
                 status: 'Chờ BE phân quyền',
                 actions: ['Chọn vai trò cần tạo', 'Kiểm tra quyền HR', 'Gán role hợp lệ']
+            },
+            {
+                key: 'departments',
+                path: '/hr/departments',
+                roles: ['HR'],
+                permission: 'departments.view',
+                title: 'Quản lý phòng ban/bộ môn',
+                description: 'Xem và quản lý phòng ban, bộ môn theo quyền departments được Admin cấp.',
+                icon: FaLayerGroup,
+                status: 'Có API departments',
+                actions: ['Xem danh sách phòng ban', 'Tạo phòng ban', 'Cập nhật phòng ban', 'Xóa phòng ban']
             }
         ]
     },
@@ -193,6 +204,17 @@ export const flowWorkspaces = {
                 actions: ['Xem danh sách người dùng', 'Cập nhật tài khoản', 'Khóa/Mở tài khoản']
             },
             {
+                key: 'departments',
+                path: '/principal/departments',
+                roles: ['PRINCIPAL'],
+                permission: 'departments.view',
+                title: 'Quản lý phòng ban/bộ môn',
+                description: 'Xem và quản lý danh mục phòng ban, bộ môn theo quyền departments được Admin cấp.',
+                icon: FaLayerGroup,
+                status: 'Có API departments',
+                actions: ['Xem danh sách phòng ban', 'Tạo phòng ban', 'Cập nhật phòng ban', 'Xóa phòng ban']
+            },
+            {
                 key: 'proposals',
                 path: '/principal/proposals',
                 roles: ['PRINCIPAL'],
@@ -202,6 +224,17 @@ export const flowWorkspaces = {
                 icon: FaClipboardCheck,
                 status: 'Chờ BE course approval',
                 actions: ['Xem danh sách đề xuất', 'Duyệt đề xuất', 'Từ chối đề xuất', 'Trả lại để chỉnh sửa']
+            },
+            {
+                key: 'permissions',
+                path: '/principal/permissions',
+                roles: ['PRINCIPAL'],
+                permission: 'permissions.manage',
+                title: 'Quản lý vai trò và quyền',
+                description: 'Quản lý phân quyền theo phạm vi được Admin cấp, không truy cập khu vực Admin.',
+                icon: FaShieldAlt,
+                status: 'Có API roles/permissions',
+                actions: ['Xem vai trò', 'Xem quyền', 'Cập nhật quyền theo vai trò']
             },
             {
                 key: 'history',
@@ -235,6 +268,28 @@ export const flowWorkspaces = {
                 actions: ['Xem danh sách người dùng', 'Cập nhật tài khoản', 'Khóa/Mở tài khoản']
             },
             {
+                key: 'departments',
+                path: '/training/departments',
+                roles: ['TRAINING_OFFICER'],
+                permission: 'departments.view',
+                title: 'Quản lý phòng ban/bộ môn',
+                description: 'Xem và quản lý phòng ban, bộ môn theo quyền departments được Admin cấp.',
+                icon: FaLayerGroup,
+                status: 'Có API departments',
+                actions: ['Xem danh sách phòng ban', 'Tạo phòng ban', 'Cập nhật phòng ban', 'Xóa phòng ban']
+            },
+            {
+                key: 'permissions',
+                path: '/training/permissions',
+                roles: ['TRAINING_OFFICER'],
+                permission: 'permissions.manage',
+                title: 'Quản lý vai trò và quyền',
+                description: 'Quản lý phân quyền theo phạm vi được Admin cấp, không truy cập khu vực Admin.',
+                icon: FaShieldAlt,
+                status: 'Có API roles/permissions',
+                actions: ['Xem vai trò', 'Xem quyền', 'Cập nhật quyền theo vai trò']
+            },
+            {
                 key: 'curriculums',
                 path: '/training/curriculums',
                 roles: ['TRAINING_OFFICER'],
@@ -249,7 +304,7 @@ export const flowWorkspaces = {
                 key: 'subjects',
                 path: '/training/subjects',
                 roles: ['TRAINING_OFFICER'],
-                permission: 'subjects.update',
+                permission: 'subjects.view',
                 title: 'Môn học và đề xuất',
                 description: 'Tạo đề xuất, xem danh sách đề xuất, gửi lên Hiệu trưởng hoặc trả lại TBM.',
                 icon: FaGraduationCap,
@@ -260,7 +315,7 @@ export const flowWorkspaces = {
                 key: 'classes',
                 path: '/training/classes',
                 roles: ['TRAINING_OFFICER'],
-                permission: 'classes.create',
+                permission: 'classes.view',
                 title: 'Lớp học',
                 description: 'Tạo lớp, cập nhật lớp, gán Trưởng bộ môn, mở/đóng đăng ký.',
                 icon: FaLayerGroup,
@@ -299,6 +354,28 @@ export const flowWorkspaces = {
                 actions: ['Xem danh sách người dùng', 'Cập nhật tài khoản', 'Khóa/Mở tài khoản']
             },
             {
+                key: 'departments',
+                path: '/department/departments',
+                roles: ['DEPARTMENT_HEAD'],
+                permission: 'departments.view',
+                title: 'Quản lý phòng ban/bộ môn',
+                description: 'Xem và quản lý phòng ban, bộ môn theo quyền departments được Admin cấp.',
+                icon: FaLayerGroup,
+                status: 'Có API departments',
+                actions: ['Xem danh sách phòng ban', 'Tạo phòng ban', 'Cập nhật phòng ban', 'Xóa phòng ban']
+            },
+            {
+                key: 'permissions',
+                path: '/department/permissions',
+                roles: ['DEPARTMENT_HEAD'],
+                permission: 'permissions.manage',
+                title: 'Quản lý vai trò và quyền',
+                description: 'Quản lý phân quyền theo phạm vi được Admin cấp, không truy cập khu vực Admin.',
+                icon: FaShieldAlt,
+                status: 'Có API roles/permissions',
+                actions: ['Xem vai trò', 'Xem quyền', 'Cập nhật quyền theo vai trò']
+            },
+            {
                 key: 'proposals',
                 path: '/department/proposals',
                 roles: ['DEPARTMENT_HEAD'],
@@ -313,7 +390,7 @@ export const flowWorkspaces = {
                 key: 'classes',
                 path: '/department/classes',
                 roles: ['DEPARTMENT_HEAD'],
-                permission: 'classes.assignLecturer',
+                anyPermissions: ['classes.view', 'classes.assignLecturer'],
                 title: 'Lớp đang quản lý',
                 description: 'Xem lớp được phân công quản lý và phân công Giảng viên vào lớp.',
                 icon: FaChalkboardTeacher,
@@ -341,6 +418,28 @@ export const flowWorkspaces = {
                 actions: ['Xem danh sách người dùng', 'Cập nhật tài khoản', 'Khóa/Mở tài khoản']
             },
             {
+                key: 'departments',
+                path: '/teacher/departments',
+                roles: ['LECTURER'],
+                permission: 'departments.view',
+                title: 'Quản lý phòng ban/bộ môn',
+                description: 'Xem và quản lý phòng ban, bộ môn theo quyền departments được Admin cấp.',
+                icon: FaLayerGroup,
+                status: 'Có API departments',
+                actions: ['Xem danh sách phòng ban', 'Tạo phòng ban', 'Cập nhật phòng ban', 'Xóa phòng ban']
+            },
+            {
+                key: 'permissions',
+                path: '/teacher/permissions',
+                roles: ['LECTURER'],
+                permission: 'permissions.manage',
+                title: 'Quản lý vai trò và quyền',
+                description: 'Quản lý phân quyền theo phạm vi được Admin cấp, không truy cập khu vực Admin.',
+                icon: FaShieldAlt,
+                status: 'Có API roles/permissions',
+                actions: ['Xem vai trò', 'Xem quyền', 'Cập nhật quyền theo vai trò']
+            },
+            {
                 key: 'classes',
                 path: '/teacher/classes',
                 roles: ['LECTURER'],
@@ -355,7 +454,7 @@ export const flowWorkspaces = {
                 key: 'lessons',
                 path: '/teacher/lessons',
                 roles: ['LECTURER'],
-                permission: 'lessons.create',
+                permission: 'lessons.view',
                 title: 'Quản lý bài học',
                 description: 'Tạo, cập nhật, lưu nháp, xuất bản bài học và upload tài liệu.',
                 icon: FaFileAlt,
@@ -366,7 +465,7 @@ export const flowWorkspaces = {
                 key: 'exams',
                 path: '/teacher/exams',
                 roles: ['LECTURER'],
-                permission: 'exams.create',
+                permission: 'exams.view',
                 title: 'Quản lý bài kiểm tra',
                 description: 'Tạo bài kiểm tra, cấu hình thời gian, số lần làm và ngân hàng câu hỏi.',
                 icon: FaTasks,
@@ -377,7 +476,7 @@ export const flowWorkspaces = {
                 key: 'grades',
                 path: '/teacher/grades',
                 roles: ['LECTURER'],
-                permission: 'scores.calculate',
+                permission: 'scores.view',
                 title: 'Bảng điểm lớp',
                 description: 'Nhập điểm quá trình, điểm cuối kỳ, tính trung bình và xét pass/fail.',
                 icon: FaRegChartBar,
@@ -394,6 +493,39 @@ export const flowWorkspaces = {
         dashboardPath: '/student',
         modules: [
             {
+                key: 'users',
+                path: '/student/users',
+                roles: ['STUDENT'],
+                permission: 'users.view',
+                title: 'Quản lý người dùng',
+                description: 'Xem danh sách người dùng theo quyền users được Admin cấp.',
+                icon: FaUserFriends,
+                status: 'Có API user',
+                actions: ['Xem danh sách người dùng', 'Cập nhật tài khoản', 'Khóa/Mở tài khoản']
+            },
+            {
+                key: 'departments',
+                path: '/student/departments',
+                roles: ['STUDENT'],
+                permission: 'departments.view',
+                title: 'Quản lý phòng ban/bộ môn',
+                description: 'Xem và quản lý phòng ban, bộ môn theo quyền departments được Admin cấp.',
+                icon: FaLayerGroup,
+                status: 'Có API departments',
+                actions: ['Xem danh sách phòng ban', 'Tạo phòng ban', 'Cập nhật phòng ban', 'Xóa phòng ban']
+            },
+            {
+                key: 'permissions',
+                path: '/student/permissions',
+                roles: ['STUDENT'],
+                permission: 'permissions.manage',
+                title: 'Quản lý vai trò và quyền',
+                description: 'Quản lý phân quyền theo phạm vi được Admin cấp, không truy cập khu vực Admin.',
+                icon: FaShieldAlt,
+                status: 'Có API roles/permissions',
+                actions: ['Xem vai trò', 'Xem quyền', 'Cập nhật quyền theo vai trò']
+            },
+            {
                 key: 'registration',
                 path: '/student/registration',
                 roles: ['STUDENT'],
@@ -408,7 +540,7 @@ export const flowWorkspaces = {
                 key: 'classes',
                 path: '/student/classes',
                 roles: ['STUDENT'],
-                permission: 'lessons.view',
+                anyPermissions: ['classes.view', 'lessons.view'],
                 title: 'Lớp học của tôi',
                 description: 'Xem lớp đã đăng ký, bài học, tài liệu và tiến độ học tập.',
                 icon: FaBookOpen,
@@ -419,7 +551,7 @@ export const flowWorkspaces = {
                 key: 'exams',
                 path: '/student/exams',
                 roles: ['STUDENT'],
-                permission: 'exams.take',
+                anyPermissions: ['exams.view', 'exams.take'],
                 title: 'Bài kiểm tra',
                 description: 'Bắt đầu làm bài, tự động lưu, chống chuyển tab và nộp bài.',
                 icon: FaClipboardCheck,
@@ -440,6 +572,144 @@ export const flowWorkspaces = {
         ]
     }
 };
+
+const grantableModuleTemplates = [
+    {
+        key: 'users',
+        segment: 'users',
+        permission: 'users.view',
+        title: 'Quản lý người dùng',
+        description: 'Xem và quản lý người dùng theo quyền users được Admin cấp.',
+        icon: FaUserFriends,
+        status: 'Có API user',
+        actions: ['Xem danh sách người dùng', 'Cập nhật tài khoản', 'Khóa/Mở tài khoản']
+    },
+    {
+        key: 'departments',
+        segment: 'departments',
+        permission: 'departments.view',
+        title: 'Quản lý phòng ban/bộ môn',
+        description: 'Xem và quản lý phòng ban, bộ môn theo quyền departments được Admin cấp.',
+        icon: FaLayerGroup,
+        status: 'Có API departments',
+        actions: ['Xem danh sách phòng ban', 'Tạo phòng ban', 'Cập nhật phòng ban', 'Xóa phòng ban']
+    },
+    {
+        key: 'permissions',
+        segment: 'permissions',
+        permission: 'permissions.manage',
+        title: 'Quản lý vai trò và quyền',
+        description: 'Quản lý phân quyền theo phạm vi được Admin cấp, không truy cập khu vực Admin.',
+        icon: FaShieldAlt,
+        status: 'Có API roles/permissions',
+        actions: ['Xem vai trò', 'Xem quyền', 'Cập nhật quyền theo vai trò']
+    },
+    {
+        key: 'audit',
+        segment: 'audit-logs',
+        permission: 'audit.view',
+        title: 'Audit Log hệ thống',
+        description: 'Xem nhật ký hệ thống theo quyền audit được Admin cấp.',
+        icon: FaListAlt,
+        status: 'Có API audit logs',
+        actions: ['Lọc audit log', 'Xem chi tiết audit log']
+    },
+    {
+        key: 'curriculums',
+        segment: 'curriculums',
+        permission: 'programs.view',
+        title: 'Chương trình học',
+        description: 'Xem chương trình học theo quyền curriculum được Admin cấp.',
+        icon: FaBookOpen,
+        status: 'Chờ BE',
+        actions: ['Xem chương trình', 'Theo dõi thay đổi']
+    },
+    {
+        key: 'subjects',
+        segment: 'subjects',
+        permission: 'subjects.view',
+        title: 'Môn học',
+        description: 'Xem danh mục môn học và đề xuất theo quyền courses được Admin cấp.',
+        icon: FaGraduationCap,
+        status: 'Có model Course',
+        actions: ['Xem danh sách môn', 'Lọc trạng thái', 'Xem chi tiết đề xuất']
+    },
+    {
+        key: 'classes',
+        segment: 'classes',
+        permission: 'classes.view',
+        title: 'Lớp học',
+        description: 'Xem và quản lý lớp học theo quyền classes được Admin cấp.',
+        icon: FaLayerGroup,
+        status: 'Có model Class',
+        actions: ['Xem danh sách lớp', 'Theo dõi đăng ký', 'Kiểm tra phân công']
+    },
+    {
+        key: 'lessons',
+        segment: 'lessons',
+        permission: 'lessons.view',
+        title: 'Bài học',
+        description: 'Xem và quản lý bài học theo quyền lessons được Admin cấp.',
+        icon: FaFileAlt,
+        status: 'Chờ BE bài học',
+        actions: ['Xem bài học', 'Tạo bài học', 'Theo dõi tài liệu']
+    },
+    {
+        key: 'exams',
+        segment: 'exams',
+        permission: 'exams.view',
+        title: 'Bài kiểm tra',
+        description: 'Xem và quản lý bài kiểm tra theo quyền exams được Admin cấp.',
+        icon: FaTasks,
+        status: 'Chờ BE bài kiểm tra',
+        actions: ['Xem bài kiểm tra', 'Cấu hình bài', 'Theo dõi log vi phạm']
+    },
+    {
+        key: 'grades',
+        segment: 'grades',
+        permission: 'scores.view',
+        title: 'Bảng điểm',
+        description: 'Xem và quản lý bảng điểm theo quyền grades được Admin cấp.',
+        icon: FaRegChartBar,
+        status: 'Chờ BE điểm',
+        actions: ['Xem bảng điểm', 'Tổng hợp cuối kỳ', 'Xuất bảng điểm']
+    },
+    {
+        key: 'proposals',
+        segment: 'proposals',
+        anyPermissions: ['proposals.create', 'proposals.approve'],
+        title: 'Đề xuất môn học',
+        description: 'Tạo hoặc phê duyệt đề xuất môn học theo quyền được Admin cấp.',
+        icon: FaClipboardList,
+        status: 'Có model Course',
+        actions: ['Tạo đề xuất', 'Phê duyệt đề xuất', 'Theo dõi trạng thái']
+    },
+    {
+        key: 'registration',
+        segment: 'registration',
+        permission: 'classes.registration',
+        title: 'Đăng ký lớp học',
+        description: 'Đăng ký hoặc quản lý đăng ký lớp theo quyền được Admin cấp.',
+        icon: FaLayerGroup,
+        status: 'Chờ BE enrollment',
+        actions: ['Xem lớp mở đăng ký', 'Đăng ký lớp', 'Hủy đăng ký']
+    }
+];
+
+Object.entries(flowWorkspaces).forEach(([workspaceKey, workspace]) => {
+    if (workspaceKey === 'admin') return;
+
+    grantableModuleTemplates.forEach((template) => {
+        if (workspace.modules.some((module) => module.key === template.key)) return;
+
+        const { segment, ...module } = template;
+        workspace.modules.push({
+            ...module,
+            path: `${workspace.basePath}/${segment}`,
+            roles: [workspace.role]
+        });
+    });
+});
 
 export const flatFlowModules = Object.values(flowWorkspaces).flatMap((workspace) =>
     workspace.modules.map((module) => ({
