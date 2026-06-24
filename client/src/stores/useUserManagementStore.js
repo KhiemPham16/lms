@@ -61,6 +61,7 @@ export const useUserManagementStore = create((set, get) => ({
     error: null,
     currentUserDetail: null,
     userActivities: [],
+    userLoginHistory: [],
 
     fetchUsers: async (params = {}) => {
         set({ loading: true, error: null });
@@ -296,13 +297,17 @@ export const useUserManagementStore = create((set, get) => ({
     },
 
     fetchUserDetail: async (id) => {
-        set({ detailLoading: true, currentUserDetail: null, userActivities: [] });
+        set({ detailLoading: true, currentUserDetail: null, userActivities: [], userLoginHistory: [] });
         try {
             const detail = await userService.getUserById(id);
-            const activities = await userService.getUserActivities(id, { page: 1, limit: 20 }).catch(() => null);
+            const [activities, loginHistory] = await Promise.all([
+                userService.getUserActivities(id, { page: 1, limit: 20 }).catch(() => null),
+                userService.getUserLoginHistory(id, { page: 1, limit: 20 }).catch(() => null)
+            ]);
             set({
                 currentUserDetail: detail,
-                userActivities: activities?.items || activities?.data?.items || []
+                userActivities: activities?.items || activities?.data?.items || [],
+                userLoginHistory: loginHistory?.items || loginHistory?.data?.items || []
             });
         } catch (error) {
             toast.error(getErrorMessage(error, 'Không thể tải chi tiết người dùng'));

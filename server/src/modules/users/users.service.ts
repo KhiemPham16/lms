@@ -237,6 +237,23 @@ export class UsersService {
         });
     }
 
+    recordLogin(user: { id: number; publicId: string; email: string; role: { code: string } }, request?: Request) {
+        return this.auditLogsService.create({
+            actorId: user.id,
+            action: AuditAction.LOGIN,
+            module: 'auth',
+            targetType: 'User',
+            targetId: user.id,
+            targetPublicId: user.publicId,
+            newValue: {
+                email: user.email,
+                role: user.role.code
+            },
+            ipAddress: this.getIpAddress(request),
+            userAgent: request?.headers['user-agent']
+        });
+    }
+
     async update(publicId: string, dto: UpdateUserDto, actorPublicId?: string) {
         const currentUser = await this.findByPublicIdRawOrThrow(publicId);
         const role = dto.roleId || dto.role ? await this.resolveRole(dto.roleId, dto.role) : undefined;
@@ -607,6 +624,52 @@ export class UsersService {
 
         return {
             items,
+            meta: {
+                page,
+                limit,
+                total,
+                totalPages: Math.ceil(total / limit)
+            }
+        };
+    }
+
+    async loginHistory(publicId: string, query: QueryUserDto) {
+        const user = await this.findByPublicIdRawOrThrow(publicId);
+        const page = query.page ?? 1;
+        const limit = query.limit ?? 20;
+        const skip = (page - 1) * limit;
+
+        const where = {
+            action: AuditAction.LOGIN,
+            module: 'auth',
+            targetType: 'User',
+            targetPublicId: user.publicId
+        };
+
+        const [items, total] = await Promise.all([
+            this.prisma.auditLog.findMany({
+                where,
+                skip,
+                take: limit,
+                orderBy: {
+                    createdAt: 'desc'
+                },
+                select: {
+                    publicId: true,
+                    ipAddress: true,
+                    userAgent: true,
+                    createdAt: true
+                }
+            }),
+            this.prisma.auditLog.count({ where })
+        ]);
+
+        return {
+            items: items.map((item) => ({
+                ...item,
+                device: this.describeDevice(item.userAgent),
+                browser: this.describeBrowser(item.userAgent)
+            })),
             meta: {
                 page,
                 limit,
@@ -996,6 +1059,41 @@ export class UsersService {
 
     private csvCell(value: string) {
         return `"${value.replace(/"/g, '""')}"`;
+    }
+
+    private describeBrowser(userAgent?: string | null) {
+        if (!userAgent) {
+            return 'Unknown browser';
+        }
+
+        if (userAgent.includes('Edg/')) return 'Microsoft Edge';
+        if (userAgent.includes('Chrome/')) return 'Chrome';
+        if (userAgent.includes('Firefox/')) return 'Firefox';
+        if (userAgent.includes('Safari/') && !userAgent.includes('Chrome/')) return 'Safari';
+
+        return 'Unknown browser';
+    }
+
+    private describeDevice(userAgent?: string | null) {
+        if (!userAgent) {
+            return 'Unknown device';
+        }
+
+        const platform = userAgent.includes('Windows')
+            ? 'Windows'
+            : userAgent.includes('Mac OS X')
+              ? 'macOS'
+              : userAgent.includes('Android')
+                ? 'Android'
+                : userAgent.includes('iPhone') || userAgent.includes('iPad')
+                  ? 'iOS'
+                  : userAgent.includes('Linux')
+                    ? 'Linux'
+                    : 'Unknown OS';
+
+        const formFactor = /Mobile|Android|iPhone/i.test(userAgent) ? 'Mobile' : 'Desktop';
+
+        return `${platform} ${formFactor}`;
     }
 
     private generateTemporaryPassword() {

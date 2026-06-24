@@ -4,6 +4,7 @@ import { JwtPayload } from '~/common/guards/jwt-auth.guard';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
 import { SignOptions } from 'jsonwebtoken';
+import type { Request } from 'express';
 
 import { UsersService } from '../users/users.service';
 import { LoginDto } from './dto/login.dto';
@@ -20,7 +21,7 @@ export class AuthService {
         private readonly mailQueueService: MailQueueService
     ) {}
 
-    async login(dto: LoginDto) {
+    async login(dto: LoginDto, request?: Request) {
         const user = await this.usersService.findByEmail(dto.email);
 
         if (!user) {
@@ -38,6 +39,7 @@ export class AuthService {
         }
 
         await this.usersService.updateLastLogin(user.id);
+        await this.usersService.recordLogin(user, request);
 
         const accessToken = await this.generateAccessToken({
             publicId: user.publicId,
