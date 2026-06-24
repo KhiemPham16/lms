@@ -60,7 +60,15 @@ export class RolesService {
     }
 
     async update(publicId: string, dto: UpdateRoleDto) {
-        await this.findByPublicIdOrThrow(publicId);
+        const currentRole = await this.findByPublicIdOrThrow(publicId);
+
+        if (currentRole.code === 'ADMIN') {
+            throw new BadRequestException('Khong duoc sua vai tro Admin');
+        }
+
+        if (dto.code === 'ADMIN') {
+            throw new BadRequestException('Khong duoc tao them hoac doi vai tro khac thanh Admin');
+        }
 
         if (dto.code) {
             const duplicate = await this.prisma.role.findFirst({
@@ -150,6 +158,11 @@ export class RolesService {
 
     async updatePermissions(publicId: string, dto: UpdateRolePermissionsDto) {
         const role = await this.findByPublicIdOrThrow(publicId);
+
+        if (role.code === 'ADMIN') {
+            throw new BadRequestException('Khong duoc sua quyen cua Admin');
+        }
+
         const permissionCodes = dto.permissionCodes ?? [];
         const permissionIds = dto.permissionIds ?? [];
 

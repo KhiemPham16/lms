@@ -8,30 +8,38 @@ const cx = classNames.bind(styles);
 
 export default function StatusDonutChart({ data }) {
     const total = data.reduce((sum, item) => sum + item.value, 0) || 1;
-    let offset = 25;
+    const segments = data.reduce((result, item) => {
+        const value = (item.value / total) * 100;
+        const previousOffset = result.at(-1)?.nextOffset ?? 25;
+
+        return [
+            ...result,
+            {
+                ...item,
+                value,
+                offset: previousOffset,
+                nextOffset: previousOffset - value
+            }
+        ];
+    }, []);
 
     return (
         <div className={cx('donutWrap')}>
             <div className={cx('donut')}>
                 <svg viewBox="0 0 44 44">
-                    {data.map((item) => {
-                        const value = (item.value / total) * 100;
-                        const segment = (
-                            <circle
-                                key={item.key}
-                                cx="22"
-                                cy="22"
-                                r="15.9"
-                                fill="transparent"
-                                stroke={item.color}
-                                strokeWidth="6"
-                                strokeDasharray={`${value} ${100 - value}`}
-                                strokeDashoffset={offset}
-                            />
-                        );
-                        offset -= value;
-                        return segment;
-                    })}
+                    {segments.map((item) => (
+                        <circle
+                            key={item.key}
+                            cx="22"
+                            cy="22"
+                            r="15.9"
+                            fill="transparent"
+                            stroke={item.color}
+                            strokeWidth="6"
+                            strokeDasharray={`${item.value} ${100 - item.value}`}
+                            strokeDashoffset={item.offset}
+                        />
+                    ))}
                 </svg>
                 <strong>{formatNumber(total)}</strong>
                 <span>Tài khoản</span>

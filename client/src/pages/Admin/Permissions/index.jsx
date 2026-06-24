@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import classNames from 'classnames/bind';
 import {
     FiAlertTriangle,
@@ -10,7 +10,6 @@ import {
     FiCopy,
     FiDatabase,
     FiEdit3,
-    FiEye,
     FiKey,
     FiLayers,
     FiList,
@@ -29,6 +28,7 @@ import { toast } from 'sonner';
 import AppSidebar from '~/components/AppSidebar';
 import { auditLogService } from '~/services/auditLogService';
 import { roleService } from '~/services/roleService';
+import { userService } from '~/services/userService';
 import layoutStyles from '~/pages/FlowWorkbench/FlowWorkbench.module.scss';
 import permissionStyles from './Permissions.module.scss';
 
@@ -172,13 +172,9 @@ const auditHistory = [
     { time: '23/06/2026 15:20', actor: 'Admin Phát', role: 'Giảng viên', change: 'Bỏ quyền xuất điểm', result: 'Thành công' }
 ];
 
-const affectedUsers = [
-    { name: 'Nguyễn Văn An', email: 'an@lms.edu.vn', status: 'Hoạt động', assignedAt: '20/06/2026', assignedBy: 'Admin Phát' },
-    { name: 'Trần Thị Bình', email: 'binh@lms.edu.vn', status: 'Hoạt động', assignedAt: '21/06/2026', assignedBy: 'Admin Phát' }
-];
-
 const unwrapList = (payload) => payload?.items || payload?.data?.items || payload?.data || payload || [];
 const unwrapItems = (payload) => payload?.items || payload?.data?.items || [];
+const emptyRoleForm = { code: '', name: '', description: '', isSystem: false };
 
 const formatDate = (value) => {
     if (!value) return 'Chưa cập nhật';
@@ -258,6 +254,7 @@ function normalizePermissionGroups(payload) {
 
 export default function AdminPermissions() {
     const [loading, setLoading] = useState(false);
+    const [submitting, setSubmitting] = useState(false);
     const [roles, setRoles] = useState(() => normalizeRoles([]));
     const [permissionCatalog, setPermissionCatalog] = useState(fallbackPermissionGroups);
     const [selectedRoleCode, setSelectedRoleCode] = useState('ADMIN');
@@ -270,6 +267,12 @@ export default function AdminPermissions() {
     const [viewMode, setViewMode] = useState('role');
     const [showConfirmSave, setShowConfirmSave] = useState(false);
     const [showUsers, setShowUsers] = useState(false);
+    const [roleModalMode, setRoleModalMode] = useState(null);
+    const [roleForm, setRoleForm] = useState(emptyRoleForm);
+    const [roleFormErrors, setRoleFormErrors] = useState({});
+    const [deleteTarget, setDeleteTarget] = useState(null);
+    const [roleUsers, setRoleUsers] = useState([]);
+    const [roleUsersLoading, setRoleUsersLoading] = useState(false);
     const [copySource, setCopySource] = useState('HR');
     const [auditLogs, setAuditLogs] = useState([]);
 
@@ -284,8 +287,9 @@ export default function AdminPermissions() {
     );
     const addedCount = selectedPermissions.filter((permission) => !savedPermissions.includes(permission)).length;
     const removedCount = savedPermissions.filter((permission) => !selectedPermissions.includes(permission)).length;
+    const isAdminRoleSelected = selectedRoleCode === 'ADMIN';
 
-    const fetchData = async () => {
+    const fetchData = useCallback(async () => {
         setLoading(true);
         try {
             const [roleRes, permissionRes] = await Promise.allSettled([
@@ -307,24 +311,153 @@ export default function AdminPermissions() {
         } finally {
             setLoading(false);
         }
-    };
+    }, [selectedRoleCode]);
 
-    const fetchAuditLogs = async () => {
+    const fetchAuditLogs = useCallback(async () => {
         const result = await auditLogService.getAuditLogs({ page: 1, limit: 20, module: 'roles' }).catch(() => null);
         setAuditLogs(unwrapItems(result));
-    };
+    }, []);
 
-    useEffect(() => {
-        fetchData();
-        fetchAuditLogs();
+    const fetchRoleUsers = useCallback(async (roleCode) => {
+        if (!roleCode) return;
+        setRoleUsersLoading(true);
+        const result = await userService.getUsers({ role: roleCode, page: 1, limit: 50 }).catch(() => null);
+        setRoleUsers(unwrapItems(result));
+        setRoleUsersLoading(false);
     }, []);
 
     useEffect(() => {
-        if (!selectedRole) return;
-        const nextPermissions = selectedRole.permissionCodes || [];
+        void Promise.resolve().then(async () => {
+            await fetchData();
+            await fetchAuditLogs();
+        });
+    }, [fetchAuditLogs, fetchData]);
+
+    const selectRole = (roleCode) => {
+        const nextRole = roles.find((role) => role.code === roleCode);
+        const nextPermissions = nextRole?.permissionCodes || [];
+        setSelectedRoleCode(roleCode);
         setSelectedPermissions(nextPermissions);
         setSavedPermissions(nextPermissions);
-    }, [selectedRoleCode]);
+    };
+
+    const openCreateRole = () => {
+        setRoleModalMode('create');
+        setRoleForm(emptyRoleForm);
+        setRoleFormErrors({});
+    };
+
+    const openEditRole = () => {
+        if (isAdminRoleSelected) {
+            toast.error('Không được sửa vai trò Admin');
+            return;
+        }
+
+        if (!selectedRole?.publicId) {
+            toast.error('Vai trò này chưa có publicId từ backend');
+            return;
+        }
+
+        setRoleModalMode('edit');
+        setRoleForm({
+            code: selectedRole.code || '',
+            name: selectedRole.name || '',
+            description: selectedRole.description || '',
+            isSystem: Boolean(selectedRole.isSystem)
+        });
+        setRoleFormErrors({});
+    };
+
+    const openCopyRole = () => {
+        if (isAdminRoleSelected) {
+            toast.error('Không được sao chép vai trò Admin');
+            return;
+        }
+
+        setRoleModalMode('copy');
+        setRoleForm({
+            code: '',
+            name: selectedRole?.name ? `Bản sao ${selectedRole.name}` : '',
+            description: selectedRole?.description || '',
+            isSystem: false
+        });
+        setRoleFormErrors({});
+    };
+
+    const updateRoleForm = (field, value) => {
+        setRoleForm((current) => ({ ...current, [field]: value }));
+        setRoleFormErrors((current) => ({ ...current, [field]: '' }));
+    };
+
+    const validateRoleForm = () => {
+        const nextErrors = {};
+        const code = roleForm.code.trim().toUpperCase();
+
+        if (!code) nextErrors.code = 'Vui lòng nhập mã vai trò';
+        if (code && !/^[A-Z0-9_]{2,50}$/.test(code)) nextErrors.code = 'Mã vai trò chỉ dùng chữ in hoa, số và dấu gạch dưới';
+        if (!roleForm.name.trim()) nextErrors.name = 'Vui lòng nhập tên vai trò';
+        if (roleForm.name.trim().length > 255) nextErrors.name = 'Tên vai trò tối đa 255 ký tự';
+
+        setRoleFormErrors(nextErrors);
+        return Object.keys(nextErrors).length === 0;
+    };
+
+    const submitRoleForm = async (event) => {
+        event.preventDefault();
+        if (!validateRoleForm()) return;
+
+        const payload = {
+            code: roleForm.code.trim().toUpperCase(),
+            name: roleForm.name.trim(),
+            description: roleForm.description.trim() || undefined,
+            isSystem: roleModalMode === 'edit' ? roleForm.isSystem : false
+        };
+
+        setSubmitting(true);
+        try {
+            const role =
+                roleModalMode === 'edit'
+                    ? await roleService.updateRole(selectedRole.publicId, payload)
+                    : await roleService.createRole(payload);
+
+            if (roleModalMode === 'copy' && selectedRole?.permissionCodes?.length) {
+                await roleService.updateRolePermissions(role.publicId, selectedRole.permissionCodes);
+            }
+
+            toast.success(roleModalMode === 'edit' ? 'Đã cập nhật vai trò' : 'Đã tạo vai trò mới');
+            setRoleModalMode(null);
+            setRoleForm(emptyRoleForm);
+            await fetchData();
+            selectRole(role.code);
+        } catch (error) {
+            const message = error?.response?.data?.message || 'Không thể lưu vai trò';
+            if (String(message).toLowerCase().includes('mã vai')) {
+                setRoleFormErrors((current) => ({ ...current, code: message }));
+            }
+            toast.error(message);
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
+    const confirmDeleteRole = async () => {
+        if (!deleteTarget?.publicId) return;
+
+        setSubmitting(true);
+        try {
+            await roleService.deleteRole(deleteTarget.publicId);
+            toast.success('Đã xóa vai trò');
+            setDeleteTarget(null);
+            const remainingRoles = roles.filter((role) => role.publicId !== deleteTarget.publicId);
+            const nextRole = remainingRoles[0];
+            await fetchData();
+            if (nextRole) selectRole(nextRole.code);
+        } catch (error) {
+            toast.error(error?.response?.data?.message || 'Không thể xóa vai trò');
+        } finally {
+            setSubmitting(false);
+        }
+    };
 
     useEffect(() => {
         const warnBeforeLeave = (event) => {
@@ -349,6 +482,11 @@ export default function AdminPermissions() {
     };
 
     const togglePermission = (permission) => {
+        if (isAdminRoleSelected) {
+            toast.error('Không được sửa quyền của Admin');
+            return;
+        }
+
         setSelectedPermissions((current) =>
             current.includes(permission.code)
                 ? current.filter((code) => code !== permission.code)
@@ -357,6 +495,11 @@ export default function AdminPermissions() {
     };
 
     const toggleModule = (group) => {
+        if (isAdminRoleSelected) {
+            toast.error('Không được sửa quyền của Admin');
+            return;
+        }
+
         const codes = group.permissions.map((permission) => permission.code);
         const allSelected = codes.every((code) => selectedPermissions.includes(code));
         setSelectedPermissions((current) =>
@@ -382,6 +525,12 @@ export default function AdminPermissions() {
         .filter((group) => group.permissions.length > 0);
 
     const savePermissions = async () => {
+        if (isAdminRoleSelected) {
+            toast.error('Không được sửa quyền của Admin');
+            setShowConfirmSave(false);
+            return;
+        }
+
         if (!selectedRole?.publicId) {
             toast.error('Vai trò này chưa có publicId từ backend, không thể lưu thật.');
             setShowConfirmSave(false);
@@ -409,6 +558,11 @@ export default function AdminPermissions() {
     };
 
     const copyPermissions = () => {
+        if (isAdminRoleSelected) {
+            toast.error('Không được sửa quyền của Admin');
+            return;
+        }
+
         const sourceRole = roles.find((role) => role.code === copySource);
         setSelectedPermissions(sourceRole?.permissionCodes || []);
         toast.success(`Đã sao chép quyền từ ${sourceRole?.name || copySource}`);
@@ -416,6 +570,12 @@ export default function AdminPermissions() {
 
     const previewAllowed = permissionCatalog.flatMap((group) => group.permissions).filter((permission) => selectedPermissions.includes(permission.code)).slice(0, 8);
     const previewDenied = permissionCatalog.flatMap((group) => group.permissions).filter((permission) => !selectedPermissions.includes(permission.code)).slice(0, 5);
+    const canDeleteSelectedRole =
+        selectedRole?.publicId &&
+        !isAdminRoleSelected &&
+        !selectedRole?.isSystem &&
+        selectedRole?.source === 'backend' &&
+        (!Number.isFinite(selectedRole?.userCount) || selectedRole.userCount === 0);
 
     return (
         <div className={cx('flow-shell')}>
@@ -428,8 +588,8 @@ export default function AdminPermissions() {
                         <p>Thiết lập quyền truy cập chức năng cho từng nhóm người dùng trong hệ thống.</p>
                     </div>
                     <div>
-                        <button type="button" className={cx('admin-permissions__ghost')}><FiClock /> Xem lịch sử thay đổi</button>
-                        <button type="button" className={cx('admin-permissions__primary')} disabled><FiKey /> Thêm vai trò mới</button>
+                        <button type="button" className={cx('admin-permissions__ghost')} onClick={() => setViewMode('history')}><FiClock /> Xem lịch sử thay đổi</button>
+                        <button type="button" className={cx('admin-permissions__primary')} onClick={openCreateRole}><FiKey /> Thêm vai trò mới</button>
                     </div>
                 </section>
 
@@ -449,7 +609,7 @@ export default function AdminPermissions() {
                         {roles.map((role) => {
                             const Icon = role.icon || FiShield;
                             return (
-                                <button key={role.code} type="button" className={cx({ 'is-selected': selectedRoleCode === role.code })} onClick={() => setSelectedRoleCode(role.code)}>
+                                <button key={role.code} type="button" className={cx({ 'is-selected': selectedRoleCode === role.code })} onClick={() => selectRole(role.code)}>
                                     <Icon />
                                     <span>
                                         <strong>{role.name}</strong>
@@ -483,10 +643,10 @@ export default function AdminPermissions() {
                                         </dl>
                                     </div>
                                     <div className={cx('admin-permissions__role-actions')}>
-                                        <button type="button"><FiEdit3 /> Sửa thông tin</button>
-                                        <button type="button"><FiCopy /> Sao chép role</button>
-                                        <button type="button" disabled={selectedRole?.type === 'Vai trò hệ thống'}><FiTrash2 /> Xóa role</button>
-                                        <button type="button" onClick={() => setShowUsers(true)}><FiUsers /> Xem người dùng</button>
+                                        <button type="button" onClick={openEditRole} disabled={!selectedRole?.publicId || isAdminRoleSelected}><FiEdit3 /> Sửa thông tin</button>
+                                        <button type="button" onClick={openCopyRole} disabled={!selectedRole || isAdminRoleSelected}><FiCopy /> Sao chép role</button>
+                                        <button type="button" disabled={!canDeleteSelectedRole} onClick={() => setDeleteTarget(selectedRole)}><FiTrash2 /> Xóa role</button>
+                                        <button type="button" onClick={() => { setShowUsers(true); fetchRoleUsers(selectedRole?.code); }}><FiUsers /> Xem người dùng</button>
                                     </div>
                                 </section>
 
@@ -503,6 +663,7 @@ export default function AdminPermissions() {
                                     </select>
                                     <button type="button" onClick={() => setExpandedModules(permissionCatalog.map((group) => group.module))}>Mở rộng tất cả</button>
                                     <button type="button" onClick={() => setExpandedModules([])}>Thu gọn tất cả</button>
+                                    {isAdminRoleSelected && <span className={cx('admin-permissions__readonly-note')}>Admin là vai trò gốc, chỉ được xem quyền.</span>}
                                 </section>
 
                                 <section className={cx('admin-permissions__copy')}>
@@ -510,7 +671,7 @@ export default function AdminPermissions() {
                                     <select value={copySource} onChange={(event) => setCopySource(event.target.value)}>
                                         {roles.filter((role) => role.code !== selectedRoleCode).map((role) => <option key={role.code} value={role.code}>{role.name}</option>)}
                                     </select>
-                                    <button type="button" onClick={copyPermissions}><FiCopy /> Áp dụng cho {selectedRole?.name}</button>
+                                    <button type="button" onClick={copyPermissions} disabled={isAdminRoleSelected}><FiCopy /> Áp dụng cho {selectedRole?.name}</button>
                                 </section>
 
                                 <section className={cx('admin-permissions__accordion')}>
@@ -529,7 +690,7 @@ export default function AdminPermissions() {
                                                         <span>Đã chọn {selectedCount}/{group.permissions.length} quyền</span>
                                                     </button>
                                                     <label>
-                                                        <input type="checkbox" checked={selectedCount === group.permissions.length} onChange={() => toggleModule(group)} />
+                                                        <input type="checkbox" checked={selectedCount === group.permissions.length} disabled={isAdminRoleSelected} onChange={() => toggleModule(group)} />
                                                         Chọn tất cả
                                                     </label>
                                                 </header>
@@ -537,7 +698,7 @@ export default function AdminPermissions() {
                                                     <div>
                                                         {group.permissions.map((permission) => (
                                                             <label key={permission.code} className={cx({ 'is-sensitive': permission.sensitive })}>
-                                                                <input type="checkbox" checked={selectedPermissions.includes(permission.code)} onChange={() => togglePermission(permission)} />
+                                                                <input type="checkbox" checked={selectedPermissions.includes(permission.code)} disabled={isAdminRoleSelected} onChange={() => togglePermission(permission)} />
                                                                 <span>
                                                                     <strong>{permission.name}</strong>
                                                                     <small>{permission.code}{permission.dependsOn ? ` · phụ thuộc: ${permission.dependsOn.join(', ')}` : ''}</small>
@@ -585,7 +746,7 @@ export default function AdminPermissions() {
                     </section>
                 </section>
 
-                <section className={cx('admin-permissions__savebar', { 'is-visible': hasChanges })}>
+                <section className={cx('admin-permissions__savebar', { 'is-visible': hasChanges && !isAdminRoleSelected })}>
                     <span>Bạn có thay đổi chưa được lưu.</span>
                     <button type="button" onClick={() => setSelectedPermissions(savedPermissions)}>Hủy thay đổi</button>
                     <button type="button" onClick={restoreDefaults}><FiRotateCcw /> Khôi phục từ backend</button>
@@ -604,13 +765,94 @@ export default function AdminPermissions() {
                     </div>
                 )}
 
+                {roleModalMode && (
+                    <div className={cx('admin-permissions__modal-backdrop')}>
+                        <form className={cx('admin-permissions__modal', 'admin-permissions__role-form')} onSubmit={submitRoleForm}>
+                            <FiShield />
+                            <h2>
+                                {roleModalMode === 'edit'
+                                    ? 'Sửa thông tin vai trò'
+                                    : roleModalMode === 'copy'
+                                        ? 'Sao chép vai trò'
+                                        : 'Thêm vai trò mới'}
+                            </h2>
+                            <p>
+                                {roleModalMode === 'copy'
+                                    ? `Vai trò mới sẽ sao chép bộ quyền hiện tại của ${selectedRole?.name}.`
+                                    : 'Thiết lập mã, tên và mô tả vai trò theo đúng phạm vi phân quyền của EduLMS.'}
+                            </p>
+                            <label>
+                                <span>Mã vai trò</span>
+                                <input
+                                    value={roleForm.code}
+                                    disabled={roleModalMode === 'edit' && selectedRole?.isSystem}
+                                    onChange={(event) => updateRoleForm('code', event.target.value.toUpperCase())}
+                                    placeholder="VD: TRAINING_ASSISTANT"
+                                />
+                                {roleFormErrors.code && <small>{roleFormErrors.code}</small>}
+                            </label>
+                            <label>
+                                <span>Tên vai trò</span>
+                                <input value={roleForm.name} onChange={(event) => updateRoleForm('name', event.target.value)} placeholder="VD: Trợ lý đào tạo" />
+                                {roleFormErrors.name && <small>{roleFormErrors.name}</small>}
+                            </label>
+                            <label>
+                                <span>Mô tả</span>
+                                <textarea value={roleForm.description} onChange={(event) => updateRoleForm('description', event.target.value)} rows={4} placeholder="Mô tả phạm vi nghiệp vụ của vai trò" />
+                            </label>
+                            <label className={cx('admin-permissions__check')}>
+                                <input
+                                    type="checkbox"
+                                    checked={roleForm.isSystem}
+                                    disabled={roleModalMode !== 'edit' || selectedRole?.isSystem}
+                                    onChange={(event) => updateRoleForm('isSystem', event.target.checked)}
+                                />
+                                Vai trò hệ thống
+                            </label>
+                            <footer>
+                                <button type="button" onClick={() => setRoleModalMode(null)} disabled={submitting}>Hủy</button>
+                                <button type="submit" disabled={submitting}>{submitting ? 'Đang lưu...' : 'Lưu vai trò'}</button>
+                            </footer>
+                        </form>
+                    </div>
+                )}
+
+                {deleteTarget && (
+                    <div className={cx('admin-permissions__modal-backdrop')}>
+                        <section className={cx('admin-permissions__modal')}>
+                            <FiAlertTriangle />
+                            <h2>Xóa vai trò</h2>
+                            <p>Bạn đang xóa vai trò “{deleteTarget.name}”. Backend sẽ từ chối nếu vai trò là hệ thống hoặc đang có người dùng.</p>
+                            <footer>
+                                <button type="button" onClick={() => setDeleteTarget(null)} disabled={submitting}>Hủy</button>
+                                <button type="button" className={cx('is-danger')} onClick={confirmDeleteRole} disabled={submitting}>
+                                    {submitting ? 'Đang xóa...' : 'Xác nhận xóa'}
+                                </button>
+                            </footer>
+                        </section>
+                    </div>
+                )}
+
                 {showUsers && (
                     <div className={cx('admin-permissions__modal-backdrop')}>
                         <section className={cx('admin-permissions__users-modal')}>
-                            <header><div><h2>Người dùng thuộc vai trò {selectedRole?.name}</h2><p>Backend hiện chưa trả danh sách user theo role, đang hiển thị mẫu ảnh hưởng.</p></div><button type="button" onClick={() => setShowUsers(false)}><FiX /></button></header>
+                            <header><div><h2>Người dùng thuộc vai trò {selectedRole?.name}</h2><p>Danh sách lấy từ API người dùng theo mã vai trò.</p></div><button type="button" onClick={() => setShowUsers(false)}><FiX /></button></header>
                             <table>
                                 <thead><tr><th>Họ tên</th><th>Email</th><th>Trạng thái</th><th>Ngày gán</th><th>Người gán</th><th></th></tr></thead>
-                                <tbody>{affectedUsers.map((user) => <tr key={user.email}><td>{user.name}</td><td>{user.email}</td><td>{user.status}</td><td>{user.assignedAt}</td><td>{user.assignedBy}</td><td><button type="button">Gỡ vai trò</button></td></tr>)}</tbody>
+                                <tbody>
+                                    {roleUsersLoading && <tr><td colSpan="6">Đang tải người dùng...</td></tr>}
+                                    {!roleUsersLoading && roleUsers.length === 0 && <tr><td colSpan="6">Chưa có người dùng thuộc vai trò này.</td></tr>}
+                                    {!roleUsersLoading && roleUsers.map((user) => (
+                                        <tr key={user.publicId || user.email}>
+                                            <td>{user.fullName || user.name}</td>
+                                            <td>{user.email}</td>
+                                            <td>{user.status}</td>
+                                            <td>{formatDate(user.createdAt)}</td>
+                                            <td>{user.createdBy?.fullName || user.createdByName || '-'}</td>
+                                            <td><button type="button" disabled>Gỡ vai trò</button></td>
+                                        </tr>
+                                    ))}
+                                </tbody>
                             </table>
                         </section>
                     </div>

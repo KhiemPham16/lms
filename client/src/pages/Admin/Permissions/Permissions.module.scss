@@ -323,6 +323,18 @@
     padding: 0 12px;
 }
 
+.admin-permissions__readonly-note {
+    min-height: 34px;
+    border-radius: 999px;
+    background: #fffbeb;
+    color: #b45309;
+    padding: 0 12px;
+    display: inline-flex;
+    align-items: center;
+    font-weight: 800;
+    font-size: 13px;
+}
+
 .admin-permissions__accordion {
     display: grid;
     gap: 12px;
@@ -394,6 +406,11 @@
 .admin-permissions__accordion article > div label.is-sensitive {
     border-color: #fed7aa;
     background: #fffbeb;
+}
+
+.admin-permissions__accordion input:disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
 }
 
 .admin-permissions__accordion label span {
@@ -523,6 +540,60 @@
     display: flex;
     justify-content: flex-end;
     gap: 10px;
+}
+
+.admin-permissions__modal footer button.is-danger {
+    background: #ef4444;
+    color: #ffffff;
+}
+
+.admin-permissions__role-form {
+    display: grid;
+    gap: 14px;
+}
+
+.admin-permissions__role-form label {
+    display: grid;
+    gap: 6px;
+    color: #1f2937;
+    font-weight: 700;
+}
+
+.admin-permissions__role-form input,
+.admin-permissions__role-form textarea {
+    min-height: 42px;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    background: #ffffff;
+    color: #1f2937;
+    padding: 0 12px;
+    outline: 0;
+}
+
+.admin-permissions__role-form textarea {
+    padding: 12px;
+    resize: vertical;
+}
+
+.admin-permissions__role-form input:disabled {
+    background: #f8fafc;
+    color: #64748b;
+    cursor: not-allowed;
+}
+
+.admin-permissions__role-form small {
+    color: #ef4444;
+    font-weight: 700;
+}
+
+.admin-permissions__check {
+    grid-template-columns: auto 1fr;
+    align-items: center;
+    color: #64748b;
+}
+
+.admin-permissions__check input {
+    min-height: auto;
 }
 
 .admin-permissions__users-modal {
