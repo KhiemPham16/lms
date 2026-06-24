@@ -683,6 +683,16 @@
     margin-top: 10px;
 }
 
+.admin-users__impact-list {
+    margin: 12px 0;
+    border-radius: 12px;
+    background: #f8fafc;
+    color: #475569;
+    padding: 12px 12px 12px 28px;
+    display: grid;
+    gap: 7px;
+}
+
 .admin-users__temporary-password {
     margin-top: 14px;
     border-radius: 12px;

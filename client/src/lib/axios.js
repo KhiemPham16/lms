@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { toast } from 'sonner';
 import { useAuthStore } from '~/stores/useAuthStore';
 
 export const axiosInstance = axios.create({
@@ -41,6 +42,26 @@ axiosInstance.interceptors.response.use(
         );
 
         if (isPublicAuthRoute) {
+            throw err;
+        }
+
+        const responseMessage = err.response?.data?.message || '';
+        const isInactiveAccount =
+            status === 403 &&
+            (
+                responseMessage.includes('vô hiệu hóa') ||
+                responseMessage.includes('ACCOUNT_INACTIVE') ||
+                responseMessage.toLowerCase().includes('inactive')
+            );
+
+        if (isInactiveAccount) {
+            useAuthStore.getState().clearState();
+            toast.error('Tài khoản của bạn đã bị vô hiệu hóa. Vui lòng liên hệ bộ phận quản trị để được hỗ trợ.');
+
+            if (window.location.pathname !== '/login') {
+                window.location.assign('/login');
+            }
+
             throw err;
         }
 

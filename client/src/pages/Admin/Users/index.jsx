@@ -57,7 +57,7 @@ const statusLabels = {
     ACTIVE: 'Đang hoạt động',
     PENDING: 'Chờ kích hoạt',
     LOCKED: 'Bị khóa',
-    INACTIVE: 'Vô hiệu hóa'
+    INACTIVE: 'Ngừng hoạt động'
 };
 
 const genderLabels = {
@@ -210,6 +210,8 @@ export default function AdminUsers({ workspaceKey = 'admin' }) {
         updateUserStatus,
         lockUser,
         unlockUser,
+        deactivateUser,
+        activateUser,
         resetPassword,
         changeUserRole,
         fetchUserDetail,
@@ -235,6 +237,8 @@ export default function AdminUsers({ workspaceKey = 'admin' }) {
     const [editOpen, setEditOpen] = useState(false);
     const [lockTarget, setLockTarget] = useState(null);
     const [unlockTarget, setUnlockTarget] = useState(null);
+    const [deactivateTarget, setDeactivateTarget] = useState(null);
+    const [activateTarget, setActivateTarget] = useState(null);
     const [resetTarget, setResetTarget] = useState(null);
     const [roleTarget, setRoleTarget] = useState(null);
     const [activeTab, setActiveTab] = useState('overview');
@@ -242,6 +246,7 @@ export default function AdminUsers({ workspaceKey = 'admin' }) {
     const [editForm, setEditForm] = useState(emptyEditForm);
     const [formErrors, setFormErrors] = useState({});
     const [lockForm, setLockForm] = useState({ reason: '', expiresAt: '', revokeSessions: true, sendEmail: true });
+    const [deactivateForm, setDeactivateForm] = useState({ reason: '', revokeSessions: true, sendEmail: true });
     const [unlockReason, setUnlockReason] = useState('');
     const [resetForm, setResetForm] = useState({ mode: 'link', forceChange: true, revokeSessions: true });
     const [temporaryPassword, setTemporaryPassword] = useState('');
@@ -272,6 +277,41 @@ export default function AdminUsers({ workspaceKey = 'admin' }) {
         );
         const department = departmentOptions.find((item) => getDepartmentOptionValue(item) === normalizedId);
         return department?.name || fallbackDepartmentMap[normalizedId] || '-';
+    };
+    const getCreatorName = (user) => {
+        const canUseCurrentActivities = getUserId(user) && getUserId(user) === getUserId(currentUserDetail);
+        const createLog = canUseCurrentActivities ? userActivities.find((item) => item.action === 'CREATE') : null;
+
+        return user?.createdBy?.fullName ||
+            user?.createdBy?.email ||
+            user?.creator?.fullName ||
+            user?.creator?.email ||
+            user?.createdByName ||
+            createLog?.actor?.fullName ||
+            createLog?.actor?.email ||
+            'Chưa có dữ liệu';
+    };
+    const getRoleAssignmentInfo = (user) => {
+        const canUseCurrentActivities = getUserId(user) && getUserId(user) === getUserId(currentUserDetail);
+        const assignLog = canUseCurrentActivities ? userActivities.find((item) => item.action === 'ASSIGN') : null;
+        const createLog = canUseCurrentActivities ? userActivities.find((item) => item.action === 'CREATE') : null;
+        const fallbackLog = assignLog || createLog;
+
+        return {
+            actor: user?.roleAssignedBy?.fullName ||
+                user?.roleAssignedBy?.email ||
+                user?.assignedRoleBy?.fullName ||
+                user?.assignedRoleBy?.email ||
+                user?.roleAssignedByName ||
+                fallbackLog?.actor?.fullName ||
+                fallbackLog?.actor?.email ||
+                'Chưa có dữ liệu',
+            assignedAt: user?.roleAssignedAt ||
+                user?.assignedRoleAt ||
+                fallbackLog?.createdAt ||
+                null,
+            source: assignLog ? 'audit-assign' : createLog ? 'audit-create' : 'field'
+        };
     };
 
     const queryState = useMemo(() => ({
@@ -455,6 +495,29 @@ export default function AdminUsers({ workspaceKey = 'admin' }) {
         }
     };
 
+    const openDeactivate = (user) => {
+        if (userIsSelf(user)) return toast.error('Không thể vô hiệu hóa chính tài khoản đang đăng nhập');
+        setDeactivateTarget(user);
+        setDeactivateForm({ reason: '', revokeSessions: true, sendEmail: true });
+    };
+
+    const submitDeactivate = async () => {
+        if (!deactivateForm.reason.trim()) return toast.error('Vui lòng nhập lý do vô hiệu hóa');
+        if (deactivateTarget?.bulk) {
+            await bulkAction('deactivate');
+            setDeactivateTarget(null);
+            return;
+        }
+
+        const result = await deactivateUser(getUserId(deactivateTarget), deactivateForm);
+        if (result.ok) setDeactivateTarget(null);
+    };
+
+    const submitActivate = async () => {
+        const result = await activateUser(getUserId(activateTarget), { reason: 'Kích hoạt lại tài khoản' });
+        if (result.ok) setActivateTarget(null);
+    };
+
     const submitResetPassword = async () => {
         const result = await resetPassword(getUserId(resetTarget), resetForm);
         if (result.ok) {
@@ -476,6 +539,7 @@ export default function AdminUsers({ workspaceKey = 'admin' }) {
         try {
             if (action === 'lock') await userService.bulkLockUsers({ userIds: selectedUserIds, reason: 'Bulk lock from Admin UI' });
             if (action === 'unlock') await userService.bulkUnlockUsers({ userIds: selectedUserIds, reason: 'Bulk unlock from Admin UI' });
+            if (action === 'deactivate') await Promise.all(selectedUserIds.map((id) => userService.deactivateUser(id, deactivateForm)));
             if (action === 'activation') await Promise.all(selectedUserIds.map((id) => userService.resendActivation(id)));
             toast.success('Đã gửi thao tác hàng loạt');
             clearSelection();
@@ -624,7 +688,7 @@ export default function AdminUsers({ workspaceKey = 'admin' }) {
                         <button type="button" onClick={() => setRoleTarget({ bulk: true })} disabled={!canUpdate}><FiShield /> Gán vai trò</button>
                         <button type="button" onClick={() => bulkAction('activation')}><FiMail /> Gửi email kích hoạt</button>
                         <button type="button" onClick={() => exportUsers({ selectedOnly: true })}><FiDownload /> Xuất đã chọn</button>
-                        <button type="button" disabled={!canStatus}><FiArchive /> Vô hiệu hóa</button>
+                        <button type="button" disabled={!canStatus} onClick={() => { setDeactivateTarget({ bulk: true }); setDeactivateForm({ reason: '', revokeSessions: true, sendEmail: true }); }}><FiArchive /> Vô hiệu hóa</button>
                         <button type="button" onClick={clearSelection}><FiX /> Bỏ chọn</button>
                     </section>
                 ) : null}
@@ -662,6 +726,7 @@ export default function AdminUsers({ workspaceKey = 'admin' }) {
                                         ) : users.map((user) => {
                                             const id = getUserId(user);
                                             const status = user.status || 'INACTIVE';
+                                            const canDeactivate = ['ACTIVE', 'PENDING', 'LOCKED'].includes(status);
                                             return (
                                                 <tr key={id}>
                                                     <td><input type="checkbox" checked={selectedUserIds.includes(id)} onChange={() => selectUser(id)} /></td>
@@ -674,7 +739,7 @@ export default function AdminUsers({ workspaceKey = 'admin' }) {
                                                     <td><span className={cx('admin-users__role')}>{getUserRoleName(user)}</span></td>
                                                     <td>{getDepartmentName(user)}</td>
                                                     <td><span className={cx('admin-users__status', `is-${status.toLowerCase()}`)}>{statusLabels[status] || status}</span></td>
-                                                    <td>{user.createdBy?.fullName || '-'}</td>
+                                                    <td>{getCreatorName(user)}</td>
                                                     <td>{formatDateTime(user.lastLoginAt)}</td>
                                                     <td>{formatDate(user.createdAt)}</td>
                                                     <td>
@@ -682,10 +747,12 @@ export default function AdminUsers({ workspaceKey = 'admin' }) {
                                                             <button type="button" title="Xem chi tiết" onClick={() => openDetail(user)}><FiEye /></button>
                                                             {canUpdate ? <button type="button" title="Chỉnh sửa" onClick={() => openEdit(user)}><FiEdit3 /></button> : null}
                                                             {canUpdate ? <button type="button" title="Thay đổi vai trò" disabled={userIsSelf(user)} onClick={() => { setRoleTarget(user); setChangeRoleCode(getUserRole(user)); }}><FiShield /></button> : null}
-                                                            {canStatus && status !== 'LOCKED' ? <button type="button" title="Khóa tài khoản" disabled={!canManageUser(user)} onClick={() => openLock(user)}><FiLock /></button> : null}
-                                                            {canStatus && status === 'LOCKED' ? <button type="button" title="Mở khóa tài khoản" onClick={() => setUnlockTarget(user)}><FiUnlock /></button> : null}
-                                                            <button type="button" title="Gửi lại email kích hoạt" onClick={() => userService.resendActivation(id).then(() => toast.success('Đã gửi email kích hoạt')).catch(() => toast.error('Backend chưa hỗ trợ gửi lại email kích hoạt'))}><FiMail /></button>
-                                                            <button type="button" title="Đặt lại mật khẩu" onClick={() => { setResetTarget(user); setTemporaryPassword(''); }}><FiKey /></button>
+                                                            {canStatus && status === 'INACTIVE' ? <button type="button" title="Kích hoạt lại" disabled={!canManageUser(user)} onClick={() => setActivateTarget(user)}><FiUserCheck /></button> : null}
+                                                            {canStatus && status !== 'LOCKED' && status !== 'INACTIVE' ? <button type="button" title="Khóa tài khoản" disabled={!canManageUser(user)} onClick={() => openLock(user)}><FiLock /></button> : null}
+                                                            {canStatus && status === 'LOCKED' ? <button type="button" title="Mở khóa tài khoản" disabled={!canManageUser(user)} onClick={() => setUnlockTarget(user)}><FiUnlock /></button> : null}
+                                                            {canStatus && canDeactivate ? <button type="button" title="Vô hiệu hóa tài khoản" disabled={!canManageUser(user)} onClick={() => openDeactivate(user)}><FiArchive /></button> : null}
+                                                            {status !== 'INACTIVE' ? <button type="button" title="Gửi lại email kích hoạt" onClick={() => userService.resendActivation(id).then(() => toast.success('Đã gửi email kích hoạt')).catch(() => toast.error('Backend chưa hỗ trợ gửi lại email kích hoạt'))}><FiMail /></button> : null}
+                                                            {status !== 'INACTIVE' ? <button type="button" title="Đặt lại mật khẩu" onClick={() => { setResetTarget(user); setTemporaryPassword(''); }}><FiKey /></button> : null}
                                                             <button type="button" title="Xem lịch sử hoạt động" onClick={() => { openDetail(user); setActiveTab('activity'); }}><FiMoreVertical /></button>
                                                         </div>
                                                     </td>
@@ -699,6 +766,7 @@ export default function AdminUsers({ workspaceKey = 'admin' }) {
                             <div className={cx('admin-users__cards')}>
                                 {users.map((user) => {
                                     const id = getUserId(user);
+                                    const status = user.status || 'INACTIVE';
                                     return (
                                         <article key={id}>
                                             <header>
@@ -710,12 +778,15 @@ export default function AdminUsers({ workspaceKey = 'admin' }) {
                                             </header>
                                             <p><b>Vai trò:</b> {getUserRoleName(user)}</p>
                                             <p><b>Phòng ban:</b> {getDepartmentName(user)}</p>
+                                            <p><b>Người tạo:</b> {getCreatorName(user)}</p>
                                             <p><b>Trạng thái:</b> {statusLabels[user.status] || user.status}</p>
                                             <p><b>Mã:</b> {user.code || '-'}</p>
                                             <footer>
                                                 <button type="button" onClick={() => openDetail(user)}>Xem</button>
                                                 <button type="button" onClick={() => openEdit(user)} disabled={!canUpdate}>Sửa</button>
-                                                <button type="button" onClick={() => openLock(user)} disabled={!canStatus || !canManageUser(user)}>Khóa</button>
+                                                {status === 'INACTIVE'
+                                                    ? <button type="button" onClick={() => setActivateTarget(user)} disabled={!canStatus || !canManageUser(user)}>Kích hoạt lại</button>
+                                                    : <button type="button" onClick={() => openDeactivate(user)} disabled={!canStatus || !canManageUser(user)}>Vô hiệu hóa</button>}
                                             </footer>
                                         </article>
                                     );
@@ -807,10 +878,24 @@ export default function AdminUsers({ workspaceKey = 'admin' }) {
                             {detailLoading ? <div className={cx('admin-users__skeleton')} /> : (
                                 <div className={cx('admin-users__detail-body')}>
                                     {activeTab === 'overview' ? (
-                                        <section><div className={cx('admin-users__profile-avatar')}>{getInitials(currentUserDetail?.fullName)}</div><dl><div><dt>Họ tên</dt><dd>{currentUserDetail?.fullName}</dd></div><div><dt>Email</dt><dd>{currentUserDetail?.email}</dd></div><div><dt>Số điện thoại</dt><dd>{currentUserDetail?.phone || '-'}</dd></div><div><dt>Mã người dùng</dt><dd>{currentUserDetail?.code}</dd></div><div><dt>Trạng thái</dt><dd>{statusLabels[currentUserDetail?.status] || currentUserDetail?.status}</dd></div><div><dt>Ngày tạo</dt><dd>{formatDate(currentUserDetail?.createdAt)}</dd></div><div><dt>Người tạo</dt><dd>{currentUserDetail?.createdBy?.fullName || '-'}</dd></div></dl></section>
+                                        <section><div className={cx('admin-users__profile-avatar')}>{getInitials(currentUserDetail?.fullName)}</div><dl><div><dt>Họ tên</dt><dd>{currentUserDetail?.fullName}</dd></div><div><dt>Email</dt><dd>{currentUserDetail?.email}</dd></div><div><dt>Số điện thoại</dt><dd>{currentUserDetail?.phone || '-'}</dd></div><div><dt>Mã người dùng</dt><dd>{currentUserDetail?.code}</dd></div><div><dt>Trạng thái</dt><dd>{statusLabels[currentUserDetail?.status] || currentUserDetail?.status}</dd></div><div><dt>Ngày tạo</dt><dd>{formatDate(currentUserDetail?.createdAt)}</dd></div><div><dt>Người tạo</dt><dd>{getCreatorName(currentUserDetail)}</dd></div></dl></section>
                                     ) : null}
                                     {activeTab === 'role' ? (
-                                        <section><h3>{getUserRoleName(currentUserDetail)}</h3><p>Người gán vai trò: {currentUserDetail?.roleAssignedBy?.fullName || 'Chưa có API'}</p><p>Ngày được gán: {formatDate(currentUserDetail?.roleAssignedAt, 'Chưa có API')}</p><div className={cx('admin-users__permissions')}>{(currentUserDetail?.permissionCodes || currentUserDetail?.role?.permissions?.map((item) => item.permission?.code || item.code) || []).map((code) => <span key={code}>{code}</span>)}</div></section>
+                                        <section>
+                                            {(() => {
+                                                const roleAssignment = getRoleAssignmentInfo(currentUserDetail);
+
+                                                return (
+                                                    <>
+                                                        <h3>{getUserRoleName(currentUserDetail)}</h3>
+                                                        <p>Người gán vai trò: {roleAssignment.actor}</p>
+                                                        <p>Ngày được gán: {formatDateTime(roleAssignment.assignedAt || currentUserDetail?.createdAt)}</p>
+                                                        {roleAssignment.source === 'audit-create' ? <p>Vai trò được xác định từ lúc tạo tài khoản.</p> : null}
+                                                    </>
+                                                );
+                                            })()}
+                                            <div className={cx('admin-users__permissions')}>{(currentUserDetail?.permissionCodes || currentUserDetail?.role?.permissions?.map((item) => item.permission?.code || item.code) || []).map((code) => <span key={code}>{code}</span>)}</div>
+                                        </section>
                                     ) : null}
                                     {activeTab === 'work' ? (
                                         <section><dl><div><dt>Phòng ban/Bộ môn</dt><dd>{getDepartmentName(currentUserDetail)}</dd></div><div><dt>Thông tin chuyên môn</dt><dd>{currentUserDetail?.specialization || 'Chưa có API'}</dd></div><div><dt>Role nghiệp vụ</dt><dd>{getUserRoleName(currentUserDetail)}</dd></div></dl></section>
@@ -847,6 +932,36 @@ export default function AdminUsers({ workspaceKey = 'admin' }) {
                 {unlockTarget ? (
                     <ConfirmDialog title="Mở khóa tài khoản" message={`${unlockTarget.fullName} · ${unlockTarget.email}`} loading={submitting} confirmLabel="Xác nhận mở khóa" onCancel={() => setUnlockTarget(null)} onConfirm={submitUnlock}>
                         <Field label="Lý do mở khóa"><textarea value={unlockReason} onChange={(e) => setUnlockReason(e.target.value)} /></Field>
+                    </ConfirmDialog>
+                ) : null}
+
+                {deactivateTarget ? (
+                    <ConfirmDialog
+                        title="Vô hiệu hóa tài khoản"
+                        message={deactivateTarget.bulk ? `${selectedUserIds.length} tài khoản đã chọn` : `Bạn đang vô hiệu hóa tài khoản: ${deactivateTarget.fullName} · Email: ${deactivateTarget.email} · Vai trò: ${getUserRoleName(deactivateTarget)}`}
+                        danger
+                        loading={submitting}
+                        confirmLabel="Xác nhận vô hiệu hóa"
+                        onCancel={() => setDeactivateTarget(null)}
+                        onConfirm={submitDeactivate}
+                    >
+                        <ul className={cx('admin-users__impact-list')}>
+                            <li>Người dùng không thể đăng nhập.</li>
+                            <li>Các phiên đăng nhập hiện tại sẽ bị kết thúc.</li>
+                            <li>Dữ liệu bài học, lớp học và điểm số vẫn được giữ nguyên.</li>
+                            <li>Tài khoản chỉ có thể được kích hoạt lại bởi người có quyền.</li>
+                        </ul>
+                        <Field label="Lý do vô hiệu hóa">
+                            <textarea value={deactivateForm.reason} onChange={(e) => setDeactivateForm({ ...deactivateForm, reason: e.target.value })} />
+                        </Field>
+                        <label className={cx('admin-users__check')}><input type="checkbox" checked={deactivateForm.revokeSessions} onChange={(e) => setDeactivateForm({ ...deactivateForm, revokeSessions: e.target.checked })} /> Đăng xuất tài khoản khỏi tất cả thiết bị</label>
+                        <label className={cx('admin-users__check')}><input type="checkbox" checked={deactivateForm.sendEmail} onChange={(e) => setDeactivateForm({ ...deactivateForm, sendEmail: e.target.checked })} /> Gửi email thông báo cho người dùng</label>
+                    </ConfirmDialog>
+                ) : null}
+
+                {activateTarget ? (
+                    <ConfirmDialog title="Kích hoạt lại tài khoản" message={`${activateTarget.fullName} · ${activateTarget.email}`} loading={submitting} confirmLabel="Kích hoạt lại" onCancel={() => setActivateTarget(null)} onConfirm={submitActivate}>
+                        <p>Tài khoản sẽ được chuyển về trạng thái đang hoạt động và có thể đăng nhập trở lại.</p>
                     </ConfirmDialog>
                 ) : null}
 

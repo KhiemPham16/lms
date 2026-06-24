@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { JwtPayload } from '~/common/guards/jwt-auth.guard';
 import { ConfigService } from '@nestjs/config';
@@ -26,6 +26,10 @@ export class AuthService {
 
         if (!user) {
             throw new UnauthorizedException('Email hoặc mật khẩu không đúng');
+        }
+
+        if (user.status === 'INACTIVE') {
+            throw new ForbiddenException('Tài khoản của bạn đã bị vô hiệu hóa. Vui lòng liên hệ bộ phận quản trị để được hỗ trợ.');
         }
 
         if (user.status !== 'ACTIVE') {

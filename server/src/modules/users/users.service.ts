@@ -349,7 +349,7 @@ export class UsersService {
                 select: this.defaultSelect()
             });
 
-            if (status === UserStatus.LOCKED && dto.revokeSessions !== false) {
+            if ((status === UserStatus.LOCKED || status === UserStatus.INACTIVE) && dto.revokeSessions !== false) {
                 await tx.session.deleteMany({
                     where: {
                         userId: currentUser.id
@@ -372,7 +372,7 @@ export class UsersService {
                         status,
                         reason: dto.reason,
                         expiresAt: dto.expiresAt,
-                        revokeSessions: status === UserStatus.LOCKED ? dto.revokeSessions !== false : undefined
+                        revokeSessions: status === UserStatus.LOCKED || status === UserStatus.INACTIVE ? dto.revokeSessions !== false : undefined
                     },
                     ipAddress: this.getIpAddress(request),
                     userAgent: request?.headers['user-agent']
@@ -958,12 +958,12 @@ export class UsersService {
             throw new ForbiddenException('HR khong duoc quan ly Admin, HR hoac Hieu truong');
         }
 
-        if (status !== UserStatus.LOCKED) {
+        if (status !== UserStatus.LOCKED && status !== UserStatus.INACTIVE) {
             return;
         }
 
         if (actorPublicId === targetUser.publicId) {
-            throw new ForbiddenException('Khong duoc khoa tai khoan cua chinh minh');
+            throw new ForbiddenException(status === UserStatus.INACTIVE ? 'Không đươc vô hiệu hóa tài khoản của chính mình' : 'Không được khóa tài khoản của chính mình');
         }
 
         if (targetUser.role.code === 'ADMIN') {
