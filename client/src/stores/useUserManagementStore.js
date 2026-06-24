@@ -15,18 +15,19 @@ const defaultFilters = {
 };
 
 const defaultSummary = {
-    total: null,
-    active: null,
-    pending: null,
-    locked: null,
-    newThisMonth: null,
-    unassignedRole: null,
+    total: 0,
+    active: 0,
+    pending: 0,
+    locked: 0,
+    newThisMonth: 0,
+    unassignedRole: 0,
     trends: {}
 };
 
 const getItems = (payload) => payload?.items || payload?.data?.items || [];
 const getMeta = (payload) => payload?.meta || payload?.data?.meta || {};
 const getErrorMessage = (error, fallback) => error?.response?.data?.message || error?.message || fallback;
+const getTotal = (payload) => Number(getMeta(payload).total || 0);
 
 const buildParams = (state) => ({
     page: state.pagination.page,
@@ -94,7 +95,44 @@ export const useUserManagementStore = create((set, get) => ({
             const summary = await userService.getUserSummary({ ...buildParams(state), ...params });
             set({ summary: { ...defaultSummary, ...summary } });
         } catch {
-            set({ summary: defaultSummary });
+            const state = get();
+            const baseParams = {
+                keyword: state.search || undefined,
+                role: state.filters.role || undefined,
+                departmentId: state.filters.departmentId || undefined,
+                page: 1,
+                limit: 1
+            };
+
+            const safeCount = (extraParams = {}) =>
+                userService.getUsers({ ...baseParams, ...extraParams })
+                    .then(getTotal)
+                    .catch(() => 0);
+
+            const [total, active, locked, inactive] = await Promise.all([
+                safeCount(),
+                safeCount({ status: 'ACTIVE' }),
+                safeCount({ status: 'LOCKED' }),
+                safeCount({ status: 'INACTIVE' })
+            ]);
+
+            set({
+                summary: {
+                    ...defaultSummary,
+                    total,
+                    active,
+                    locked,
+                    pending: inactive,
+                    trends: {
+                        total: '+0%',
+                        active: '+0%',
+                        pending: '0%',
+                        locked: '0%',
+                        newThisMonth: '0%',
+                        unassignedRole: '0%'
+                    }
+                }
+            });
         }
     },
 
@@ -177,6 +215,21 @@ export const useUserManagementStore = create((set, get) => ({
             return { ok: true };
         } catch (error) {
             toast.error(getErrorMessage(error, 'Cập nhật người dùng thất bại'));
+            return { ok: false, error };
+        } finally {
+            set({ submitting: false });
+        }
+    },
+
+    updateUserStatus: async (id, status) => {
+        set({ submitting: true });
+        try {
+            await userService.updateUserStatus(id, status);
+            toast.success('Đã cập nhật trạng thái người dùng');
+            await get().refreshData();
+            return { ok: true };
+        } catch (error) {
+            toast.error(getErrorMessage(error, 'Cập nhật trạng thái người dùng thất bại'));
             return { ok: false, error };
         } finally {
             set({ submitting: false });

@@ -30,6 +30,7 @@ import {
 import { toast } from 'sonner';
 
 import AppSidebar from '~/components/AppSidebar';
+import { departmentService } from '~/services/departmentService';
 import { roleService } from '~/services/roleService';
 import { userService } from '~/services/userService';
 import { useAuthStore } from '~/stores/useAuthStore';
@@ -65,6 +66,20 @@ const genderLabels = {
     OTHER: 'Khác'
 };
 
+const fallbackDepartmentMap = {
+    1: 'Khoa Cong Nghe Thong Tin',
+    2: 'Phong Dao Tao',
+    3: 'Ban Giam Hieu',
+    4: 'Phong Nhan Su'
+};
+
+const fallbackDepartmentCodeIds = {
+    CNTT: 1,
+    PDT: 2,
+    BGH: 3,
+    HR: 4
+};
+
 const allowedCreateRoles = {
     ADMIN: ['HR', 'PRINCIPAL'],
     HR: ['TRAINING_OFFICER', 'DEPARTMENT_HEAD', 'LECTURER', 'STUDENT']
@@ -74,7 +89,6 @@ const emptyCreateForm = {
     fullName: '',
     email: '',
     phone: '',
-    code: '',
     password: '',
     confirmPassword: '',
     role: '',
@@ -99,6 +113,8 @@ const emptyEditForm = {
 const getUserRole = (user) => user?.role?.code || user?.role || user?.roleDetail?.code || '';
 const getUserRoleName = (user) => user?.role?.name || roleLabels[getUserRole(user)] || getUserRole(user) || 'Chưa gán';
 const getUserId = (user) => user?.publicId || user?.id || user?.email;
+const normalizeDepartmentId = (value) => (value === null || value === undefined || value === '' ? '' : String(value));
+const getDepartmentOptionValue = (department) => normalizeDepartmentId(department.id || department.departmentId || fallbackDepartmentCodeIds[department.code]);
 const getInitials = (name = '') => name.split(' ').filter(Boolean).slice(-2).map((item) => item[0]).join('').toUpperCase() || 'U';
 const formatDate = (value, fallback = '-') => {
     if (!value) return fallback;
@@ -123,7 +139,7 @@ const normalizeItems = (payload) => payload?.items || payload?.data?.items || pa
 const debounceMs = 400;
 
 function SummaryValue({ value }) {
-    return <strong>{Number.isFinite(value) ? value.toLocaleString('vi-VN') : '—'}</strong>;
+    return <strong>{Number.isFinite(value) ? value.toLocaleString('vi-VN') : '0'}</strong>;
 }
 
 function Field({ label, error, children, hint }) {
@@ -190,6 +206,7 @@ export default function AdminUsers({ workspaceKey = 'admin' }) {
         clearSelection,
         createUser,
         updateUser,
+        updateUserStatus,
         lockUser,
         unlockUser,
         resetPassword,
@@ -210,6 +227,7 @@ export default function AdminUsers({ workspaceKey = 'admin' }) {
         roleAssigned: searchParams.get('roleAssigned') || ''
     }));
     const [roles, setRoles] = useState([]);
+    const [departments, setDepartments] = useState([]);
     const [advancedOpen, setAdvancedOpen] = useState(false);
     const [createOpen, setCreateOpen] = useState(false);
     const [detailOpen, setDetailOpen] = useState(false);
@@ -234,6 +252,26 @@ export default function AdminUsers({ workspaceKey = 'admin' }) {
     const canUpdate = hasUserManagementRole || roleHasPermission(currentRole, 'users.update', permissions);
     const canStatus = hasUserManagementRole || roleHasPermission(currentRole, 'users.lock', permissions);
     const selectedIdsOnPage = users.map(getUserId).filter(Boolean);
+    const departmentOptions = useMemo(
+        () => departments.length > 0
+            ? departments
+            : Object.entries(fallbackDepartmentMap).map(([id, name]) => ({ id, name })),
+        [departments]
+    );
+    const getDepartmentName = (userOrDepartmentId) => {
+        if (typeof userOrDepartmentId === 'object' && userOrDepartmentId !== null) {
+            if (userOrDepartmentId.department?.name) return userOrDepartmentId.department.name;
+            if (userOrDepartmentId.departmentName) return userOrDepartmentId.departmentName;
+        }
+
+        const normalizedId = normalizeDepartmentId(
+            typeof userOrDepartmentId === 'object' && userOrDepartmentId !== null
+                ? userOrDepartmentId.departmentId
+                : userOrDepartmentId
+        );
+        const department = departmentOptions.find((item) => getDepartmentOptionValue(item) === normalizedId);
+        return department?.name || fallbackDepartmentMap[normalizedId] || '-';
+    };
 
     const queryState = useMemo(() => ({
         keyword: search,
@@ -247,7 +285,7 @@ export default function AdminUsers({ workspaceKey = 'admin' }) {
             search ? ['Từ khóa', search, () => setSearch('')] : null,
             filters.role ? ['Vai trò', roleLabels[filters.role] || filters.role, () => setFilters({ role: '' })] : null,
             filters.status ? ['Trạng thái', statusLabels[filters.status] || filters.status, () => setFilters({ status: '' })] : null,
-            filters.departmentId ? ['Phòng ban', filters.departmentId, () => setFilters({ departmentId: '' })] : null,
+            filters.departmentId ? ['Phòng ban', getDepartmentName(filters.departmentId), () => setFilters({ departmentId: '' })] : null,
             filters.createdBy ? ['Người tạo', filters.createdBy, () => setFilters({ createdBy: '' })] : null,
             filters.createdFrom ? ['Từ ngày', filters.createdFrom, () => setFilters({ createdFrom: '' })] : null,
             filters.createdTo ? ['Đến ngày', filters.createdTo, () => setFilters({ createdTo: '' })] : null,
@@ -272,6 +310,7 @@ export default function AdminUsers({ workspaceKey = 'admin' }) {
         setLimit(Number(searchParams.get('limit') || 20));
         setPage(Number(searchParams.get('page') || 1));
         roleService.getRoles().then((payload) => setRoles(normalizeItems(payload))).catch(() => setRoles([]));
+        departmentService.getDepartments().then((payload) => setDepartments(normalizeItems(payload))).catch(() => setDepartments([]));
     }, []);
 
     useEffect(() => {
@@ -301,7 +340,6 @@ export default function AdminUsers({ workspaceKey = 'admin' }) {
     const validateUserForm = (form, mode = 'create') => {
         const errors = {};
         if (!form.fullName?.trim()) errors.fullName = 'Họ tên bắt buộc';
-        if (mode === 'create' && !form.code?.trim()) errors.code = 'Mã người dùng không được để trống';
         if (mode === 'create' && !/^\S+@\S+\.\S+$/.test(form.email)) errors.email = 'Email không hợp lệ';
         if (form.phone && !/^(0|\+84)(3|5|7|8|9)[0-9]{8}$/.test(form.phone.replace(/\s/g, ''))) errors.phone = 'Số điện thoại Việt Nam không hợp lệ';
         if (mode === 'create') {
@@ -336,6 +374,7 @@ export default function AdminUsers({ workspaceKey = 'admin' }) {
 
         const payload = {
             ...createForm,
+            code: undefined,
             departmentId: createForm.departmentId ? Number(createForm.departmentId) : undefined,
             cohortYear: createForm.cohortYear ? Number(createForm.cohortYear) : undefined,
             confirmPassword: undefined
@@ -371,12 +410,24 @@ export default function AdminUsers({ workspaceKey = 'admin' }) {
     const submitEdit = async (event) => {
         event.preventDefault();
         if (!validateUserForm(editForm, 'edit')) return;
-        const result = await updateUser(getUserId(editOpen), {
-            ...editForm,
+        const id = getUserId(editOpen);
+        const { status, ...profilePayload } = editForm;
+        const result = await updateUser(id, {
+            ...profilePayload,
             departmentId: editForm.departmentId ? Number(editForm.departmentId) : undefined
         });
-        if (result.ok) setEditOpen(false);
-        else mapBackendFieldErrors(result.error);
+
+        if (!result.ok) {
+            mapBackendFieldErrors(result.error);
+            return;
+        }
+
+        if (status !== editOpen.status) {
+            const statusResult = await updateUserStatus(id, status);
+            if (!statusResult.ok) return;
+        }
+
+        setEditOpen(false);
     };
 
     const userIsSelf = (user) => getUserId(user) === currentUser?.publicId || user?.email === currentUser?.email;
@@ -439,7 +490,7 @@ export default function AdminUsers({ workspaceKey = 'admin' }) {
             const url = URL.createObjectURL(blob);
             const anchor = document.createElement('a');
             anchor.href = url;
-            anchor.download = 'edulms-users.xlsx';
+            anchor.download = 'edulms-users.csv';
             anchor.click();
             URL.revokeObjectURL(url);
         } catch {
@@ -508,7 +559,14 @@ export default function AdminUsers({ workspaceKey = 'admin' }) {
                         <option value="">Tất cả trạng thái</option>
                         {Object.entries(statusLabels).map(([code, label]) => <option key={code} value={code}>{label}</option>)}
                     </select>
-                    <input value={draftFilters.departmentId} onChange={(event) => setDraftFilters((current) => ({ ...current, departmentId: event.target.value }))} placeholder="Phòng ban/bộ môn" />
+                    <select value={draftFilters.departmentId} onChange={(event) => setDraftFilters((current) => ({ ...current, departmentId: event.target.value }))}>
+                        <option value="">Tất cả phòng ban/bộ môn</option>
+                        {departmentOptions.map((department) => (
+                            <option key={department.publicId || department.code} value={getDepartmentOptionValue(department)}>
+                                {department.name}
+                            </option>
+                        ))}
+                    </select>
                     <button type="button" onClick={() => setFilters(draftFilters)}><FiFilter /> Áp dụng</button>
                     <button type="button" onClick={() => { resetFilters(); setSearchInput(''); setDraftFilters({ ...draftFilters, role: '', status: '', departmentId: '', createdBy: '', createdFrom: '', createdTo: '', emailVerified: '', roleAssigned: '' }); }}><FiRotateCcw /> Xóa bộ lọc</button>
                     <button type="button" onClick={() => setAdvancedOpen((value) => !value)}><FiSliders /> Bộ lọc nâng cao</button>
@@ -598,7 +656,7 @@ export default function AdminUsers({ workspaceKey = 'admin' }) {
                                                         </div>
                                                     </td>
                                                     <td><span className={cx('admin-users__role')}>{getUserRoleName(user)}</span></td>
-                                                    <td>{user.department?.name || user.departmentId || '-'}</td>
+                                                    <td>{getDepartmentName(user)}</td>
                                                     <td><span className={cx('admin-users__status', `is-${status.toLowerCase()}`)}>{statusLabels[status] || status}</span></td>
                                                     <td>{user.createdBy?.fullName || '-'}</td>
                                                     <td>{formatDateTime(user.lastLoginAt)}</td>
@@ -635,6 +693,7 @@ export default function AdminUsers({ workspaceKey = 'admin' }) {
                                                 <input type="checkbox" checked={selectedUserIds.includes(id)} onChange={() => selectUser(id)} />
                                             </header>
                                             <p><b>Vai trò:</b> {getUserRoleName(user)}</p>
+                                            <p><b>Phòng ban:</b> {getDepartmentName(user)}</p>
                                             <p><b>Trạng thái:</b> {statusLabels[user.status] || user.status}</p>
                                             <p><b>Mã:</b> {user.code || '-'}</p>
                                             <footer>
@@ -667,7 +726,6 @@ export default function AdminUsers({ workspaceKey = 'admin' }) {
                                 <Field label="Họ tên" error={formErrors.fullName}><input value={createForm.fullName} onChange={(e) => setCreateForm({ ...createForm, fullName: e.target.value })} /></Field>
                                 <Field label="Email" error={formErrors.email}><input value={createForm.email} onChange={(e) => setCreateForm({ ...createForm, email: e.target.value })} /></Field>
                                 <Field label="Số điện thoại" error={formErrors.phone}><input value={createForm.phone} onChange={(e) => setCreateForm({ ...createForm, phone: e.target.value })} /></Field>
-                                <Field label="Mã người dùng" error={formErrors.code} hint="BE hiện cho phép tự sinh nếu bỏ trống, nhưng UI yêu cầu nhập mã."><input value={createForm.code} onChange={(e) => setCreateForm({ ...createForm, code: e.target.value })} /></Field>
                                 <Field label="Mật khẩu" error={formErrors.password}><input type="password" value={createForm.password} onChange={(e) => setCreateForm({ ...createForm, password: e.target.value })} /></Field>
                                 <Field label="Confirm password" error={formErrors.confirmPassword}><input type="password" value={createForm.confirmPassword} onChange={(e) => setCreateForm({ ...createForm, confirmPassword: e.target.value })} /></Field>
                                 <Field label="Vai trò" error={formErrors.role}>
@@ -679,7 +737,16 @@ export default function AdminUsers({ workspaceKey = 'admin' }) {
                                 <Field label="Trạng thái"><select value={createForm.status} onChange={(e) => setCreateForm({ ...createForm, status: e.target.value })}>{Object.entries(statusLabels).map(([code, label]) => <option key={code} value={code}>{label}</option>)}</select></Field>
                                 <Field label="Giới tính"><select value={createForm.gender} onChange={(e) => setCreateForm({ ...createForm, gender: e.target.value })}><option value="">Không chọn</option>{Object.entries(genderLabels).map(([code, label]) => <option key={code} value={code}>{label}</option>)}</select></Field>
                                 <Field label="Ngày sinh"><input type="date" value={createForm.dateOfBirth} onChange={(e) => setCreateForm({ ...createForm, dateOfBirth: e.target.value })} /></Field>
-                                <Field label="Phòng ban/Bộ môn"><input value={createForm.departmentId} onChange={(e) => setCreateForm({ ...createForm, departmentId: e.target.value })} placeholder="ID phòng ban từ BE" /></Field>
+                                <Field label="Phòng ban/Bộ môn">
+                                    <select value={createForm.departmentId} onChange={(e) => setCreateForm({ ...createForm, departmentId: e.target.value })}>
+                                        <option value="">Chọn phòng ban/bộ môn</option>
+                                        {departmentOptions.map((department) => (
+                                            <option key={department.publicId || department.code} value={getDepartmentOptionValue(department)}>
+                                                {department.name}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </Field>
                                 <Field label="Năm khóa"><input type="number" value={createForm.cohortYear} onChange={(e) => setCreateForm({ ...createForm, cohortYear: e.target.value })} /></Field>
                                 <Field label="Địa chỉ"><textarea value={createForm.address} onChange={(e) => setCreateForm({ ...createForm, address: e.target.value })} /></Field>
                             </div>
@@ -697,7 +764,16 @@ export default function AdminUsers({ workspaceKey = 'admin' }) {
                                 <Field label="Số điện thoại" error={formErrors.phone}><input value={editForm.phone} onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })} /></Field>
                                 <Field label="Giới tính"><select value={editForm.gender} onChange={(e) => setEditForm({ ...editForm, gender: e.target.value })}><option value="">Không chọn</option>{Object.entries(genderLabels).map(([code, label]) => <option key={code} value={code}>{label}</option>)}</select></Field>
                                 <Field label="Ngày sinh"><input type="date" value={editForm.dateOfBirth} onChange={(e) => setEditForm({ ...editForm, dateOfBirth: e.target.value })} /></Field>
-                                <Field label="Phòng ban/Bộ môn"><input value={editForm.departmentId} onChange={(e) => setEditForm({ ...editForm, departmentId: e.target.value })} /></Field>
+                                <Field label="Phòng ban/Bộ môn">
+                                    <select value={editForm.departmentId} onChange={(e) => setEditForm({ ...editForm, departmentId: e.target.value })}>
+                                        <option value="">Chọn phòng ban/bộ môn</option>
+                                        {departmentOptions.map((department) => (
+                                            <option key={department.publicId || department.code} value={getDepartmentOptionValue(department)}>
+                                                {department.name}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </Field>
                                 <Field label="Trạng thái"><select value={editForm.status} onChange={(e) => setEditForm({ ...editForm, status: e.target.value })}>{Object.entries(statusLabels).map(([code, label]) => <option key={code} value={code}>{label}</option>)}</select></Field>
                                 <Field label="Địa chỉ"><textarea value={editForm.address} onChange={(e) => setEditForm({ ...editForm, address: e.target.value })} /></Field>
                             </div>
@@ -721,7 +797,7 @@ export default function AdminUsers({ workspaceKey = 'admin' }) {
                                         <section><h3>{getUserRoleName(currentUserDetail)}</h3><p>Người gán vai trò: {currentUserDetail?.roleAssignedBy?.fullName || 'Chưa có API'}</p><p>Ngày được gán: {formatDate(currentUserDetail?.roleAssignedAt, 'Chưa có API')}</p><div className={cx('admin-users__permissions')}>{(currentUserDetail?.permissionCodes || currentUserDetail?.role?.permissions?.map((item) => item.permission?.code || item.code) || []).map((code) => <span key={code}>{code}</span>)}</div></section>
                                     ) : null}
                                     {activeTab === 'work' ? (
-                                        <section><dl><div><dt>Phòng ban/Bộ môn</dt><dd>{currentUserDetail?.department?.name || currentUserDetail?.departmentId || '-'}</dd></div><div><dt>Thông tin chuyên môn</dt><dd>{currentUserDetail?.specialization || 'Chưa có API'}</dd></div><div><dt>Role nghiệp vụ</dt><dd>{getUserRoleName(currentUserDetail)}</dd></div></dl></section>
+                                        <section><dl><div><dt>Phòng ban/Bộ môn</dt><dd>{getDepartmentName(currentUserDetail)}</dd></div><div><dt>Thông tin chuyên môn</dt><dd>{currentUserDetail?.specialization || 'Chưa có API'}</dd></div><div><dt>Role nghiệp vụ</dt><dd>{getUserRoleName(currentUserDetail)}</dd></div></dl></section>
                                     ) : null}
                                     {activeTab === 'login' ? (
                                         <section className={cx('admin-users__mini-list')}><article><strong>{formatDateTime(currentUserDetail?.lastLoginAt)}</strong><span>Thiết bị, trình duyệt, IP: chờ API lịch sử đăng nhập</span><em>Thành công</em></article></section>
