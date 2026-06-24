@@ -6,6 +6,7 @@ import {
     IsNotEmpty,
     IsOptional,
     IsString,
+    Matches,
     Max,
     Min,
     MinLength
@@ -33,10 +34,12 @@ export class CreateUserDto {
     @IsString()
     phone?: string;
 
-    @ApiPropertyOptional({ example: '123456' })
+    @ApiPropertyOptional({ example: 'Lms@123' })
     @IsOptional()
     @IsString()
     @MinLength(6)
+    @Matches(/[A-Z]/, { message: 'Mat khau phai co it nhat 1 chu hoa' })
+    @Matches(/[^A-Za-z0-9]/, { message: 'Mat khau phai co it nhat 1 ky tu dac biet' })
     password?: string;
 
     @ApiPropertyOptional({ example: 'STUDENT' })

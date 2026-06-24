@@ -46,7 +46,7 @@ export class UsersController {
                 value: {
                     fullName: 'Nguyen Van A',
                     email: 'student2022@lms.com',
-                    password: '123456',
+                    password: 'Lms@123',
                     role: 'STUDENT',
                     departmentId: 1,
                     cohortYear: 2022,
@@ -60,7 +60,7 @@ export class UsersController {
                 value: {
                     fullName: 'Tran Thi B',
                     email: 'lecturer2026@lms.com',
-                    password: '123456',
+                    password: 'Lms@123',
                     role: 'LECTURER',
                     departmentId: 1,
                     cohortYear: 2026,
@@ -72,7 +72,7 @@ export class UsersController {
                 value: {
                     fullName: 'Le Van HR',
                     email: 'hr2026@lms.com',
-                    password: '123456',
+                    password: 'Lms@123',
                     role: 'HR',
                     departmentId: 4,
                     cohortYear: 2026
@@ -80,8 +80,8 @@ export class UsersController {
             }
         }
     })
-    create(@Body() dto: CreateUserDto) {
-        return this.usersService.create(dto);
+    create(@CurrentUser() actor: JwtPayload, @Body() dto: CreateUserDto, @Req() request: Request) {
+        return this.usersService.create(dto, actor.sub, request);
     }
 
     @Get()
@@ -89,8 +89,8 @@ export class UsersController {
     @UseGuards(JwtAuthGuard, PermissionsGuard)
     @Permissions('users.read')
     @ApiOperation({ summary: 'Danh sách người dùng' })
-    findAll(@Query() query: QueryUserDto) {
-        return this.usersService.findAll(query);
+    findAll(@CurrentUser() actor: JwtPayload, @Query() query: QueryUserDto) {
+        return this.usersService.findAll(query, actor.sub);
     }
 
     @Get('summary')
@@ -98,8 +98,8 @@ export class UsersController {
     @UseGuards(JwtAuthGuard, PermissionsGuard)
     @Permissions('users.read')
     @ApiOperation({ summary: 'Tong hop so lieu nguoi dung' })
-    summary(@Query() query: QueryUserDto) {
-        return this.usersService.summary(query);
+    summary(@CurrentUser() actor: JwtPayload, @Query() query: QueryUserDto) {
+        return this.usersService.summary(query, actor.sub);
     }
 
     @Get('export')
@@ -109,8 +109,8 @@ export class UsersController {
     @Header('Content-Type', 'text/csv; charset=utf-8')
     @Header('Content-Disposition', 'attachment; filename="users.csv"')
     @ApiOperation({ summary: 'Xuat danh sach nguoi dung CSV' })
-    export(@Query() query: QueryUserDto) {
-        return this.usersService.exportCsv(query);
+    export(@CurrentUser() actor: JwtPayload, @Query() query: QueryUserDto) {
+        return this.usersService.exportCsv(query, actor.sub);
     }
 
     @Post('bulk/lock')
@@ -154,8 +154,8 @@ export class UsersController {
     @UseGuards(JwtAuthGuard, PermissionsGuard)
     @Permissions('users.update')
     @ApiOperation({ summary: 'Cập nhật người dùng' })
-    update(@Param('publicId') publicId: string, @Body() dto: UpdateUserDto) {
-        return this.usersService.update(publicId, dto);
+    update(@Param('publicId') publicId: string, @CurrentUser() actor: JwtPayload, @Body() dto: UpdateUserDto) {
+        return this.usersService.update(publicId, dto, actor.sub);
     }
 
     @Patch(':publicId/status')
