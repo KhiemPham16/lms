@@ -14,6 +14,9 @@ export class MailProcessor extends WorkerHost {
             case 'forgot-password':
                 return this.mailService.sendForgotPassword(job.data);
 
+            case 'activation':
+                return this.mailService.sendActivation(job.data);
+
             default:
                 throw new Error(`Unknown mail job: ${job.name}`);
         }

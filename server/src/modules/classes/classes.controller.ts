@@ -35,13 +35,6 @@ export class ClassesController {
         return this.classesService.findAll(query);
     }
 
-    @Get('my-enrollments')
-    @Permissions('classes.read')
-    @ApiOperation({ summary: 'Danh sách lớp học sinh viên đã đăng ký' })
-    findMyEnrollments(@CurrentUser() user: JwtPayload) {
-        return this.classesService.findMyEnrollments(user.sub);
-    }
-
     @Get(':publicId')
     @Permissions('classes.read')
     @ApiOperation({ summary: 'Chi tiết lớp học' })
@@ -76,19 +69,5 @@ export class ClassesController {
         @CurrentUser() user: JwtPayload
     ) {
         return this.classesService.updateStatus(publicId, dto.status, user.sub);
-    }
-
-    @Post(':publicId/enroll')
-    @Permissions('enrollments.create')
-    @ApiOperation({ summary: 'Sinh viên đăng ký vào lớp' })
-    enroll(@Param('publicId') publicId: string, @CurrentUser() user: JwtPayload) {
-        return this.classesService.enroll(publicId, user.sub);
-    }
-
-    @Patch(':publicId/drop')
-    @Permissions('enrollments.drop')
-    @ApiOperation({ summary: 'Sinh viên hủy đăng ký lớp' })
-    drop(@Param('publicId') publicId: string, @CurrentUser() user: JwtPayload) {
-        return this.classesService.drop(publicId, user.sub);
     }
 }

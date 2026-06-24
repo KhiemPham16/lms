@@ -40,6 +40,18 @@ export class MailService {
         });
     }
 
+    async sendActivation(data: { email: string; fullName: string; status: string }) {
+        return this.sendMail({
+            to: data.email,
+            subject: '[LMS] Kich hoat tai khoan',
+            template: 'activation',
+            data: {
+                fullName: data.fullName,
+                status: data.status
+            }
+        });
+    }
+
     private async sendMail(options: { to: string; subject: string; template: string; data: Record<string, unknown> }) {
         const html = await this.renderTemplate(options.template, options.data);
 

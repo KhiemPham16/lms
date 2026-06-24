@@ -1,15 +1,26 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
-import { UserStatus } from '@prisma/client';
+import { AuditAction, Prisma, UserStatus } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
+import type { Request } from 'express';
 
 import { PrismaService } from '~/prisma/prisma.service';
+import { AuditLogsService } from '../audit-logs/audit-logs.service';
+import { MailQueueService } from '../mail/mail-queue.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { QueryUserDto } from './dto/query-user.dto';
+import { UpdateUserRoleDto } from './dto/update-user-role.dto';
+import { UserStatusActionDto } from './dto/user-status-action.dto';
+import { ResetUserPasswordDto } from './dto/reset-user-password.dto';
+import { BulkAssignRoleDto } from './dto/bulk-assign-role.dto';
 
 @Injectable()
 export class UsersService {
-    constructor(private readonly prisma: PrismaService) {}
+    constructor(
+        private readonly prisma: PrismaService,
+        private readonly auditLogsService: AuditLogsService,
+        private readonly mailQueueService: MailQueueService
+    ) {}
 
     async create(dto: CreateUserDto) {
         const role = await this.resolveRole(dto.roleId, dto.role);
@@ -53,34 +64,7 @@ export class UsersService {
         const limit = query.limit ?? 10;
         const skip = (page - 1) * limit;
 
-        const where = {
-            deletedAt: null,
-            ...(query.keyword
-                ? {
-                      OR: [
-                          {
-                              fullName: {
-                                  contains: query.keyword
-                              }
-                          },
-                          {
-                              email: {
-                                  contains: query.keyword
-                              }
-                          },
-                          {
-                              code: {
-                                  contains: query.keyword
-                              }
-                          }
-                      ]
-                  }
-                : {}),
-            ...(query.role ? { role: { code: query.role } } : {}),
-            ...(query.roleId ? { roleId: query.roleId } : {}),
-            ...(query.status ? { status: query.status } : {}),
-            ...(query.departmentId ? { departmentId: query.departmentId } : {})
-        };
+        const where = this.buildUserWhere(query);
 
         const [items, total] = await Promise.all([
             this.prisma.user.findMany({
@@ -104,6 +88,70 @@ export class UsersService {
                 totalPages: Math.ceil(total / limit)
             }
         };
+    }
+
+    async summary(query: QueryUserDto) {
+        const where = this.buildUserWhere({
+            ...query,
+            status: undefined,
+            page: undefined,
+            limit: undefined
+        });
+
+        const startOfMonth = new Date();
+        startOfMonth.setDate(1);
+        startOfMonth.setHours(0, 0, 0, 0);
+
+        const [total, active, pending, locked, newThisMonth] = await Promise.all([
+            this.prisma.user.count({ where }),
+            this.prisma.user.count({ where: { ...where, status: UserStatus.ACTIVE } }),
+            this.prisma.user.count({ where: { ...where, status: UserStatus.PENDING } }),
+            this.prisma.user.count({ where: { ...where, status: UserStatus.LOCKED } }),
+            this.prisma.user.count({
+                where: {
+                    ...where,
+                    createdAt: {
+                        gte: startOfMonth
+                    }
+                }
+            })
+        ]);
+
+        return {
+            total,
+            active,
+            pending,
+            locked,
+            newThisMonth,
+            unassignedRole: 0,
+            trends: {}
+        };
+    }
+
+    async exportCsv(query: QueryUserDto) {
+        const users = await this.prisma.user.findMany({
+            where: this.buildUserWhere(query),
+            orderBy: {
+                createdAt: 'desc'
+            },
+            select: this.defaultSelect()
+        });
+
+        const rows = [
+            ['Code', 'Full name', 'Email', 'Phone', 'Role', 'Status', 'Department ID', 'Created at'],
+            ...users.map((user) => [
+                user.code,
+                user.fullName,
+                user.email,
+                user.phone ?? '',
+                user.role?.code ?? '',
+                user.status,
+                user.departmentId?.toString() ?? '',
+                user.createdAt.toISOString()
+            ])
+        ];
+
+        return rows.map((row) => row.map((cell) => this.csvCell(cell)).join(',')).join('\n');
     }
 
     async findByPublicIdOrThrow(publicId: string) {
@@ -225,20 +273,340 @@ export class UsersService {
         return this.formatUser(updatedUser);
     }
 
-    async updateStatus(publicId: string, status: UserStatus) {
-        await this.findByPublicIdOrThrow(publicId);
+    async updateStatus(publicId: string, status: UserStatus, actorPublicId?: string, dto: UserStatusActionDto = {}, request?: Request) {
+        const currentUser = await this.findByPublicIdRawOrThrow(publicId);
 
-        const user = await this.prisma.user.update({
-            where: {
-                publicId
-            },
-            data: {
-                status
-            },
-            select: this.defaultSelect()
+        const user = await this.prisma.$transaction(async (tx) => {
+            const updatedUser = await tx.user.update({
+                where: {
+                    publicId
+                },
+                data: {
+                    status
+                },
+                select: this.defaultSelect()
+            });
+
+            if (status === UserStatus.LOCKED && dto.revokeSessions !== false) {
+                await tx.session.deleteMany({
+                    where: {
+                        userId: currentUser.id
+                    }
+                });
+            }
+
+            await this.auditLogsService.create(
+                {
+                    actorId: await this.resolveActorId(actorPublicId, tx),
+                    action: AuditAction.STATUS_CHANGE,
+                    module: 'users',
+                    targetType: 'User',
+                    targetId: currentUser.id,
+                    targetPublicId: currentUser.publicId,
+                    oldValue: {
+                        status: currentUser.status
+                    },
+                    newValue: {
+                        status,
+                        reason: dto.reason,
+                        expiresAt: dto.expiresAt,
+                        revokeSessions: status === UserStatus.LOCKED ? dto.revokeSessions !== false : undefined
+                    },
+                    ipAddress: this.getIpAddress(request),
+                    userAgent: request?.headers['user-agent']
+                },
+                tx
+            );
+
+            return updatedUser;
         });
 
         return this.formatUser(user);
+    }
+
+    async updateRole(publicId: string, dto: UpdateUserRoleDto, actorPublicId?: string, request?: Request) {
+        if (!dto.roleId && !dto.role) {
+            throw new BadRequestException('Vui long chon vai tro');
+        }
+
+        const currentUser = await this.findByPublicIdRawOrThrow(publicId);
+        const role = await this.resolveRole(dto.roleId, dto.role);
+
+        const user = await this.prisma.$transaction(async (tx) => {
+            const updatedUser = await tx.user.update({
+                where: {
+                    publicId
+                },
+                data: {
+                    roleId: role.id
+                },
+                select: this.defaultSelect()
+            });
+
+            await this.auditLogsService.create(
+                {
+                    actorId: await this.resolveActorId(actorPublicId, tx),
+                    action: AuditAction.ASSIGN,
+                    module: 'users',
+                    targetType: 'User',
+                    targetId: currentUser.id,
+                    targetPublicId: currentUser.publicId,
+                    oldValue: {
+                        roleId: currentUser.roleId,
+                        role: currentUser.role.code
+                    },
+                    newValue: {
+                        roleId: role.id,
+                        role: role.code
+                    },
+                    ipAddress: this.getIpAddress(request),
+                    userAgent: request?.headers['user-agent']
+                },
+                tx
+            );
+
+            return updatedUser;
+        });
+
+        return this.formatUser(user);
+    }
+
+    async adminResetPassword(publicId: string, dto: ResetUserPasswordDto, actorPublicId?: string, request?: Request) {
+        const user = await this.findByPublicIdRawOrThrow(publicId);
+        const mode = dto.mode ?? 'link';
+
+        if (mode === 'temporary') {
+            const temporaryPassword = this.generateTemporaryPassword();
+            const password = await bcrypt.hash(temporaryPassword, 10);
+
+            await this.prisma.$transaction(async (tx) => {
+                await tx.user.update({
+                    where: {
+                        publicId
+                    },
+                    data: {
+                        password,
+                        resetPasswordOtp: null,
+                        resetPasswordOtpExpiresAt: null
+                    }
+                });
+
+                if (dto.revokeSessions !== false) {
+                    await tx.session.deleteMany({
+                        where: {
+                            userId: user.id
+                        }
+                    });
+                }
+
+                await this.auditLogsService.create(
+                    {
+                        actorId: await this.resolveActorId(actorPublicId, tx),
+                        action: AuditAction.UPDATE,
+                        module: 'users',
+                        targetType: 'User',
+                        targetId: user.id,
+                        targetPublicId: user.publicId,
+                        newValue: {
+                            resetPasswordMode: mode,
+                            forceChange: dto.forceChange,
+                            revokeSessions: dto.revokeSessions !== false
+                        },
+                        ipAddress: this.getIpAddress(request),
+                        userAgent: request?.headers['user-agent']
+                    },
+                    tx
+                );
+            });
+
+            return {
+                message: 'Dat lai mat khau thanh cong',
+                temporaryPassword
+            };
+        }
+
+        const otp = Math.floor(100000 + Math.random() * 900000).toString();
+        const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
+
+        await this.prisma.$transaction(async (tx) => {
+            await tx.user.update({
+                where: {
+                    publicId
+                },
+                data: {
+                    resetPasswordOtp: otp,
+                    resetPasswordOtpExpiresAt: expiresAt
+                }
+            });
+
+            if (dto.revokeSessions) {
+                await tx.session.deleteMany({
+                    where: {
+                        userId: user.id
+                    }
+                });
+            }
+
+            await this.auditLogsService.create(
+                {
+                    actorId: await this.resolveActorId(actorPublicId, tx),
+                    action: AuditAction.UPDATE,
+                    module: 'users',
+                    targetType: 'User',
+                    targetId: user.id,
+                    targetPublicId: user.publicId,
+                    newValue: {
+                        resetPasswordMode: mode,
+                        forceChange: dto.forceChange,
+                        revokeSessions: dto.revokeSessions === true
+                    },
+                    ipAddress: this.getIpAddress(request),
+                    userAgent: request?.headers['user-agent']
+                },
+                tx
+            );
+        });
+
+        this.mailQueueService
+            .sendForgotPassword({
+                email: user.email,
+                fullName: user.fullName,
+                otp
+            })
+            .catch((error) => {
+                console.error('[USER_RESET_PASSWORD_MAIL_QUEUE_ERROR]', error);
+            });
+
+        return {
+            message: 'Da gui email dat lai mat khau'
+        };
+    }
+
+    async resendActivation(publicId: string, actorPublicId?: string, request?: Request) {
+        const user = await this.findByPublicIdRawOrThrow(publicId);
+
+        await this.auditLogsService.create({
+            actorId: await this.resolveActorId(actorPublicId),
+            action: AuditAction.UPDATE,
+            module: 'users',
+            targetType: 'User',
+            targetId: user.id,
+            targetPublicId: user.publicId,
+            newValue: {
+                activationEmailResent: true,
+                status: user.status
+            },
+            ipAddress: this.getIpAddress(request),
+            userAgent: request?.headers['user-agent']
+        });
+
+        this.mailQueueService
+            .sendActivation({
+                email: user.email,
+                fullName: user.fullName,
+                status: user.status
+            })
+            .catch((error) => {
+                console.error('[USER_ACTIVATION_MAIL_QUEUE_ERROR]', error);
+            });
+
+        return {
+            message: 'Da gui lai email kich hoat'
+        };
+    }
+
+    async activities(publicId: string, query: QueryUserDto) {
+        const user = await this.findByPublicIdRawOrThrow(publicId);
+        const page = query.page ?? 1;
+        const limit = query.limit ?? 20;
+        const skip = (page - 1) * limit;
+
+        const where = {
+            targetType: 'User',
+            targetPublicId: user.publicId
+        };
+
+        const [items, total] = await Promise.all([
+            this.prisma.auditLog.findMany({
+                where,
+                skip,
+                take: limit,
+                orderBy: {
+                    createdAt: 'desc'
+                },
+                select: {
+                    publicId: true,
+                    action: true,
+                    module: true,
+                    targetType: true,
+                    targetPublicId: true,
+                    oldValue: true,
+                    newValue: true,
+                    ipAddress: true,
+                    userAgent: true,
+                    actor: {
+                        select: {
+                            publicId: true,
+                            code: true,
+                            fullName: true,
+                            email: true
+                        }
+                    },
+                    createdAt: true
+                }
+            }),
+            this.prisma.auditLog.count({ where })
+        ]);
+
+        return {
+            items,
+            meta: {
+                page,
+                limit,
+                total,
+                totalPages: Math.ceil(total / limit)
+            }
+        };
+    }
+
+    async bulkUpdateStatus(
+        publicIds: string[],
+        status: UserStatus,
+        actorPublicId?: string,
+        dto: UserStatusActionDto = {},
+        request?: Request
+    ) {
+        const results: any[] = [];
+
+        for (const publicId of publicIds) {
+            const user = await this.updateStatus(publicId, status, actorPublicId, dto, request);
+            results.push(user);
+        }
+
+        return {
+            message: 'Xu ly hang loat thanh cong',
+            total: results.length,
+            items: results
+        };
+    }
+
+    async bulkAssignRole(dto: BulkAssignRoleDto, actorPublicId?: string, request?: Request) {
+        if (!dto.roleId && !dto.role) {
+            throw new BadRequestException('Vui long chon vai tro');
+        }
+
+        const results: any[] = [];
+
+        for (const publicId of dto.userIds) {
+            const user = await this.updateRole(publicId, dto, actorPublicId, request);
+            results.push(user);
+        }
+
+        return {
+            message: 'Gan vai tro hang loat thanh cong',
+            total: results.length,
+            items: results
+        };
     }
 
     updateResetPasswordOtp(userId: number, otp: string, expiresAt: Date) {
@@ -306,6 +674,118 @@ export class UsersService {
                 id: sessionId
             }
         });
+    }
+
+    private buildUserWhere(query: QueryUserDto) {
+        const createdAt =
+            query.createdFrom || query.createdTo
+                ? {
+                      ...(query.createdFrom ? { gte: new Date(query.createdFrom) } : {}),
+                      ...(query.createdTo ? { lte: this.endOfDay(query.createdTo) } : {})
+                  }
+                : undefined;
+
+        return {
+            deletedAt: null,
+            ...(query.keyword
+                ? {
+                      OR: [
+                          {
+                              fullName: {
+                                  contains: query.keyword
+                              }
+                          },
+                          {
+                              email: {
+                                  contains: query.keyword
+                              }
+                          },
+                          {
+                              code: {
+                                  contains: query.keyword
+                              }
+                          }
+                      ]
+                  }
+                : {}),
+            ...(query.role ? { role: { code: query.role } } : {}),
+            ...(query.roleId ? { roleId: query.roleId } : {}),
+            ...(query.status ? { status: query.status } : {}),
+            ...(query.departmentId ? { departmentId: query.departmentId } : {}),
+            ...(createdAt ? { createdAt } : {})
+        };
+    }
+
+    private async findByPublicIdRawOrThrow(publicId: string) {
+        const user = await this.prisma.user.findFirst({
+            where: {
+                publicId,
+                deletedAt: null
+            },
+            include: {
+                role: true
+            }
+        });
+
+        if (!user) {
+            throw new NotFoundException('Khong tim thay nguoi dung');
+        }
+
+        return user;
+    }
+
+    private async resolveActorId(actorPublicId?: string, client: Pick<PrismaService, 'user'> | Prisma.TransactionClient = this.prisma) {
+        if (!actorPublicId) {
+            return undefined;
+        }
+
+        const actor = await client.user.findFirst({
+            where: {
+                publicId: actorPublicId,
+                deletedAt: null
+            },
+            select: {
+                id: true
+            }
+        });
+
+        return actor?.id;
+    }
+
+    private getIpAddress(request?: Request) {
+        const forwardedFor = request?.headers['x-forwarded-for'];
+
+        if (Array.isArray(forwardedFor)) {
+            return forwardedFor[0];
+        }
+
+        if (typeof forwardedFor === 'string') {
+            return forwardedFor.split(',')[0]?.trim();
+        }
+
+        return request?.ip;
+    }
+
+    private endOfDay(value: string) {
+        const date = new Date(value);
+        date.setHours(23, 59, 59, 999);
+
+        return date;
+    }
+
+    private csvCell(value: string) {
+        return `"${value.replace(/"/g, '""')}"`;
+    }
+
+    private generateTemporaryPassword() {
+        const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789';
+        let password = 'Aa1!';
+
+        for (let index = 0; index < 8; index += 1) {
+            password += alphabet[Math.floor(Math.random() * alphabet.length)];
+        }
+
+        return password;
     }
 
     private defaultSelect() {

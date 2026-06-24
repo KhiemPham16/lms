@@ -12,6 +12,7 @@ datasource db {
 }
 
 enum UserStatus {
+  PENDING
   ACTIVE
   INACTIVE
   LOCKED
