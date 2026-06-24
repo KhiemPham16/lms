@@ -3,6 +3,7 @@ import {
     IsEmail,
     IsNotEmpty,
     IsString,
+    Matches,
     MinLength
 } from 'class-validator';
 
@@ -21,9 +22,11 @@ export class ResetPasswordDto {
     otp: string;
 
     @ApiProperty({
-        example: '12345678'
+        example: 'Lms@123'
     })
     @IsString()
     @MinLength(6)
+    @Matches(/[A-Z]/, { message: 'Mat khau phai co it nhat 1 chu hoa' })
+    @Matches(/[^A-Za-z0-9]/, { message: 'Mat khau phai co it nhat 1 ky tu dac biet' })
     newPassword: string;
 }

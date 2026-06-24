@@ -274,7 +274,7 @@ async function main() {
         ).map((department) => [department.code, department.id])
     );
 
-    const password = await bcrypt.hash('123456', 10);
+    const password = await bcrypt.hash('Lms@123', 10);
 
     const users = [
         {

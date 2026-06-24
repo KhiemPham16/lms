@@ -1,4 +1,4 @@
-import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { AuditAction, Prisma, UserStatus } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import type { Request } from 'express';
@@ -16,14 +16,20 @@ import { BulkAssignRoleDto } from './dto/bulk-assign-role.dto';
 
 @Injectable()
 export class UsersService {
+    private readonly defaultPassword = 'Lms@123';
+    private readonly adminCreatableRoles = ['HR', 'PRINCIPAL'];
+    private readonly hrBlockedRoles = ['ADMIN', 'HR', 'PRINCIPAL'];
+
     constructor(
         private readonly prisma: PrismaService,
         private readonly auditLogsService: AuditLogsService,
         private readonly mailQueueService: MailQueueService
     ) {}
 
-    async create(dto: CreateUserDto) {
+    async create(dto: CreateUserDto, actorPublicId?: string, request?: Request) {
         const role = await this.resolveRole(dto.roleId, dto.role);
+        await this.assertCanCreateRole(actorPublicId, role.code);
+        await this.assertSingleAdmin(role.code);
         const code = dto.code ?? (await this.generateUserCode(role.code, dto.cohortYear));
 
         const existedUser = await this.prisma.user.findFirst({
@@ -36,35 +42,62 @@ export class UsersService {
             throw new ConflictException('Mã người dùng, email hoặc số điện thoại đã tồn tại');
         }
 
-        const password = await bcrypt.hash(dto.password ?? '123456', 10);
+        const password = await bcrypt.hash(dto.password ?? this.defaultPassword, 10);
 
-        const user = await this.prisma.user.create({
-            data: {
-                code,
-                fullName: dto.fullName,
-                email: dto.email,
-                phone: dto.phone,
-                password,
-                roleId: role.id,
-                status: dto.status ?? UserStatus.ACTIVE,
-                gender: dto.gender,
-                avatarUrl: dto.avatarUrl,
-                dateOfBirth: dto.dateOfBirth ? new Date(dto.dateOfBirth) : undefined,
-                address: dto.address,
-                departmentId: dto.departmentId
-            },
-            select: this.defaultSelect()
+        const user = await this.prisma.$transaction(async (tx) => {
+            const createdUser = await tx.user.create({
+                data: {
+                    code,
+                    fullName: dto.fullName,
+                    email: dto.email,
+                    phone: dto.phone,
+                    password,
+                    roleId: role.id,
+                    status: dto.status ?? UserStatus.ACTIVE,
+                    gender: dto.gender,
+                    avatarUrl: dto.avatarUrl,
+                    dateOfBirth: dto.dateOfBirth ? new Date(dto.dateOfBirth) : undefined,
+                    address: dto.address,
+                    departmentId: dto.departmentId
+                },
+                select: {
+                    id: true,
+                    ...this.defaultSelect()
+                }
+            });
+
+            await this.auditLogsService.create(
+                {
+                    actorId: await this.resolveActorId(actorPublicId, tx),
+                    action: AuditAction.CREATE,
+                    module: 'users',
+                    targetType: 'User',
+                    targetId: createdUser.id,
+                    targetPublicId: createdUser.publicId,
+                    newValue: {
+                        code: createdUser.code,
+                        email: createdUser.email,
+                        role: createdUser.role?.code,
+                        status: createdUser.status
+                    },
+                    ipAddress: this.getIpAddress(request),
+                    userAgent: request?.headers['user-agent']
+                },
+                tx
+            );
+
+            return createdUser;
         });
 
         return this.formatUser(user);
     }
 
-    async findAll(query: QueryUserDto) {
+    async findAll(query: QueryUserDto, actorPublicId?: string) {
         const page = query.page ?? 1;
         const limit = query.limit ?? 10;
         const skip = (page - 1) * limit;
 
-        const where = this.buildUserWhere(query);
+        const where = await this.buildUserWhere(query, actorPublicId);
 
         const [items, total] = await Promise.all([
             this.prisma.user.findMany({
@@ -90,19 +123,19 @@ export class UsersService {
         };
     }
 
-    async summary(query: QueryUserDto) {
-        const where = this.buildUserWhere({
+    async summary(query: QueryUserDto, actorPublicId?: string) {
+        const where = await this.buildUserWhere({
             ...query,
             status: undefined,
             page: undefined,
             limit: undefined
-        });
+        }, actorPublicId);
 
         const startOfMonth = new Date();
         startOfMonth.setDate(1);
         startOfMonth.setHours(0, 0, 0, 0);
 
-        const [total, active, pending, locked, newThisMonth] = await Promise.all([
+        const [total, active, pending, locked, newThisMonth, unassignedRole] = await Promise.all([
             this.prisma.user.count({ where }),
             this.prisma.user.count({ where: { ...where, status: UserStatus.ACTIVE } }),
             this.prisma.user.count({ where: { ...where, status: UserStatus.PENDING } }),
@@ -114,7 +147,8 @@ export class UsersService {
                         gte: startOfMonth
                     }
                 }
-            })
+            }),
+            this.prisma.user.count({ where: { ...where, id: { in: [] } } })
         ]);
 
         return {
@@ -123,14 +157,14 @@ export class UsersService {
             pending,
             locked,
             newThisMonth,
-            unassignedRole: 0,
+            unassignedRole,
             trends: {}
         };
     }
 
-    async exportCsv(query: QueryUserDto) {
+    async exportCsv(query: QueryUserDto, actorPublicId?: string) {
         const users = await this.prisma.user.findMany({
-            where: this.buildUserWhere(query),
+            where: await this.buildUserWhere(query, actorPublicId),
             orderBy: {
                 createdAt: 'desc'
             },
@@ -203,9 +237,19 @@ export class UsersService {
         });
     }
 
-    async update(publicId: string, dto: UpdateUserDto) {
-        await this.findByPublicIdOrThrow(publicId);
-        const roleId = dto.roleId || dto.role ? await this.resolveRoleId(dto.roleId, dto.role) : undefined;
+    async update(publicId: string, dto: UpdateUserDto, actorPublicId?: string) {
+        const currentUser = await this.findByPublicIdRawOrThrow(publicId);
+        const role = dto.roleId || dto.role ? await this.resolveRole(dto.roleId, dto.role) : undefined;
+        const roleId = role?.id;
+
+        if (role) {
+            await this.assertCanAssignRole(actorPublicId, publicId, currentUser.role.code, role.code);
+            await this.assertSingleAdmin(role.code, publicId);
+        }
+
+        if (dto.status) {
+            await this.assertCanUpdateStatus(actorPublicId, currentUser, dto.status);
+        }
 
         const duplicateFilters = [
             ...(dto.code ? [{ code: dto.code }] : []),
@@ -275,6 +319,7 @@ export class UsersService {
 
     async updateStatus(publicId: string, status: UserStatus, actorPublicId?: string, dto: UserStatusActionDto = {}, request?: Request) {
         const currentUser = await this.findByPublicIdRawOrThrow(publicId);
+        await this.assertCanUpdateStatus(actorPublicId, currentUser, status);
 
         const user = await this.prisma.$transaction(async (tx) => {
             const updatedUser = await tx.user.update({
@@ -331,6 +376,8 @@ export class UsersService {
 
         const currentUser = await this.findByPublicIdRawOrThrow(publicId);
         const role = await this.resolveRole(dto.roleId, dto.role);
+        await this.assertCanAssignRole(actorPublicId, publicId, currentUser.role.code, role.code);
+        await this.assertSingleAdmin(role.code, publicId);
 
         const user = await this.prisma.$transaction(async (tx) => {
             const updatedUser = await tx.user.update({
@@ -676,7 +723,7 @@ export class UsersService {
         });
     }
 
-    private buildUserWhere(query: QueryUserDto) {
+    private async buildUserWhere(query: QueryUserDto, actorPublicId?: string): Promise<Prisma.UserWhereInput> {
         const createdAt =
             query.createdFrom || query.createdTo
                 ? {
@@ -685,7 +732,7 @@ export class UsersService {
                   }
                 : undefined;
 
-        return {
+        const where: Prisma.UserWhereInput = {
             deletedAt: null,
             ...(query.keyword
                 ? {
@@ -711,9 +758,32 @@ export class UsersService {
             ...(query.role ? { role: { code: query.role } } : {}),
             ...(query.roleId ? { roleId: query.roleId } : {}),
             ...(query.status ? { status: query.status } : {}),
+            ...(!query.status && query.emailVerified !== undefined
+                ? { status: query.emailVerified ? { not: UserStatus.PENDING } : UserStatus.PENDING }
+                : {}),
+            ...(query.roleAssigned !== undefined ? (query.roleAssigned ? { roleId: { not: 0 } } : { id: { in: [] } }) : {}),
             ...(query.departmentId ? { departmentId: query.departmentId } : {}),
             ...(createdAt ? { createdAt } : {})
         };
+
+        if (query.createdBy) {
+            const creatorPublicIds = await this.findCreatedUserPublicIds(query.createdBy);
+            where.publicId = {
+                in: creatorPublicIds
+            };
+        }
+
+        const actor = await this.findActor(actorPublicId);
+
+        if (actor?.role.code === 'HR') {
+            if (query.role && this.hrBlockedRoles.includes(query.role)) {
+                where.id = { in: [] };
+            } else {
+                where.role = query.role ? { code: query.role } : { code: { notIn: this.hrBlockedRoles } };
+            }
+        }
+
+        return where;
     }
 
     private async findByPublicIdRawOrThrow(publicId: string) {
@@ -750,6 +820,154 @@ export class UsersService {
         });
 
         return actor?.id;
+    }
+
+    private async findActor(actorPublicId?: string) {
+        if (!actorPublicId) {
+            return null;
+        }
+
+        return this.prisma.user.findFirst({
+            where: {
+                publicId: actorPublicId,
+                deletedAt: null
+            },
+            include: {
+                role: true
+            }
+        });
+    }
+
+    private async assertCanCreateRole(actorPublicId: string | undefined, targetRoleCode: string) {
+        const actor = await this.findActor(actorPublicId);
+
+        if (!actor) {
+            throw new ForbiddenException('Khong xac dinh duoc nguoi thuc hien');
+        }
+
+        if (actor.role.code === 'ADMIN') {
+            if (!this.adminCreatableRoles.includes(targetRoleCode)) {
+                throw new ForbiddenException('Admin chi duoc tao HR hoac Hieu truong');
+            }
+
+            return;
+        }
+
+        if (actor.role.code === 'HR') {
+            if (this.hrBlockedRoles.includes(targetRoleCode)) {
+                throw new ForbiddenException('HR khong duoc tao Admin, HR hoac Hieu truong');
+            }
+
+            return;
+        }
+
+        throw new ForbiddenException('Ban khong co quyen tao vai tro nay');
+    }
+
+    private async assertCanAssignRole(
+        actorPublicId: string | undefined,
+        targetPublicId: string,
+        currentRoleCode: string,
+        nextRoleCode: string
+    ) {
+        if (actorPublicId === targetPublicId) {
+            throw new ForbiddenException('Khong duoc tu thay doi vai tro cua chinh minh');
+        }
+
+        const actor = await this.findActor(actorPublicId);
+
+        if (!actor) {
+            throw new ForbiddenException('Khong xac dinh duoc nguoi thuc hien');
+        }
+
+        if (actor.role.code === 'HR' && (this.hrBlockedRoles.includes(currentRoleCode) || this.hrBlockedRoles.includes(nextRoleCode))) {
+            throw new ForbiddenException('HR khong duoc quan ly Admin, HR hoac Hieu truong');
+        }
+    }
+
+    private async assertCanUpdateStatus(actorPublicId: string | undefined, targetUser: Awaited<ReturnType<UsersService['findByPublicIdRawOrThrow']>>, status: UserStatus) {
+        const actor = await this.findActor(actorPublicId);
+
+        if (actor?.role.code === 'HR' && this.hrBlockedRoles.includes(targetUser.role.code)) {
+            throw new ForbiddenException('HR khong duoc quan ly Admin, HR hoac Hieu truong');
+        }
+
+        if (status !== UserStatus.LOCKED) {
+            return;
+        }
+
+        if (actorPublicId === targetUser.publicId) {
+            throw new ForbiddenException('Khong duoc khoa tai khoan cua chinh minh');
+        }
+
+        if (targetUser.role.code === 'ADMIN') {
+            const activeAdminCount = await this.prisma.user.count({
+                where: {
+                    deletedAt: null,
+                    status: UserStatus.ACTIVE,
+                    role: {
+                        code: 'ADMIN'
+                    }
+                }
+            });
+
+            if (targetUser.status === UserStatus.ACTIVE && activeAdminCount <= 1) {
+                throw new BadRequestException('Khong duoc khoa Admin cuoi cung dang hoat dong');
+            }
+        }
+    }
+
+    private async assertSingleAdmin(roleCode: string, targetPublicId?: string) {
+        if (roleCode !== 'ADMIN') {
+            return;
+        }
+
+        const adminCount = await this.prisma.user.count({
+            where: {
+                deletedAt: null,
+                role: {
+                    code: 'ADMIN'
+                },
+                ...(targetPublicId
+                    ? {
+                          publicId: {
+                              not: targetPublicId
+                          }
+                      }
+                    : {})
+            }
+        });
+
+        if (adminCount > 0) {
+            throw new ConflictException('He thong chi duoc co 1 Admin');
+        }
+    }
+
+    private async findCreatedUserPublicIds(createdBy: string) {
+        const logs = await this.prisma.auditLog.findMany({
+            where: {
+                action: AuditAction.CREATE,
+                module: 'users',
+                targetType: 'User',
+                targetPublicId: {
+                    not: null
+                },
+                actor: {
+                    OR: [
+                        { publicId: createdBy },
+                        { code: createdBy },
+                        { email: createdBy },
+                        { fullName: { contains: createdBy } }
+                    ]
+                }
+            },
+            distinct: ['targetPublicId'],
+            select: {
+                targetPublicId: true
+            }
+        });
+
+        return logs.map((log) => log.targetPublicId).filter((publicId): publicId is string => Boolean(publicId));
     }
 
     private getIpAddress(request?: Request) {
@@ -888,7 +1106,7 @@ export class UsersService {
     }
 
     private formatUser(user: any) {
-        const { role, ...rest } = user;
+        const { id, role, ...rest } = user;
         const permissions = role?.permissions?.map((item) => item.permission) ?? [];
         const roleDetail = role
             ? {
