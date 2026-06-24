@@ -1,15 +1,24 @@
 import { axiosInstance as api } from '~/lib/axios';
 
 const unwrap = (response) => response.data?.data || response.data;
+const cleanParams = (params = {}) =>
+    Object.entries(params).reduce((nextParams, [key, value]) => {
+        if (value === '' || value === undefined || value === null) {
+            return nextParams;
+        }
+
+        nextParams[key] = value;
+        return nextParams;
+    }, {});
 
 export const userService = {
     getUsers: async (params = {}) => {
-        const res = await api.get('/users', { params });
+        const res = await api.get('/users', { params: cleanParams(params) });
         return unwrap(res);
     },
 
     getUserSummary: async (params = {}) => {
-        const res = await api.get('/users/summary', { params });
+        const res = await api.get('/users/summary', { params: cleanParams(params) });
         return unwrap(res);
     },
 
@@ -60,7 +69,7 @@ export const userService = {
     },
 
     getUserActivities: async (id, params = {}) => {
-        const res = await api.get(`/users/${id}/activities`, { params });
+        const res = await api.get(`/users/${id}/activities`, { params: cleanParams(params) });
         return unwrap(res);
     },
 
@@ -81,7 +90,7 @@ export const userService = {
 
     exportUsers: async (params = {}) => {
         const res = await api.get('/users/export', {
-            params,
+            params: cleanParams(params),
             responseType: 'blob'
         });
         return res.data;

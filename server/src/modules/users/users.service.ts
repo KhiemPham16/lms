@@ -762,6 +762,7 @@ export class UsersService {
                 ? { status: query.emailVerified ? { not: UserStatus.PENDING } : UserStatus.PENDING }
                 : {}),
             ...(query.roleAssigned !== undefined ? (query.roleAssigned ? { roleId: { not: 0 } } : { id: { in: [] } }) : {}),
+            ...(query.publicIds?.length ? { publicId: { in: query.publicIds } } : {}),
             ...(query.departmentId ? { departmentId: query.departmentId } : {}),
             ...(createdAt ? { createdAt } : {})
         };
@@ -769,7 +770,9 @@ export class UsersService {
         if (query.createdBy) {
             const creatorPublicIds = await this.findCreatedUserPublicIds(query.createdBy);
             where.publicId = {
-                in: creatorPublicIds
+                in: query.publicIds?.length
+                    ? creatorPublicIds.filter((publicId) => query.publicIds?.includes(publicId))
+                    : creatorPublicIds
             };
         }
 
