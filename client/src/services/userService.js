@@ -58,6 +58,22 @@ export const userService = {
         return unwrap(res);
     },
 
+    deactivateUser: async (id, data = {}) => {
+        const res = await api.patch(`/users/${id}/status`, {
+            ...data,
+            status: 'INACTIVE'
+        });
+        return unwrap(res);
+    },
+
+    activateUser: async (id, data = {}) => {
+        const res = await api.patch(`/users/${id}/status`, {
+            ...data,
+            status: 'ACTIVE'
+        });
+        return unwrap(res);
+    },
+
     resetPassword: async (id, data) => {
         const res = await api.post(`/users/${id}/reset-password`, data);
         return unwrap(res);

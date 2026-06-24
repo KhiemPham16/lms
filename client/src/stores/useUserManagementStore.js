@@ -267,6 +267,36 @@ export const useUserManagementStore = create((set, get) => ({
         }
     },
 
+    deactivateUser: async (id, data) => {
+        set({ submitting: true });
+        try {
+            await userService.deactivateUser(id, data);
+            toast.success('Đã vô hiệu hóa tài khoản');
+            await get().refreshData();
+            return { ok: true };
+        } catch (error) {
+            toast.error(getErrorMessage(error, 'Vô hiệu hóa tài khoản thất bại'));
+            return { ok: false, error };
+        } finally {
+            set({ submitting: false });
+        }
+    },
+
+    activateUser: async (id, data) => {
+        set({ submitting: true });
+        try {
+            await userService.activateUser(id, data);
+            toast.success('Đã kích hoạt lại tài khoản');
+            await get().refreshData();
+            return { ok: true };
+        } catch (error) {
+            toast.error(getErrorMessage(error, 'Kích hoạt lại tài khoản thất bại'));
+            return { ok: false, error };
+        } finally {
+            set({ submitting: false });
+        }
+    },
+
     resetPassword: async (id, data) => {
         set({ submitting: true });
         try {
