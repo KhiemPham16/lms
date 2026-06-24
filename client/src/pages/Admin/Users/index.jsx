@@ -484,14 +484,29 @@ export default function AdminUsers({ workspaceKey = 'admin' }) {
         }
     };
 
-    const exportUsers = async () => {
+    const exportUsers = async ({ selectedOnly = false } = {}) => {
+        if (selectedOnly && selectedUserIds.length === 0) {
+            toast.error('Vui long chon it nhat mot nguoi dung de xuat');
+            return;
+        }
+
         try {
-            const blob = await userService.exportUsers(queryState);
+            const exportParams = selectedOnly
+                ? { publicIds: selectedUserIds.join(',') }
+                : {
+                      ...queryState,
+                      page: undefined,
+                      limit: undefined
+                  };
+            const blob = await userService.exportUsers(exportParams);
             const url = URL.createObjectURL(blob);
             const anchor = document.createElement('a');
+            const timestamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
             anchor.href = url;
-            anchor.download = 'edulms-users.csv';
+            anchor.download = selectedOnly ? `edulms-users-selected-${timestamp}.csv` : `edulms-users-${timestamp}.csv`;
+            document.body.appendChild(anchor);
             anchor.click();
+            anchor.remove();
             URL.revokeObjectURL(url);
         } catch {
             toast.error('Backend chưa hỗ trợ xuất danh sách người dùng');
@@ -525,7 +540,7 @@ export default function AdminUsers({ workspaceKey = 'admin' }) {
                     </div>
                     <div>
                         <button type="button" onClick={refreshData} disabled={loading}><FiRefreshCw /> Làm mới</button>
-                        <button type="button" onClick={exportUsers}><FiDownload /> Xuất danh sách</button>
+                        <button type="button" onClick={() => exportUsers()}><FiDownload /> Xuất danh sách</button>
                         <button type="button" className={cx('is-primary')} onClick={openCreate} disabled={!canCreate}>
                             <FiUserPlus /> {currentRole === 'ADMIN' ? 'Thêm HR hoặc Hiệu trưởng' : 'Thêm người dùng'}
                         </button>
@@ -607,7 +622,7 @@ export default function AdminUsers({ workspaceKey = 'admin' }) {
                         <button type="button" onClick={() => bulkAction('unlock')} disabled={!canStatus}><FiUnlock /> Mở khóa</button>
                         <button type="button" onClick={() => setRoleTarget({ bulk: true })} disabled={!canUpdate}><FiShield /> Gán vai trò</button>
                         <button type="button" onClick={() => bulkAction('activation')}><FiMail /> Gửi email kích hoạt</button>
-                        <button type="button" onClick={exportUsers}><FiDownload /> Xuất danh sách</button>
+                        <button type="button" onClick={() => exportUsers({ selectedOnly: true })}><FiDownload /> Xuất đã chọn</button>
                         <button type="button" disabled={!canStatus}><FiArchive /> Vô hiệu hóa</button>
                         <button type="button" onClick={clearSelection}><FiX /> Bỏ chọn</button>
                     </section>

@@ -30,51 +30,44 @@ const roles = [
 ];
 
 const permissions = [
-    { code: 'users.read', name: 'Xem danh sach', module: 'users' },
-    { code: 'users.create', name: 'Tao moi', module: 'users' },
-    { code: 'users.update', name: 'Chinh sua', module: 'users' },
-    { code: 'users.status', name: 'Khoa/Mo khoa', module: 'users' },
-    { code: 'departments.read', name: 'Xem khoa/phong ban', module: 'departments' },
-    { code: 'departments.create', name: 'Tao khoa/phong ban', module: 'departments' },
-    { code: 'departments.update', name: 'Cap nhat khoa/phong ban', module: 'departments' },
-    { code: 'departments.delete', name: 'Xoa khoa/phong ban', module: 'departments' },
-    { code: 'system.permissions.manage', name: 'Quan ly phan quyen', module: 'system' },
+    { code: 'users.read', name: 'Xem danh sách', module: 'users' },
+    { code: 'users.create', name: 'Tạo mới', module: 'users' },
+    { code: 'users.update', name: 'Chỉnh sửa', module: 'users' },
+    { code: 'users.status', name: 'Khóa/Mở khóa', module: 'users' },
+    { code: 'departments.read', name: 'Xem khoa/phòng ban', module: 'departments' },
+    { code: 'departments.create', name: 'Tạo khoa/phòng ban', module: 'departments' },
+    { code: 'departments.update', name: 'Cập nhật khoa/phòng ban', module: 'departments' },
+    { code: 'departments.delete', name: 'Xóa khoa/phòng ban', module: 'departments' },
+    { code: 'system.permissions.manage', name: 'Quản lý phân quyền', module: 'system' },
     { code: 'system.audit.read', name: 'Xem Audit Log', module: 'system' },
-    { code: 'curriculum.read', name: 'Xem chuong trinh', module: 'curriculum' },
-    { code: 'curriculum.create', name: 'Tao chuong trinh', module: 'curriculum' },
-    { code: 'courses.read', name: 'Xem mon hoc', module: 'courses' },
-    { code: 'courses.update', name: 'Cap nhat mon hoc', module: 'courses' },
-    { code: 'course_proposals.create', name: 'Tao de xuat', module: 'course_proposals' },
-    { code: 'course_proposals.approve', name: 'Duyet de xuat', module: 'course_proposals' },
-    { code: 'course_proposals.history.read', name: 'Xem lich su xu ly', module: 'course_proposals' },
-    { code: 'classes.read', name: 'Xem lop hoc', module: 'classes' },
-    { code: 'classes.create', name: 'Tao lop', module: 'classes' },
-    { code: 'classes.assign_lecturer', name: 'Gan giang vien', module: 'classes' },
-    { code: 'classes.registration.toggle', name: 'Mo/Dong dang ky', module: 'classes' },
-    { code: 'enrollments.read', name: 'Xem dang ky lop', module: 'enrollments' },
-    { code: 'enrollments.create', name: 'Dang ky lop', module: 'enrollments' },
-    { code: 'enrollments.drop', name: 'Huy dang ky lop', module: 'enrollments' },
-    { code: 'lessons.read', name: 'Xem bai hoc', module: 'lessons' },
-    { code: 'lessons.create', name: 'Tao bai hoc', module: 'lessons' },
-    { code: 'exams.read', name: 'Xem bai thi', module: 'exams' },
-    { code: 'exams.create', name: 'Tao bai thi', module: 'exams' },
-    { code: 'exams.submit', name: 'Lam bai thi', module: 'exams' },
-    { code: 'exams.grade', name: 'Cham diem', module: 'exams' },
-    { code: 'grades.read', name: 'Xem diem', module: 'grades' },
-    { code: 'grades.calculate', name: 'Tinh diem', module: 'grades' },
-    { code: 'grades.export', name: 'Xuat bang diem', module: 'grades' }
+    { code: 'curriculum.read', name: 'Xem chương trình', module: 'curriculum' },
+    { code: 'curriculum.create', name: 'Tạo chương trình', module: 'curriculum' },
+    { code: 'courses.read', name: 'Xem môn học', module: 'courses' },
+    { code: 'courses.update', name: 'Cập nhật môn học', module: 'courses' },
+    { code: 'course_proposals.create', name: 'Tạo đề xuất', module: 'course_proposals' },
+    { code: 'course_proposals.approve', name: 'Duyệt đề xuất', module: 'course_proposals' },
+    { code: 'course_proposals.history.read', name: 'Xem lịch sử xử lý', module: 'course_proposals' },
+    { code: 'classes.read', name: 'Xem lớp học', module: 'classes' },
+    { code: 'classes.create', name: 'Tạo lớp', module: 'classes' },
+    { code: 'classes.assign_lecturer', name: 'Gán giảng viên', module: 'classes' },
+    { code: 'classes.registration.toggle', name: 'Mở/Đóng đăng ký', module: 'classes' },
+    { code: 'enrollments.read', name: 'Xem đăng ký lớp', module: 'enrollments' },
+    { code: 'enrollments.create', name: 'Đăng ký lớp', module: 'enrollments' },
+    { code: 'enrollments.drop', name: 'Hủy đăng ký lớp', module: 'enrollments' },
+    { code: 'lessons.read', name: 'Xem bài học', module: 'lessons' },
+    { code: 'lessons.create', name: 'Tạo bài học', module: 'lessons' },
+    { code: 'exams.read', name: 'Xem bài thi', module: 'exams' },
+    { code: 'exams.create', name: 'Tạo bài thi', module: 'exams' },
+    { code: 'exams.submit', name: 'Làm bài thi', module: 'exams' },
+    { code: 'exams.grade', name: 'Chấm điểm', module: 'exams' },
+    { code: 'grades.read', name: 'Xem điểm', module: 'grades' },
+    { code: 'grades.calculate', name: 'Tính điểm', module: 'grades' },
+    { code: 'grades.export', name: 'Xuất bảng điểm', module: 'grades' }
 ];
 
 const rolePermissionDefaults: Record<string, string[]> = {
     ADMIN: permissions.map((permission) => permission.code),
-    HR: [
-        'users.read',
-        'users.create',
-        'users.update',
-        'users.status',
-        'departments.read',
-        'system.audit.read'
-    ],
+    HR: ['users.read', 'users.create', 'users.update', 'users.status', 'departments.read', 'system.audit.read'],
     PRINCIPAL: [
         'departments.read',
         'system.audit.read',
@@ -235,19 +228,19 @@ async function main() {
     const departments = [
         {
             code: 'CNTT',
-            name: 'Khoa Cong Nghe Thong Tin'
+            name: 'Khoa Công Nghệ Thông Tin'
         },
         {
             code: 'PDT',
-            name: 'Phong Dao Tao'
+            name: 'Phòng Đào Tạo'
         },
         {
             code: 'BGH',
-            name: 'Ban Giam Hieu'
+            name: 'Ban Giám Hiệu'
         },
         {
             code: 'HR',
-            name: 'Phong Nhan Su'
+            name: 'Phòng Nhân Sự'
         }
     ];
 
@@ -380,8 +373,8 @@ async function main() {
             code: 'JAVA101'
         },
         update: {
-            name: 'Lap trinh Java co ban',
-            description: 'Mon hoc mau da duoc duyet trong seed',
+            name: 'Lập trình Java cơ bản',
+            description: 'Môn học mẫu đã được duyệt trong seed',
             credits: 3,
             requestedClassCount: 2,
             requiresPrincipalApproval: true,
@@ -391,8 +384,8 @@ async function main() {
         },
         create: {
             code: 'JAVA101',
-            name: 'Lap trinh Java co ban',
-            description: 'Mon hoc mau da duoc duyet trong seed',
+            name: 'Lập trình Java cơ bản',
+            description: 'Môn học mẫu đã được duyệt trong seed',
             credits: 3,
             requestedClassCount: 2,
             requiresPrincipalApproval: true,
@@ -433,8 +426,8 @@ async function main() {
             code: 'CNET101'
         },
         update: {
-            name: 'Mang may tinh can ban',
-            description: 'Mon hoc mau dang cho phong dao tao duyet',
+            name: 'Mạng máy tính cơ bản',
+            description: 'Môn học mẫu đang chờ phòng đào tạo duyệt',
             credits: 3,
             requestedClassCount: 1,
             requiresPrincipalApproval: true,
@@ -444,8 +437,8 @@ async function main() {
         },
         create: {
             code: 'CNET101',
-            name: 'Mang may tinh can ban',
-            description: 'Mon hoc mau dang cho phong dao tao duyet',
+            name: 'Mạng máy tính cơ bản',
+            description: 'Môn học mẫu đang chờ phòng đào tạo duyệt',
             credits: 3,
             requestedClassCount: 1,
             requiresPrincipalApproval: true,
@@ -460,7 +453,7 @@ async function main() {
             code: 'JAVA101-01'
         },
         update: {
-            name: 'Lop Java 01',
+            name: 'Lớp Java 01',
             courseId: javaCourse.id,
             lecturerId: seededUsers.get('gv1@lms.com')!,
             departmentHeadId: seededUsers.get('cntt@lms.com')!,
@@ -471,7 +464,7 @@ async function main() {
         },
         create: {
             code: 'JAVA101-01',
-            name: 'Lop Java 01',
+            name: 'Lớp Java 01',
             courseId: javaCourse.id,
             lecturerId: seededUsers.get('gv1@lms.com')!,
             departmentHeadId: seededUsers.get('cntt@lms.com')!,
@@ -487,7 +480,7 @@ async function main() {
             code: 'JAVA101-02'
         },
         update: {
-            name: 'Lop Java 02',
+            name: 'Lớp Java 02',
             courseId: javaCourse.id,
             lecturerId: seededUsers.get('gv2@lms.com')!,
             departmentHeadId: seededUsers.get('cntt@lms.com')!,
@@ -498,7 +491,7 @@ async function main() {
         },
         create: {
             code: 'JAVA101-02',
-            name: 'Lop Java 02',
+            name: 'Lớp Java 02',
             courseId: javaCourse.id,
             lecturerId: seededUsers.get('gv2@lms.com')!,
             departmentHeadId: seededUsers.get('cntt@lms.com')!,
