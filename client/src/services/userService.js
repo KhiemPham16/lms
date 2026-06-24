@@ -73,6 +73,11 @@ export const userService = {
         return unwrap(res);
     },
 
+    getUserLoginHistory: async (id, params = {}) => {
+        const res = await api.get(`/users/${id}/login-history`, { params: cleanParams(params) });
+        return unwrap(res);
+    },
+
     bulkLockUsers: async (data) => {
         const res = await api.post('/users/bulk/lock', data);
         return unwrap(res);

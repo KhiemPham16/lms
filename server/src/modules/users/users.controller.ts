@@ -218,6 +218,15 @@ export class UsersController {
         return this.usersService.activities(publicId, query);
     }
 
+    @Get(':publicId/login-history')
+    @ApiBearerAuth()
+    @UseGuards(JwtAuthGuard, PermissionsGuard)
+    @Permissions('users.read')
+    @ApiOperation({ summary: 'Lich su dang nhap cua nguoi dung' })
+    loginHistory(@Param('publicId') publicId: string, @Query() query: QueryUserDto) {
+        return this.usersService.loginHistory(publicId, query);
+    }
+
     @Delete(':publicId')
     @ApiBearerAuth()
     @UseGuards(JwtAuthGuard, PermissionsGuard)

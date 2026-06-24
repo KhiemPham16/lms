@@ -194,6 +194,7 @@ export default function AdminUsers({ workspaceKey = 'admin' }) {
         error,
         currentUserDetail,
         userActivities,
+        userLoginHistory,
         fetchUsers,
         fetchSummary,
         setSearch,
@@ -815,7 +816,15 @@ export default function AdminUsers({ workspaceKey = 'admin' }) {
                                         <section><dl><div><dt>Phòng ban/Bộ môn</dt><dd>{getDepartmentName(currentUserDetail)}</dd></div><div><dt>Thông tin chuyên môn</dt><dd>{currentUserDetail?.specialization || 'Chưa có API'}</dd></div><div><dt>Role nghiệp vụ</dt><dd>{getUserRoleName(currentUserDetail)}</dd></div></dl></section>
                                     ) : null}
                                     {activeTab === 'login' ? (
-                                        <section className={cx('admin-users__mini-list')}><article><strong>{formatDateTime(currentUserDetail?.lastLoginAt)}</strong><span>Thiết bị, trình duyệt, IP: chờ API lịch sử đăng nhập</span><em>Thành công</em></article></section>
+                                        <section className={cx('admin-users__mini-list')}>
+                                            {userLoginHistory.length ? userLoginHistory.map((item) => (
+                                                <article key={item.publicId || item.createdAt}>
+                                                    <strong>{formatDateTime(item.createdAt)}</strong>
+                                                    <span>{item.device || 'Unknown device'} · {item.browser || 'Unknown browser'} · IP: {item.ipAddress || '-'}</span>
+                                                    <em>Thành công</em>
+                                                </article>
+                                            )) : <p>Chưa có lịch sử đăng nhập.</p>}
+                                        </section>
                                     ) : null}
                                     {activeTab === 'activity' ? (
                                         <section className={cx('admin-users__mini-list')}>{userActivities.length ? userActivities.map((item) => <article key={item.publicId || item.createdAt}><strong>{item.action}</strong><span>{item.actor?.fullName || 'Hệ thống'} · {formatDateTime(item.createdAt)}</span><em>{item.result || 'Thành công'}</em></article>) : <p>Backend chưa trả nhật ký hoạt động riêng cho người dùng.</p>}</section>
