@@ -48,7 +48,7 @@ export class PermissionsGuard implements CanActivate {
             }
         });
 
-        if (!user) {
+        if (!user || !user.role || !user.roleId) {
             throw new ForbiddenException('Không có quyền truy cập');
         }
 
