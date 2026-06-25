@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import {
     DASHBOARD_PERMISSIONS_UPDATED_EVENT,
@@ -9,11 +9,11 @@ import { useAuthStore } from '~/stores/useAuthStore';
 
 export function useDashboardPermissions() {
     const currentUser = useAuthStore((state) => state.user);
-    const [permissions, setPermissions] = useState(() => buildDashboardPermissionsFromUser(currentUser));
+    const [permissionsVersion, setPermissionsVersion] = useState(0);
 
     useEffect(() => {
         const syncPermissions = () => {
-            setPermissions(buildDashboardPermissionsFromUser(useAuthStore.getState().user) || readDashboardPermissions());
+            setPermissionsVersion((version) => version + 1);
         };
 
         window.addEventListener(DASHBOARD_PERMISSIONS_UPDATED_EVENT, syncPermissions);
@@ -25,9 +25,12 @@ export function useDashboardPermissions() {
         };
     }, []);
 
-    useEffect(() => {
-        setPermissions(buildDashboardPermissionsFromUser(currentUser));
-    }, [currentUser]);
+    return useMemo(() => {
+        const storedPermissions = permissionsVersion >= 0 ? readDashboardPermissions() : {};
 
-    return permissions;
+        return {
+            ...storedPermissions,
+            ...buildDashboardPermissionsFromUser(currentUser)
+        };
+    }, [currentUser, permissionsVersion]);
 }

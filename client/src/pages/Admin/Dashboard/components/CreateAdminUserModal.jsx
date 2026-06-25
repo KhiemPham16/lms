@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import classNames from 'classnames/bind';
 import { FiX } from 'react-icons/fi';
 
@@ -29,10 +29,6 @@ export default function CreateAdminUserModal({ role, onClose, onSubmit }) {
         status: 'ACTIVE',
         sendEmail: true
     });
-
-    useEffect(() => {
-        setForm((current) => ({ ...current, role: role || 'HR' }));
-    }, [role]);
 
     if (!role) return null;
 

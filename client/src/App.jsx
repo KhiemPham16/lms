@@ -9,6 +9,7 @@ import ResetPassword from '~/pages/Auth/ResetPassword';
 import AdminDashboard from '~/pages/Admin/Dashboard';
 import AdminPermissions from '~/pages/Admin/Permissions';
 import AdminUsers from '~/pages/Admin/Users';
+import AdminAuditLogs from '~/pages/Admin/AuditLogs';
 import FlowWorkbench from '~/pages/FlowWorkbench';
 import SharedUtility from '~/pages/SharedUtility';
 import NotFound from '~/pages/NotFound';
@@ -30,7 +31,7 @@ export default function App() {
                     <Route path={routes.admin} element={<AdminDashboard />} />
                     <Route path={routes.adminUsers} element={<AdminUsers />} />
                     <Route path={routes.adminPermissions} element={<AdminPermissions />} />
-                    <Route path={routes.adminAuditLogs} element={<FlowWorkbench workspaceKey="admin" moduleKey="audit" />} />
+                    <Route path={routes.adminAuditLogs} element={<AdminAuditLogs />} />
                     <Route path={routes.adminCurriculums} element={<FlowWorkbench workspaceKey="admin" moduleKey="curriculums" />} />
                     <Route path={routes.adminSubjects} element={<FlowWorkbench workspaceKey="admin" moduleKey="subjects" />} />
                     <Route path={routes.adminClasses} element={<FlowWorkbench workspaceKey="admin" moduleKey="classes" />} />

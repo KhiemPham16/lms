@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import classNames from 'classnames/bind';
 import { useSearchParams } from 'react-router-dom';
 import {
@@ -264,7 +264,7 @@ export default function AdminUsers({ workspaceKey = 'admin' }) {
             : Object.entries(fallbackDepartmentMap).map(([id, name]) => ({ id, name })),
         [departments]
     );
-    const getDepartmentName = (userOrDepartmentId) => {
+    const getDepartmentName = useCallback((userOrDepartmentId) => {
         if (typeof userOrDepartmentId === 'object' && userOrDepartmentId !== null) {
             if (userOrDepartmentId.department?.name) return userOrDepartmentId.department.name;
             if (userOrDepartmentId.departmentName) return userOrDepartmentId.departmentName;
@@ -277,7 +277,7 @@ export default function AdminUsers({ workspaceKey = 'admin' }) {
         );
         const department = departmentOptions.find((item) => getDepartmentOptionValue(item) === normalizedId);
         return department?.name || fallbackDepartmentMap[normalizedId] || '-';
-    };
+    }, [departmentOptions]);
     const getCreatorName = (user) => {
         const canUseCurrentActivities = getUserId(user) && getUserId(user) === getUserId(currentUserDetail);
         const createLog = canUseCurrentActivities ? userActivities.find((item) => item.action === 'CREATE') : null;
@@ -334,7 +334,7 @@ export default function AdminUsers({ workspaceKey = 'admin' }) {
             filters.roleAssigned ? ['Gán vai trò', filters.roleAssigned === 'true' ? 'Đã gán' : 'Chưa gán', () => setFilters({ roleAssigned: '' })] : null
         ];
         return entries.filter(Boolean);
-    }, [filters, search, setFilters, setSearch]);
+    }, [filters, getDepartmentName, search, setFilters, setSearch]);
 
     useEffect(() => {
         setSearch(searchParams.get('keyword') || '');
@@ -352,7 +352,7 @@ export default function AdminUsers({ workspaceKey = 'admin' }) {
         setPage(Number(searchParams.get('page') || 1));
         roleService.getRoles().then((payload) => setRoles(normalizeItems(payload))).catch(() => setRoles([]));
         departmentService.getDepartments().then((payload) => setDepartments(normalizeItems(payload))).catch(() => setDepartments([]));
-    }, []);
+    }, [searchParams, setFilters, setLimit, setPage, setSearch]);
 
     useEffect(() => {
         const handle = window.setTimeout(() => setSearch(searchInput), debounceMs);

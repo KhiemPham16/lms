@@ -346,6 +346,12 @@ export class UsersService {
     async updateStatus(publicId: string, status: UserStatus, actorPublicId?: string, dto: UserStatusActionDto = {}, request?: Request) {
         const currentUser = await this.findByPublicIdRawOrThrow(publicId);
         await this.assertCanUpdateStatus(actorPublicId, currentUser, status);
+        const auditAction =
+            status === UserStatus.INACTIVE
+                ? AuditAction.USER_DEACTIVATED
+                : status === UserStatus.ACTIVE && currentUser.status === UserStatus.INACTIVE
+                    ? AuditAction.USER_REACTIVATED
+                    : AuditAction.STATUS_CHANGE;
 
         const user = await this.prisma.$transaction(async (tx) => {
             const updatedUser = await tx.user.update({
@@ -369,9 +375,9 @@ export class UsersService {
             await this.auditLogsService.create(
                 {
                     actorId: await this.resolveActorId(actorPublicId, tx),
-                    action: AuditAction.STATUS_CHANGE,
+                    action: auditAction,
                     module: 'users',
-                    targetType: 'User',
+                    targetType: 'USER',
                     targetId: currentUser.id,
                     targetPublicId: currentUser.publicId,
                     oldValue: {
