@@ -53,6 +53,24 @@ const roleLabels = {
     STUDENT: 'Sinh viên'
 };
 
+const workspaceLabels = {
+    admin: 'Quản trị hệ thống',
+    hr: 'HR',
+    principal: 'Hiệu trưởng',
+    training: 'Phòng đào tạo',
+    department: 'Trưởng bộ môn',
+    teacher: 'Giảng viên'
+};
+
+const workspaceRoleFallback = {
+    admin: 'ADMIN',
+    hr: 'HR',
+    principal: 'PRINCIPAL',
+    training: 'TRAINING_OFFICER',
+    department: 'DEPARTMENT_HEAD',
+    teacher: 'LECTURER'
+};
+
 const statusLabels = {
     ACTIVE: 'Đang hoạt động',
     PENDING: 'Chờ kích hoạt',
@@ -178,7 +196,8 @@ export default function AdminUsers({ workspaceKey = 'admin' }) {
     const [searchParams, setSearchParams] = useSearchParams();
     const permissions = useDashboardPermissions();
     const currentUser = useAuthStore((state) => state.user);
-    const currentRole = getUserRole(currentUser) || workspaceKey.toUpperCase();
+    const currentRole = getUserRole(currentUser) || workspaceRoleFallback[workspaceKey] || workspaceKey.toUpperCase();
+    const workspaceLabel = workspaceLabels[workspaceKey] || 'EduLMS';
     const allowedRoles = allowedCreateRoles[currentRole] || [];
 
     const {
@@ -581,7 +600,7 @@ export default function AdminUsers({ workspaceKey = 'admin' }) {
     if (!canRead) {
         return (
             <div className={cx('flow-shell')}>
-                <AppSidebar workspaceKey="admin" />
+                <AppSidebar workspaceKey={workspaceKey} />
                 <main className={cx('flow-main', 'admin-users')}>
                     <section className={cx('admin-users__empty')}>
                         <FiShield />
@@ -595,11 +614,11 @@ export default function AdminUsers({ workspaceKey = 'admin' }) {
 
     return (
         <div className={cx('flow-shell')}>
-            <AppSidebar workspaceKey="admin" />
+            <AppSidebar workspaceKey={workspaceKey} />
             <main className={cx('flow-main', 'admin-users')}>
                 <section className={cx('admin-users__hero')}>
                     <div>
-                        <span>Quản trị hệ thống / Quản lý người dùng</span>
+                        <span>{workspaceLabel} / Quản lý người dùng</span>
                         <h1>Quản lý người dùng</h1>
                         <p>Quản lý tài khoản, vai trò và trạng thái người dùng trong hệ thống</p>
                     </div>

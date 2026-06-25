@@ -1,13 +1,25 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { AuditAction } from '@prisma/client';
+import type { Request } from 'express';
 
+import { AuditLogsService } from '~/modules/audit-logs/audit-logs.service';
 import { PrismaService } from '~/prisma/prisma.service';
 import { CreateRoleDto } from './dto/create-role.dto';
 import { UpdateRoleDto } from './dto/update-role.dto';
 import { UpdateRolePermissionsDto } from './dto/update-role-permissions.dto';
 
+type RoleAuditActorClient = {
+    user: {
+        findUnique: PrismaService['user']['findUnique'];
+    };
+};
+
 @Injectable()
 export class RolesService {
-    constructor(private readonly prisma: PrismaService) {}
+    constructor(
+        private readonly prisma: PrismaService,
+        private readonly auditLogsService: AuditLogsService
+    ) {}
 
     async create(dto: CreateRoleDto) {
         const existed = await this.prisma.role.findUnique({
@@ -156,7 +168,7 @@ export class RolesService {
         };
     }
 
-    async updatePermissions(publicId: string, dto: UpdateRolePermissionsDto) {
+    async updatePermissions(publicId: string, dto: UpdateRolePermissionsDto, actorPublicId?: string, request?: Request) {
         const role = await this.findByPublicIdOrThrow(publicId);
 
         if (role.code === 'ADMIN') {
@@ -192,29 +204,78 @@ export class RolesService {
             throw new BadRequestException('Chỉ ADMIN được quản lý phân quyền');
         }
 
-        const operations = [
-            this.prisma.rolePermission.deleteMany({
+        const previousPermissionCodes = role.permissionCodes || [];
+        const nextPermissionCodes = permissions.map((permission) => permission.code);
+        const addedPermissionCodes = nextPermissionCodes.filter((code) => !previousPermissionCodes.includes(code));
+        const removedPermissionCodes = previousPermissionCodes.filter((code) => !nextPermissionCodes.includes(code));
+
+        await this.prisma.$transaction(async (tx) => {
+            await tx.rolePermission.deleteMany({
                 where: {
                     roleId: role.id
                 }
-            })
-        ];
+            });
 
-        if (permissions.length > 0) {
-            operations.push(
-                this.prisma.rolePermission.createMany({
+            if (permissions.length > 0) {
+                await tx.rolePermission.createMany({
                     data: permissions.map((permission) => ({
                         roleId: role.id,
                         permissionId: permission.id
                     })),
                     skipDuplicates: true
-                })
-            );
-        }
+                });
+            }
 
-        await this.prisma.$transaction(operations);
+            await this.auditLogsService.create(
+                {
+                    actorId: await this.resolveActorId(actorPublicId, tx),
+                    action: AuditAction.PERMISSION_CHANGE,
+                    module: 'roles',
+                    targetType: 'Role',
+                    targetId: role.id,
+                    targetPublicId: role.publicId,
+                    oldValue: {
+                        roleCode: role.code,
+                        roleName: role.name,
+                        permissionCodes: previousPermissionCodes
+                    },
+                    newValue: {
+                        roleCode: role.code,
+                        roleName: role.name,
+                        permissionCodes: nextPermissionCodes,
+                        addedPermissionCodes,
+                        removedPermissionCodes,
+                        reason: dto.reason
+                    },
+                    ipAddress: this.getIpAddress(request),
+                    userAgent: request?.headers['user-agent']
+                },
+                tx
+            );
+        });
 
         return this.findByPublicIdOrThrow(publicId);
+    }
+
+    private async resolveActorId(actorPublicId?: string, client: RoleAuditActorClient = this.prisma) {
+        if (!actorPublicId) return undefined;
+        const actor = await client.user.findUnique({
+            where: {
+                publicId: actorPublicId
+            },
+            select: {
+                id: true
+            }
+        });
+
+        return actor?.id;
+    }
+
+    private getIpAddress(request?: Request) {
+        if (!request) return undefined;
+        const forwardedFor = request.headers['x-forwarded-for'];
+        if (Array.isArray(forwardedFor)) return forwardedFor[0];
+        return forwardedFor?.split(',')[0]?.trim() || request.ip;
     }
 
     private defaultSelect() {
@@ -234,6 +295,15 @@ export class RolesService {
                             code: true,
                             name: true,
                             module: true
+                        }
+                    }
+                }
+            },
+            _count: {
+                select: {
+                    users: {
+                        where: {
+                            deletedAt: null
                         }
                     }
                 }

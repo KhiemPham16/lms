@@ -20,6 +20,7 @@ import {
 } from 'react-icons/fi';
 
 import AppSidebar from '~/components/AppSidebar';
+import { flowWorkspaces } from '~/config/flowNavigation';
 import { useAuditLogStore } from '~/stores/useAuditLogStore';
 import layoutStyles from '~/pages/FlowWorkbench/FlowWorkbench.module.scss';
 import auditStyles from './AuditLogs.module.scss';
@@ -131,10 +132,11 @@ const downloadCsv = (logs) => {
     URL.revokeObjectURL(url);
 };
 
-export default function AdminAuditLogs() {
+export default function AdminAuditLogs({ workspaceKey = 'admin' }) {
     const [searchParams, setSearchParams] = useSearchParams();
     const initializedFromUrl = useRef(false);
     const [readyToFetch, setReadyToFetch] = useState(false);
+    const workspaceLabel = flowWorkspaces[workspaceKey]?.title || 'EduLMS';
     const {
         logs,
         filters,
@@ -210,11 +212,11 @@ export default function AdminAuditLogs() {
 
     return (
         <div className={cx('flow-shell')}>
-            <AppSidebar workspaceKey="admin" />
+            <AppSidebar workspaceKey={workspaceKey} />
             <main className={cx('flow-main', 'audit-logs')}>
                 <section className={cx('audit-logs__hero')}>
                     <div>
-                        <span>Quản trị hệ thống / Audit Log hệ thống</span>
+                        <span>{workspaceLabel} / Audit Log hệ thống</span>
                         <h1>Audit Log hệ thống</h1>
                         <p>Theo dõi các thao tác quan trọng, người thực hiện, đối tượng bị tác động và dữ liệu trước/sau.</p>
                     </div>

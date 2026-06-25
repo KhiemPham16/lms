@@ -13,4 +13,9 @@ export class UpdateRolePermissionsDto {
     @IsArray()
     @IsInt({ each: true })
     permissionIds?: number[];
+
+    @ApiPropertyOptional({ example: 'Cấp quyền tạo lớp cho Phòng đào tạo theo phân công mới' })
+    @IsOptional()
+    @IsString()
+    reason?: string;
 }

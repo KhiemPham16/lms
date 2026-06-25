@@ -167,11 +167,6 @@ const fallbackRolePermissions = {
     STUDENT: ['classes.read', 'lessons.read', 'exams.read', 'grades.read']
 };
 
-const auditHistory = [
-    { time: '24/06/2026 10:30', actor: 'Admin Phát', role: 'Phòng đào tạo', change: 'Thêm quyền tạo lớp', result: 'Thành công' },
-    { time: '23/06/2026 15:20', actor: 'Admin Phát', role: 'Giảng viên', change: 'Bỏ quyền xuất điểm', result: 'Thành công' }
-];
-
 const unwrapList = (payload) => payload?.items || payload?.data?.items || payload?.data || payload || [];
 const unwrapItems = (payload) => payload?.items || payload?.data?.items || [];
 const emptyRoleForm = { code: '', name: '', description: '', isSystem: false };
@@ -184,6 +179,20 @@ const formatDate = (value) => {
         : new Intl.DateTimeFormat('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(date);
 };
 
+const formatDateTime = (value) => {
+    if (!value) return 'Chưa cập nhật';
+    const date = new Date(value);
+    return Number.isNaN(date.getTime())
+        ? value
+        : new Intl.DateTimeFormat('vi-VN', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        }).format(date);
+};
+
 const resolveUserCount = (role) => {
     if (Number.isFinite(role?.userCount)) return role.userCount;
     if (Number.isFinite(role?.usersCount)) return role.usersCount;
@@ -193,6 +202,42 @@ const resolveUserCount = (role) => {
 };
 
 const formatUserCount = (count) => (Number.isFinite(count) ? `${count} người dùng` : 'Chưa có số liệu');
+
+const normalizeAuditValue = (value) => {
+    if (!value || typeof value !== 'string') return value || {};
+    try {
+        return JSON.parse(value);
+    } catch {
+        return {};
+    }
+};
+
+const getActorLabel = (log) => log?.actor?.fullName || log?.actor?.email || 'Hệ thống';
+
+const getRoleLabelFromLog = (log, roleNameMap = {}) => {
+    const oldValue = normalizeAuditValue(log?.oldValue);
+    const newValue = normalizeAuditValue(log?.newValue);
+    const roleCode = newValue.roleCode || oldValue.roleCode;
+    return newValue.roleName || oldValue.roleName || roleNameMap[roleCode] || roleCode || log?.targetPublicId || '-';
+};
+
+const getPermissionChangeText = (log, permissionNameMap = {}) => {
+    const oldValue = normalizeAuditValue(log?.oldValue);
+    const newValue = normalizeAuditValue(log?.newValue);
+    const previousCodes = oldValue.permissionCodes || [];
+    const nextCodes = newValue.permissionCodes || [];
+    const addedCodes = newValue.addedPermissionCodes || nextCodes.filter((code) => !previousCodes.includes(code));
+    const removedCodes = newValue.removedPermissionCodes || previousCodes.filter((code) => !nextCodes.includes(code));
+
+    const toName = (code) => permissionNameMap[code] || code;
+    const parts = [
+        addedCodes.length ? `Thêm: ${addedCodes.map(toName).join(', ')}` : '',
+        removedCodes.length ? `Bỏ: ${removedCodes.map(toName).join(', ')}` : '',
+        newValue.reason ? `Lý do: ${newValue.reason}` : ''
+    ].filter(Boolean);
+
+    return parts.join(' · ') || 'Cập nhật quyền';
+};
 
 function normalizeRoles(apiRoles) {
     if (!Array.isArray(apiRoles) || apiRoles.length === 0) {
@@ -252,7 +297,17 @@ function normalizePermissionGroups(payload) {
     }));
 }
 
-export default function AdminPermissions() {
+const workspaceLabels = {
+    admin: 'Quản trị hệ thống',
+    hr: 'HR',
+    principal: 'Hiệu trưởng',
+    training: 'Phòng đào tạo',
+    department: 'Trưởng bộ môn',
+    teacher: 'Giảng viên',
+    student: 'Sinh viên'
+};
+
+export default function AdminPermissions({ workspaceKey = 'admin' }) {
     const [loading, setLoading] = useState(false);
     const [submitting, setSubmitting] = useState(false);
     const [roles, setRoles] = useState(() => normalizeRoles([]));
@@ -275,11 +330,37 @@ export default function AdminPermissions() {
     const [roleUsersLoading, setRoleUsersLoading] = useState(false);
     const [copySource, setCopySource] = useState('HR');
     const [auditLogs, setAuditLogs] = useState([]);
+    const [auditLoading, setAuditLoading] = useState(false);
+    const [auditError, setAuditError] = useState('');
+    const [permissionChangeReason, setPermissionChangeReason] = useState('');
+    const workspaceLabel = workspaceLabels[workspaceKey] || 'EduLMS';
 
     const selectedRole = roles.find((role) => role.code === selectedRoleCode) || roles[0];
     const allPermissionCodes = useMemo(
         () => permissionCatalog.flatMap((group) => group.permissions.map((permission) => permission.code)),
         [permissionCatalog]
+    );
+    const permissionNameMap = useMemo(
+        () => permissionCatalog
+            .flatMap((group) => group.permissions)
+            .reduce((result, permission) => ({ ...result, [permission.code]: permission.name || permission.code }), {}),
+        [permissionCatalog]
+    );
+    const roleNameMap = useMemo(
+        () => roles.reduce((result, role) => ({ ...result, [role.code]: role.name || role.code }), {}),
+        [roles]
+    );
+    const auditRows = useMemo(
+        () => auditLogs.map((log) => ({
+            id: log.publicId || `${log.createdAt}-${log.targetPublicId}`,
+            time: formatDateTime(log.createdAt),
+            actor: getActorLabel(log),
+            role: getRoleLabelFromLog(log, roleNameMap),
+            change: getPermissionChangeText(log, permissionNameMap),
+            result: 'Thành công',
+            ipAddress: log.ipAddress
+        })),
+        [auditLogs, permissionNameMap, roleNameMap]
     );
     const hasChanges = useMemo(
         () => JSON.stringify([...selectedPermissions].sort()) !== JSON.stringify([...savedPermissions].sort()),
@@ -314,8 +395,30 @@ export default function AdminPermissions() {
     }, [selectedRoleCode]);
 
     const fetchAuditLogs = useCallback(async () => {
-        const result = await auditLogService.getAuditLogs({ page: 1, limit: 20, module: 'roles' }).catch(() => null);
-        setAuditLogs(unwrapItems(result));
+        setAuditLoading(true);
+        setAuditError('');
+        try {
+            const results = await Promise.allSettled([
+                auditLogService.getAuditLogs({ page: 1, limit: 30, module: 'roles', action: 'PERMISSION_CHANGE' }),
+                auditLogService.getAuditLogs({ page: 1, limit: 30, module: 'permissions', action: 'PERMISSION_CHANGE' })
+            ]);
+            const fulfilledResults = results.filter((result) => result.status === 'fulfilled');
+            if (fulfilledResults.length === 0) {
+                throw new Error('Cannot load permission audit logs');
+            }
+            const logs = results
+                .filter((result) => result.status === 'fulfilled')
+                .flatMap((result) => unwrapItems(result.value))
+                .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
+                .slice(0, 30);
+
+            setAuditLogs(logs);
+        } catch {
+            setAuditError('Không thể tải lịch sử thay đổi quyền');
+            setAuditLogs([]);
+        } finally {
+            setAuditLoading(false);
+        }
     }, []);
 
     const fetchRoleUsers = useCallback(async (roleCode) => {
@@ -421,7 +524,7 @@ export default function AdminPermissions() {
                     : await roleService.createRole(payload);
 
             if (roleModalMode === 'copy' && selectedRole?.permissionCodes?.length) {
-                await roleService.updateRolePermissions(role.publicId, selectedRole.permissionCodes);
+                await roleService.updateRolePermissions(role.publicId, selectedRole.permissionCodes, `Sao chép quyền từ vai trò ${selectedRole.name || selectedRole.code}`);
             }
 
             toast.success(roleModalMode === 'edit' ? 'Đã cập nhật vai trò' : 'Đã tạo vai trò mới');
@@ -537,7 +640,13 @@ export default function AdminPermissions() {
             return;
         }
 
-        const ok = await roleService.updateRolePermissions(selectedRole.publicId, selectedPermissions)
+        const reason = permissionChangeReason.trim();
+        if (!reason) {
+            toast.error('Vui lòng nhập lý do thay đổi phân quyền');
+            return;
+        }
+
+        const ok = await roleService.updateRolePermissions(selectedRole.publicId, selectedPermissions, reason)
             .then((updatedRole) => {
                 const permissionCodes = updatedRole?.permissionCodes || selectedPermissions;
                 setRoles((current) => current.map((role) => role.code === selectedRole.code ? { ...role, permissionCodes } : role));
@@ -550,6 +659,7 @@ export default function AdminPermissions() {
         toast[ok ? 'success' : 'error'](ok ? 'Đã lưu cấu hình phân quyền từ backend' : 'Không thể lưu cấu hình phân quyền');
         if (ok) fetchAuditLogs();
         setShowConfirmSave(false);
+        if (ok) setPermissionChangeReason('');
     };
 
     const restoreDefaults = () => {
@@ -579,11 +689,11 @@ export default function AdminPermissions() {
 
     return (
         <div className={cx('flow-shell')}>
-            <AppSidebar workspaceKey="admin" />
+            <AppSidebar workspaceKey={workspaceKey} />
             <main className={cx('flow-main', 'admin-permissions')}>
                 <section className={cx('admin-permissions__hero')}>
                     <div>
-                        <span>Quản trị hệ thống / Quản lý phân quyền</span>
+                        <span>{workspaceLabel} / Quản lý phân quyền</span>
                         <h1>Quản lý vai trò và phân quyền</h1>
                         <p>Thiết lập quyền truy cập chức năng cho từng nhóm người dùng trong hệ thống.</p>
                     </div>
@@ -737,10 +847,29 @@ export default function AdminPermissions() {
 
                         {viewMode === 'history' && (
                             <section className={cx('admin-permissions__history')}>
-                                <table>
-                                    <thead><tr><th>Thời gian</th><th>Người thực hiện</th><th>Vai trò</th><th>Thay đổi</th><th>Kết quả</th></tr></thead>
-                                    <tbody>{(auditLogs.length > 0 ? auditLogs : auditHistory).map((item) => <tr key={item.publicId || `${item.time}-${item.change}`}><td>{formatDate(item.createdAt || item.time)}</td><td>{item.actor?.fullName || item.actor || 'Hệ thống'}</td><td>{item.module || item.role || 'roles'}</td><td>{item.action ? `${item.action} ${item.targetType || ''}` : item.change}</td><td>{item.result || 'Thành công'}</td></tr>)}</tbody>
-                                </table>
+                                <div className={cx('admin-permissions__section-title')}>
+                                    <h2>Lịch sử thay đổi quyền</h2>
+                                    <button type="button" onClick={fetchAuditLogs} disabled={auditLoading}><FiRefreshCw /><span>Làm mới</span></button>
+                                </div>
+                                {auditLoading && <p>Đang tải lịch sử thay đổi quyền...</p>}
+                                {auditError && <p>{auditError}</p>}
+                                {!auditLoading && !auditError && auditRows.length === 0 && <p>Chưa có Audit Log thay đổi quyền từ backend.</p>}
+                                {auditRows.length > 0 && (
+                                    <table>
+                                        <thead><tr><th>Thời gian</th><th>Người thực hiện</th><th>Vai trò</th><th>Thay đổi</th><th>Kết quả</th></tr></thead>
+                                        <tbody>
+                                            {auditRows.map((item) => (
+                                                <tr key={item.id}>
+                                                    <td>{item.time}</td>
+                                                    <td>{item.actor}{item.ipAddress ? <small>{item.ipAddress}</small> : null}</td>
+                                                    <td>{item.role}</td>
+                                                    <td>{item.change}</td>
+                                                    <td>{item.result}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                )}
                             </section>
                         )}
                     </section>
@@ -750,7 +879,7 @@ export default function AdminPermissions() {
                     <span>Bạn có thay đổi chưa được lưu.</span>
                     <button type="button" onClick={() => setSelectedPermissions(savedPermissions)}>Hủy thay đổi</button>
                     <button type="button" onClick={restoreDefaults}><FiRotateCcw /> Khôi phục từ backend</button>
-                    <button type="button" onClick={() => setShowConfirmSave(true)}><FiSave /> Lưu cấu hình</button>
+                    <button type="button" onClick={() => { setPermissionChangeReason(''); setShowConfirmSave(true); }}><FiSave /> Lưu cấu hình</button>
                 </section>
 
                 {showConfirmSave && (
@@ -760,6 +889,17 @@ export default function AdminPermissions() {
                             <h2>Xác nhận thay đổi phân quyền</h2>
                             <p>Bạn đang cập nhật quyền cho vai trò “{selectedRole?.name}”. Thay đổi này sẽ ảnh hưởng đến {formatUserCount(selectedRole?.userCount)}.</p>
                             <ul><li>Quyền được thêm: {addedCount}</li><li>Quyền bị loại bỏ: {removedCount}</li><li>Quyền nhạy cảm sẽ được kiểm tra lại ở backend.</li></ul>
+                            <div className={cx('admin-permissions__role-form')}>
+                                <label>
+                                    <span>Lý do thay đổi</span>
+                                    <textarea
+                                        value={permissionChangeReason}
+                                        onChange={(event) => setPermissionChangeReason(event.target.value)}
+                                        placeholder="Ví dụ: Cấp quyền tạo lớp cho Phòng đào tạo theo phân công mới"
+                                    />
+                                    {!permissionChangeReason.trim() && <small>Bắt buộc nhập lý do để ghi Audit Log.</small>}
+                                </label>
+                            </div>
                             <footer><button type="button" onClick={() => setShowConfirmSave(false)}>Hủy</button><button type="button" onClick={savePermissions}>Xác nhận lưu</button></footer>
                         </section>
                     </div>
