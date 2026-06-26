@@ -271,11 +271,12 @@ export default function AdminUsers({ workspaceKey = 'admin' }) {
     const [temporaryPassword, setTemporaryPassword] = useState('');
     const [changeRoleCode, setChangeRoleCode] = useState('');
 
-    const hasUserManagementRole = ['ADMIN', 'HR'].includes(currentRole);
-    const canRead = hasUserManagementRole || roleHasPermission(currentRole, 'users.view', permissions);
-    const canCreate = (hasUserManagementRole || roleHasPermission(currentRole, 'users.create', permissions)) && allowedRoles.length > 0;
-    const canUpdate = hasUserManagementRole || roleHasPermission(currentRole, 'users.update', permissions);
-    const canStatus = hasUserManagementRole || roleHasPermission(currentRole, 'users.lock', permissions);
+    const canRead = roleHasPermission(currentRole, 'users.view', permissions);
+    const canCreate = roleHasPermission(currentRole, 'users.create', permissions) && allowedRoles.length > 0;
+    const canUpdate = roleHasPermission(currentRole, 'users.update', permissions);
+    const canStatus = roleHasPermission(currentRole, 'users.lock', permissions);
+    const canResendActivation = canUpdate;
+    const canResetPassword = canUpdate;
     const selectedIdsOnPage = users.map(getUserId).filter(Boolean);
     const departmentOptions = useMemo(
         () => departments.length > 0
@@ -702,12 +703,12 @@ export default function AdminUsers({ workspaceKey = 'admin' }) {
                 {selectedUserIds.length > 0 ? (
                     <section className={cx('admin-users__bulk')}>
                         <strong>{selectedUserIds.length} người dùng đã chọn</strong>
-                        <button type="button" onClick={() => bulkAction('lock')} disabled={!canStatus}><FiLock /> Khóa</button>
-                        <button type="button" onClick={() => bulkAction('unlock')} disabled={!canStatus}><FiUnlock /> Mở khóa</button>
-                        <button type="button" onClick={() => setRoleTarget({ bulk: true })} disabled={!canUpdate}><FiShield /> Gán vai trò</button>
-                        <button type="button" onClick={() => bulkAction('activation')}><FiMail /> Gửi email kích hoạt</button>
+                        {canStatus ? <button type="button" onClick={() => bulkAction('lock')}><FiLock /> Khóa</button> : null}
+                        {canStatus ? <button type="button" onClick={() => bulkAction('unlock')}><FiUnlock /> Mở khóa</button> : null}
+                        {canUpdate ? <button type="button" onClick={() => setRoleTarget({ bulk: true })}><FiShield /> Gán vai trò</button> : null}
+                        {canResendActivation ? <button type="button" onClick={() => bulkAction('activation')}><FiMail /> Gửi email kích hoạt</button> : null}
                         <button type="button" onClick={() => exportUsers({ selectedOnly: true })}><FiDownload /> Xuất đã chọn</button>
-                        <button type="button" disabled={!canStatus} onClick={() => { setDeactivateTarget({ bulk: true }); setDeactivateForm({ reason: '', revokeSessions: true, sendEmail: true }); }}><FiArchive /> Vô hiệu hóa</button>
+                        {canStatus ? <button type="button" onClick={() => { setDeactivateTarget({ bulk: true }); setDeactivateForm({ reason: '', revokeSessions: true, sendEmail: true }); }}><FiArchive /> Vô hiệu hóa</button> : null}
                         <button type="button" onClick={clearSelection}><FiX /> Bỏ chọn</button>
                     </section>
                 ) : null}
@@ -770,9 +771,9 @@ export default function AdminUsers({ workspaceKey = 'admin' }) {
                                                             {canStatus && status !== 'LOCKED' && status !== 'INACTIVE' ? <button type="button" title="Khóa tài khoản" disabled={!canManageUser(user)} onClick={() => openLock(user)}><FiLock /></button> : null}
                                                             {canStatus && status === 'LOCKED' ? <button type="button" title="Mở khóa tài khoản" disabled={!canManageUser(user)} onClick={() => setUnlockTarget(user)}><FiUnlock /></button> : null}
                                                             {canStatus && canDeactivate ? <button type="button" title="Vô hiệu hóa tài khoản" disabled={!canManageUser(user)} onClick={() => openDeactivate(user)}><FiArchive /></button> : null}
-                                                            {status !== 'INACTIVE' ? <button type="button" title="Gửi lại email kích hoạt" onClick={() => userService.resendActivation(id).then(() => toast.success('Đã gửi email kích hoạt')).catch(() => toast.error('Backend chưa hỗ trợ gửi lại email kích hoạt'))}><FiMail /></button> : null}
-                                                            {status !== 'INACTIVE' ? <button type="button" title="Đặt lại mật khẩu" onClick={() => { setResetTarget(user); setTemporaryPassword(''); }}><FiKey /></button> : null}
-                                                            <button type="button" title="Xem lịch sử hoạt động" onClick={() => { openDetail(user); setActiveTab('activity'); }}><FiMoreVertical /></button>
+                                                            {canResendActivation && status !== 'INACTIVE' ? <button type="button" title="Gửi lại email kích hoạt" onClick={() => userService.resendActivation(id).then(() => toast.success('Đã gửi email kích hoạt')).catch(() => toast.error('Backend chưa hỗ trợ gửi lại email kích hoạt'))}><FiMail /></button> : null}
+                                                            {canResetPassword && status !== 'INACTIVE' ? <button type="button" title="Đặt lại mật khẩu" onClick={() => { setResetTarget(user); setTemporaryPassword(''); }}><FiKey /></button> : null}
+                                                            {canRead ? <button type="button" title="Xem lịch sử hoạt động" onClick={() => { openDetail(user); setActiveTab('activity'); }}><FiMoreVertical /></button> : null}
                                                         </div>
                                                     </td>
                                                 </tr>
@@ -802,10 +803,13 @@ export default function AdminUsers({ workspaceKey = 'admin' }) {
                                             <p><b>Mã:</b> {user.code || '-'}</p>
                                             <footer>
                                                 <button type="button" onClick={() => openDetail(user)}>Xem</button>
-                                                <button type="button" onClick={() => openEdit(user)} disabled={!canUpdate}>Sửa</button>
-                                                {status === 'INACTIVE'
-                                                    ? <button type="button" onClick={() => setActivateTarget(user)} disabled={!canStatus || !canManageUser(user)}>Kích hoạt lại</button>
-                                                    : <button type="button" onClick={() => openDeactivate(user)} disabled={!canStatus || !canManageUser(user)}>Vô hiệu hóa</button>}
+                                                {canUpdate ? <button type="button" onClick={() => openEdit(user)}>Sửa</button> : null}
+                                                {canStatus && status === 'INACTIVE'
+                                                    ? <button type="button" onClick={() => setActivateTarget(user)} disabled={!canManageUser(user)}>Kích hoạt lại</button>
+                                                    : null}
+                                                {canStatus && status !== 'INACTIVE'
+                                                    ? <button type="button" onClick={() => openDeactivate(user)} disabled={!canManageUser(user)}>Vô hiệu hóa</button>
+                                                    : null}
                                             </footer>
                                         </article>
                                     );
