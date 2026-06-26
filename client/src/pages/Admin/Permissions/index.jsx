@@ -29,6 +29,8 @@ import AppSidebar from '~/components/AppSidebar';
 import { auditLogService } from '~/services/auditLogService';
 import { roleService } from '~/services/roleService';
 import { userService } from '~/services/userService';
+import { useAuthStore } from '~/stores/useAuthStore';
+import { userHasBackendPermission, userHasAnyBackendPermission } from '~/utils/permissions';
 import layoutStyles from '~/pages/FlowWorkbench/FlowWorkbench.module.scss';
 import permissionStyles from './Permissions.module.scss';
 
@@ -308,6 +310,7 @@ const workspaceLabels = {
 };
 
 export default function AdminPermissions({ workspaceKey = 'admin' }) {
+    const currentUser = useAuthStore((state) => state.user);
     const [loading, setLoading] = useState(false);
     const [submitting, setSubmitting] = useState(false);
     const [roles, setRoles] = useState(() => normalizeRoles([]));
@@ -350,6 +353,18 @@ export default function AdminPermissions({ workspaceKey = 'admin' }) {
         () => roles.reduce((result, role) => ({ ...result, [role.code]: role.name || role.code }), {}),
         [roles]
     );
+    const canReadRoles = userHasAnyBackendPermission(currentUser, ['roles.read', 'roles.create', 'roles.update', 'roles.delete', 'system.permissions.manage']);
+    const canCreateRole = userHasBackendPermission(currentUser, 'roles.create');
+    const canUpdateRole = userHasBackendPermission(currentUser, 'roles.update');
+    const canDeleteRolePermission = userHasBackendPermission(currentUser, 'roles.delete');
+    const canManagePermissions = userHasBackendPermission(currentUser, 'system.permissions.manage');
+    const canViewUsers = userHasBackendPermission(currentUser, 'users.read');
+    const canViewPermissionHistory = userHasBackendPermission(currentUser, 'system.audit.read');
+    const activeViewMode = useMemo(() => {
+        if (viewMode === 'history' && !canViewPermissionHistory) return 'role';
+        if (viewMode === 'matrix' && !canReadRoles) return canViewPermissionHistory ? 'history' : 'role';
+        return viewMode;
+    }, [canReadRoles, canViewPermissionHistory, viewMode]);
     const auditRows = useMemo(
         () => auditLogs.map((log) => ({
             id: log.publicId || `${log.createdAt}-${log.targetPublicId}`,
@@ -445,12 +460,22 @@ export default function AdminPermissions({ workspaceKey = 'admin' }) {
     };
 
     const openCreateRole = () => {
+        if (!canCreateRole) {
+            toast.error('Bạn không có quyền tạo vai trò');
+            return;
+        }
+
         setRoleModalMode('create');
         setRoleForm(emptyRoleForm);
         setRoleFormErrors({});
     };
 
     const openEditRole = () => {
+        if (!canUpdateRole) {
+            toast.error('Bạn không có quyền sửa vai trò');
+            return;
+        }
+
         if (isAdminRoleSelected) {
             toast.error('Không được sửa vai trò Admin');
             return;
@@ -472,6 +497,11 @@ export default function AdminPermissions({ workspaceKey = 'admin' }) {
     };
 
     const openCopyRole = () => {
+        if (!canCreateRole || !canManagePermissions) {
+            toast.error('Bạn không có quyền sao chép vai trò');
+            return;
+        }
+
         if (isAdminRoleSelected) {
             toast.error('Không được sao chép vai trò Admin');
             return;
@@ -585,6 +615,11 @@ export default function AdminPermissions({ workspaceKey = 'admin' }) {
     };
 
     const togglePermission = (permission) => {
+        if (!canManagePermissions) {
+            toast.error('Bạn không có quyền thay đổi phân quyền');
+            return;
+        }
+
         if (isAdminRoleSelected) {
             toast.error('Không được sửa quyền của Admin');
             return;
@@ -598,6 +633,11 @@ export default function AdminPermissions({ workspaceKey = 'admin' }) {
     };
 
     const toggleModule = (group) => {
+        if (!canManagePermissions) {
+            toast.error('Bạn không có quyền thay đổi phân quyền');
+            return;
+        }
+
         if (isAdminRoleSelected) {
             toast.error('Không được sửa quyền của Admin');
             return;
@@ -628,6 +668,12 @@ export default function AdminPermissions({ workspaceKey = 'admin' }) {
         .filter((group) => group.permissions.length > 0);
 
     const savePermissions = async () => {
+        if (!canManagePermissions) {
+            toast.error('Bạn không có quyền thay đổi phân quyền');
+            setShowConfirmSave(false);
+            return;
+        }
+
         if (isAdminRoleSelected) {
             toast.error('Không được sửa quyền của Admin');
             setShowConfirmSave(false);
@@ -668,6 +714,11 @@ export default function AdminPermissions({ workspaceKey = 'admin' }) {
     };
 
     const copyPermissions = () => {
+        if (!canManagePermissions) {
+            toast.error('Bạn không có quyền thay đổi phân quyền');
+            return;
+        }
+
         if (isAdminRoleSelected) {
             toast.error('Không được sửa quyền của Admin');
             return;
@@ -681,6 +732,7 @@ export default function AdminPermissions({ workspaceKey = 'admin' }) {
     const previewAllowed = permissionCatalog.flatMap((group) => group.permissions).filter((permission) => selectedPermissions.includes(permission.code)).slice(0, 8);
     const previewDenied = permissionCatalog.flatMap((group) => group.permissions).filter((permission) => !selectedPermissions.includes(permission.code)).slice(0, 5);
     const canDeleteSelectedRole =
+        canDeleteRolePermission &&
         selectedRole?.publicId &&
         !isAdminRoleSelected &&
         !selectedRole?.isSystem &&
@@ -698,8 +750,8 @@ export default function AdminPermissions({ workspaceKey = 'admin' }) {
                         <p>Thiết lập quyền truy cập chức năng cho từng nhóm người dùng trong hệ thống.</p>
                     </div>
                     <div>
-                        <button type="button" className={cx('admin-permissions__ghost')} onClick={() => setViewMode('history')}><FiClock /> Xem lịch sử thay đổi</button>
-                        <button type="button" className={cx('admin-permissions__primary')} onClick={openCreateRole}><FiKey /> Thêm vai trò mới</button>
+                        {canViewPermissionHistory && <button type="button" className={cx('admin-permissions__ghost')} onClick={() => setViewMode('history')}><FiClock /> Xem lịch sử thay đổi</button>}
+                        {canCreateRole && <button type="button" className={cx('admin-permissions__primary')} onClick={openCreateRole}><FiKey /> Thêm vai trò mới</button>}
                     </div>
                 </section>
 
@@ -733,12 +785,12 @@ export default function AdminPermissions({ workspaceKey = 'admin' }) {
 
                     <section className={cx('admin-permissions__editor')}>
                         <div className={cx('admin-permissions__tabs')}>
-                            <button type="button" className={cx({ 'is-active': viewMode === 'role' })} onClick={() => setViewMode('role')}>Theo vai trò</button>
-                            <button type="button" className={cx({ 'is-active': viewMode === 'matrix' })} onClick={() => setViewMode('matrix')}>Ma trận phân quyền</button>
-                            <button type="button" className={cx({ 'is-active': viewMode === 'history' })} onClick={() => setViewMode('history')}>Lịch sử</button>
+                            <button type="button" className={cx({ 'is-active': activeViewMode === 'role' })} onClick={() => setViewMode('role')}>Theo vai trò</button>
+                            {canReadRoles && <button type="button" className={cx({ 'is-active': activeViewMode === 'matrix' })} onClick={() => setViewMode('matrix')}>Ma trận phân quyền</button>}
+                            {canViewPermissionHistory && <button type="button" className={cx({ 'is-active': activeViewMode === 'history' })} onClick={() => setViewMode('history')}>Lịch sử</button>}
                         </div>
 
-                        {viewMode === 'role' && (
+                        {activeViewMode === 'role' && (
                             <>
                                 <section className={cx('admin-permissions__role-card')}>
                                     <div>
@@ -753,10 +805,10 @@ export default function AdminPermissions({ workspaceKey = 'admin' }) {
                                         </dl>
                                     </div>
                                     <div className={cx('admin-permissions__role-actions')}>
-                                        <button type="button" onClick={openEditRole} disabled={!selectedRole?.publicId || isAdminRoleSelected}><FiEdit3 /> Sửa thông tin</button>
-                                        <button type="button" onClick={openCopyRole} disabled={!selectedRole || isAdminRoleSelected}><FiCopy /> Sao chép role</button>
-                                        <button type="button" disabled={!canDeleteSelectedRole} onClick={() => setDeleteTarget(selectedRole)}><FiTrash2 /> Xóa role</button>
-                                        <button type="button" onClick={() => { setShowUsers(true); fetchRoleUsers(selectedRole?.code); }}><FiUsers /> Xem người dùng</button>
+                                        {canUpdateRole && <button type="button" onClick={openEditRole} disabled={!selectedRole?.publicId || isAdminRoleSelected}><FiEdit3 /> Sửa thông tin</button>}
+                                        {canCreateRole && canManagePermissions && <button type="button" onClick={openCopyRole} disabled={!selectedRole || isAdminRoleSelected}><FiCopy /> Sao chép role</button>}
+                                        {canDeleteRolePermission && <button type="button" disabled={!canDeleteSelectedRole} onClick={() => setDeleteTarget(selectedRole)}><FiTrash2 /> Xóa role</button>}
+                                        {canViewUsers && <button type="button" onClick={() => { setShowUsers(true); fetchRoleUsers(selectedRole?.code); }}><FiUsers /> Xem người dùng</button>}
                                     </div>
                                 </section>
 
@@ -774,15 +826,18 @@ export default function AdminPermissions({ workspaceKey = 'admin' }) {
                                     <button type="button" onClick={() => setExpandedModules(permissionCatalog.map((group) => group.module))}>Mở rộng tất cả</button>
                                     <button type="button" onClick={() => setExpandedModules([])}>Thu gọn tất cả</button>
                                     {isAdminRoleSelected && <span className={cx('admin-permissions__readonly-note')}>Admin là vai trò gốc, chỉ được xem quyền.</span>}
+                                    {!canManagePermissions && <span className={cx('admin-permissions__readonly-note')}>Bạn chỉ có quyền xem, không thể thay đổi phân quyền.</span>}
                                 </section>
 
-                                <section className={cx('admin-permissions__copy')}>
-                                    <span>Sao chép quyền từ</span>
-                                    <select value={copySource} onChange={(event) => setCopySource(event.target.value)}>
-                                        {roles.filter((role) => role.code !== selectedRoleCode).map((role) => <option key={role.code} value={role.code}>{role.name}</option>)}
-                                    </select>
-                                    <button type="button" onClick={copyPermissions} disabled={isAdminRoleSelected}><FiCopy /> Áp dụng cho {selectedRole?.name}</button>
-                                </section>
+                                {canManagePermissions && (
+                                    <section className={cx('admin-permissions__copy')}>
+                                        <span>Sao chép quyền từ</span>
+                                        <select value={copySource} onChange={(event) => setCopySource(event.target.value)}>
+                                            {roles.filter((role) => role.code !== selectedRoleCode).map((role) => <option key={role.code} value={role.code}>{role.name}</option>)}
+                                        </select>
+                                        <button type="button" onClick={copyPermissions} disabled={isAdminRoleSelected}><FiCopy /> Áp dụng cho {selectedRole?.name}</button>
+                                    </section>
+                                )}
 
                                 <section className={cx('admin-permissions__accordion')}>
                                     {filteredGroups.map((group) => {
@@ -800,7 +855,7 @@ export default function AdminPermissions({ workspaceKey = 'admin' }) {
                                                         <span>Đã chọn {selectedCount}/{group.permissions.length} quyền</span>
                                                     </button>
                                                     <label>
-                                                        <input type="checkbox" checked={selectedCount === group.permissions.length} disabled={isAdminRoleSelected} onChange={() => toggleModule(group)} />
+                                                        <input type="checkbox" checked={selectedCount === group.permissions.length} disabled={isAdminRoleSelected || !canManagePermissions} onChange={() => toggleModule(group)} />
                                                         Chọn tất cả
                                                     </label>
                                                 </header>
@@ -808,7 +863,7 @@ export default function AdminPermissions({ workspaceKey = 'admin' }) {
                                                     <div>
                                                         {group.permissions.map((permission) => (
                                                             <label key={permission.code} className={cx({ 'is-sensitive': permission.sensitive })}>
-                                                                <input type="checkbox" checked={selectedPermissions.includes(permission.code)} disabled={isAdminRoleSelected} onChange={() => togglePermission(permission)} />
+                                                                <input type="checkbox" checked={selectedPermissions.includes(permission.code)} disabled={isAdminRoleSelected || !canManagePermissions} onChange={() => togglePermission(permission)} />
                                                                 <span>
                                                                     <strong>{permission.name}</strong>
                                                                     <small>{permission.code}{permission.dependsOn ? ` · phụ thuộc: ${permission.dependsOn.join(', ')}` : ''}</small>
@@ -829,7 +884,7 @@ export default function AdminPermissions({ workspaceKey = 'admin' }) {
                             </>
                         )}
 
-                        {viewMode === 'matrix' && (
+                        {activeViewMode === 'matrix' && (
                             <section className={cx('admin-permissions__matrix')}>
                                 <table>
                                     <thead><tr><th>Quyền</th>{roles.map((role) => <th key={role.code}>{role.name}</th>)}</tr></thead>
@@ -845,7 +900,7 @@ export default function AdminPermissions({ workspaceKey = 'admin' }) {
                             </section>
                         )}
 
-                        {viewMode === 'history' && (
+                        {activeViewMode === 'history' && (
                             <section className={cx('admin-permissions__history')}>
                                 <div className={cx('admin-permissions__section-title')}>
                                     <h2>Lịch sử thay đổi quyền</h2>
@@ -875,7 +930,7 @@ export default function AdminPermissions({ workspaceKey = 'admin' }) {
                     </section>
                 </section>
 
-                <section className={cx('admin-permissions__savebar', { 'is-visible': hasChanges && !isAdminRoleSelected })}>
+                <section className={cx('admin-permissions__savebar', { 'is-visible': hasChanges && !isAdminRoleSelected && canManagePermissions })}>
                     <span>Bạn có thay đổi chưa được lưu.</span>
                     <button type="button" onClick={() => setSelectedPermissions(savedPermissions)}>Hủy thay đổi</button>
                     <button type="button" onClick={restoreDefaults}><FiRotateCcw /> Khôi phục từ backend</button>

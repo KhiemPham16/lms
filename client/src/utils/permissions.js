@@ -142,6 +142,27 @@ export const canAccessDashboardRoute = (role, route, permissions = readDashboard
     return route.anyPermissions?.some((permission) => roleHasPermission(normalizedRole, permission, permissions)) || false;
 };
 
+export const getUserPermissionCodes = (user) => {
+    if (!user) return [];
+    if (normalizeRole(user?.role || user?.roleDetail?.code) === 'ADMIN') return ['*'];
+
+    return [
+        ...(user?.permissionCodes || []),
+        ...(user?.roleDetail?.permissionCodes || []),
+        ...(user?.permissions?.map((permission) => permission.code || permission.permission?.code).filter(Boolean) || []),
+        ...(user?.role?.permissions?.map((item) => item.code || item.permission?.code).filter(Boolean) || [])
+    ];
+};
+
+export const userHasBackendPermission = (user, permission) => {
+    if (!permission) return true;
+    const permissions = getUserPermissionCodes(user);
+    return permissions.includes('*') || permissions.includes(permission);
+};
+
+export const userHasAnyBackendPermission = (user, permissions = []) =>
+    permissions.some((permission) => userHasBackendPermission(user, permission));
+
 export const getDashboardRoutesByRole = (role, permissions = readDashboardPermissions()) =>
     dashboardRoutes.filter((route) => canAccessDashboardRoute(role, route, permissions));
 
