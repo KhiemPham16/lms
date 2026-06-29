@@ -39,10 +39,9 @@ export default function Login() {
 
         const { user } = useAuthStore.getState();
 
-        const role = user?.role?.toUpperCase();
+        const role = (user?.role || user?.roleDetail?.code)?.toUpperCase();
 
         if (!role) {
-            console.log('User sau login:', user);
             return;
         }
 

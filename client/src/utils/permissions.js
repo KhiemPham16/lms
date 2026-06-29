@@ -92,7 +92,7 @@ export const toClientPermissions = (permissions = []) =>
     permissions.includes('*') ? ['*'] : [...new Set(permissions.map(toClientPermission))];
 
 export const buildDashboardPermissionsFromUser = (user) => {
-    const role = normalizeRole(user?.role);
+    const role = normalizeRole(user?.role || user?.roleDetail?.code);
     const permissionCodes = user?.permissionCodes || user?.roleDetail?.permissionCodes || [];
 
     return {

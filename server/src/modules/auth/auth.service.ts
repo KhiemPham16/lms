@@ -12,6 +12,13 @@ import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { MailQueueService } from '~/modules/mail/mail-queue.service';
 
+const accountNotActiveError = (status: string) =>
+    new ForbiddenException({
+        code: 'ACCOUNT_NOT_ACTIVE',
+        status,
+        message: 'Tai khoan khong hoat dong'
+    });
+
 @Injectable()
 export class AuthService {
     constructor(
@@ -28,13 +35,10 @@ export class AuthService {
             throw new UnauthorizedException('Email hoặc mật khẩu không đúng');
         }
 
-        if (user.status === 'INACTIVE') {
-            throw new ForbiddenException('Tài khoản của bạn đã bị vô hiệu hóa. Vui lòng liên hệ bộ phận quản trị để được hỗ trợ.');
+        if (user.status !== 'ACTIVE') {
+            throw accountNotActiveError(user.status);
         }
 
-        if (user.status !== 'ACTIVE') {
-            throw new UnauthorizedException('Tài khoản không hoạt động');
-        }
 
         const isPasswordValid = await bcrypt.compare(dto.password, user.password);
 
@@ -168,21 +172,18 @@ export class AuthService {
             throw new UnauthorizedException('Người dùng không tồn tại');
         }
 
+        const userStatus = user.status;
+
+        if (userStatus !== 'ACTIVE') {
+            throw accountNotActiveError(userStatus);
+        }
+
         const session = await this.findSessionByRefreshToken(user.id, refreshToken);
 
         if (!session) {
             throw new UnauthorizedException('Phiên đăng nhập không hợp lệ');
         }
 
-        if (!session) {
-            throw new UnauthorizedException('Phiên đăng nhập không tồn tại');
-        }
-
-        const isValidSession = await bcrypt.compare(refreshToken, session.refreshToken);
-
-        if (!isValidSession) {
-            throw new UnauthorizedException('Phiên đăng nhập không hợp lệ');
-        }
 
         if (!user.role || !user.roleId) {
             throw new UnauthorizedException('Tai khoan chua duoc gan vai tro');

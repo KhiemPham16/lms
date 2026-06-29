@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
+import { UserStatus } from '@prisma/client';
 import { Request } from 'express';
 import { PrismaService } from '~/prisma/prisma.service';
 
@@ -30,18 +31,14 @@ export class JwtAuthGuard implements CanActivate {
     ) {}
 
     async canActivate(context: ExecutionContext): Promise<boolean> {
-        const request = context
-            .switchToHttp()
-            .getRequest<AuthenticatedRequest>();
-
+        const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
         const authHeader = request.headers.authorization;
 
         if (!authHeader || !authHeader.startsWith('Bearer ')) {
-            throw new UnauthorizedException('Token không tồn tại');
+            throw new UnauthorizedException('Token khong ton tai');
         }
 
         const token = authHeader.split(' ')[1];
-
         const secret = this.configService.get<string>('auth.accessJwtSecret');
 
         if (!secret) {
@@ -49,11 +46,7 @@ export class JwtAuthGuard implements CanActivate {
         }
 
         try {
-            const payload = await this.jwtService.verifyAsync<JwtPayload>(
-                token,
-                { secret }
-            );
-
+            const payload = await this.jwtService.verifyAsync<JwtPayload>(token, { secret });
             const user = await this.prisma.user.findFirst({
                 where: {
                     publicId: payload.sub,
@@ -64,8 +57,12 @@ export class JwtAuthGuard implements CanActivate {
                 }
             });
 
-            if (!user || user.status === 'INACTIVE') {
-                throw new ForbiddenException('Tài khoản của bạn đã bị vô hiệu hóa. Vui lòng liên hệ bộ phận quản trị để được hỗ trợ.');
+            if (!user || user.status !== UserStatus.ACTIVE) {
+                throw new ForbiddenException({
+                    code: 'ACCOUNT_NOT_ACTIVE',
+                    status: user?.status ?? 'DELETED',
+                    message: 'Tai khoan khong hoat dong'
+                });
             }
 
             request.user = {
@@ -79,7 +76,8 @@ export class JwtAuthGuard implements CanActivate {
             if (error instanceof ForbiddenException) {
                 throw error;
             }
-            throw new UnauthorizedException('Token không hợp lệ');
+
+            throw new UnauthorizedException('Token khong hop le');
         }
     }
 }

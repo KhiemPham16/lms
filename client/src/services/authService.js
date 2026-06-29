@@ -1,4 +1,5 @@
 import { axiosInstance as api } from '~/lib/axios';
+import { unwrapApiResponse } from '~/lib/apiPayload';
 
 export const authService = {
     login: async (email, password) => {
@@ -7,25 +8,17 @@ export const authService = {
             password
         });
 
-        return res.data;
-    },
-
-    verifyEmail: async (token) => {
-        const res = await api.get('/auth/verify-email', {
-            params: { token }
-        });
-
-        return res.data;
+        return unwrapApiResponse(res);
     },
 
     logout: async () => {
         const res = await api.post('/auth/logout');
-        return res.data;
+        return unwrapApiResponse(res);
     },
 
     refresh: async () => {
         const res = await api.post('/auth/refresh');
-        return res.data;
+        return unwrapApiResponse(res);
     },
 
     forgotPassword: async (email) => {
@@ -33,7 +26,7 @@ export const authService = {
             email
         });
 
-        return res.data;
+        return unwrapApiResponse(res);
     },
 
     resetPassword: async (email, otp, newPassword) => {
@@ -43,11 +36,11 @@ export const authService = {
             newPassword
         });
 
-        return res.data;
+        return unwrapApiResponse(res);
     },
 
     fetchMe: async () => {
         const res = await api.get('/users/me');
-        return res.data;
+        return unwrapApiResponse(res);
     }
 };

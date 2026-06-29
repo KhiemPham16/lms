@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { toast } from 'sonner';
 
 import { userService } from '~/services/userService';
+import { getApiErrorMessage, getPayloadItems, getPayloadMeta } from '~/lib/apiPayload';
 
 const defaultFilters = {
     role: '',
@@ -24,10 +25,8 @@ const defaultSummary = {
     trends: {}
 };
 
-const getItems = (payload) => payload?.items || payload?.data?.items || [];
-const getMeta = (payload) => payload?.meta || payload?.data?.meta || {};
-const getErrorMessage = (error, fallback) => error?.response?.data?.message || error?.message || fallback;
-const getTotal = (payload) => Number(getMeta(payload).total || 0);
+const getErrorMessage = getApiErrorMessage;
+const getTotal = (payload) => Number(getPayloadMeta(payload).total || 0);
 
 const buildParams = (state) => ({
     page: state.pagination.page,
@@ -68,10 +67,10 @@ export const useUserManagementStore = create((set, get) => ({
         try {
             const state = get();
             const payload = await userService.getUsers({ ...buildParams(state), ...params });
-            const meta = getMeta(payload);
+            const meta = getPayloadMeta(payload);
 
             set({
-                users: getItems(payload),
+                users: getPayloadItems(payload),
                 pagination: {
                     page: Number(meta.page || params.page || state.pagination.page || 1),
                     limit: Number(meta.limit || params.limit || state.pagination.limit || 20),
@@ -342,8 +341,8 @@ export const useUserManagementStore = create((set, get) => ({
             ]);
             set({
                 currentUserDetail: detail,
-                userActivities: activities?.items || activities?.data?.items || [],
-                userLoginHistory: loginHistory?.items || loginHistory?.data?.items || []
+                userActivities: getPayloadItems(activities),
+                userLoginHistory: getPayloadItems(loginHistory)
             });
         } catch (error) {
             toast.error(getErrorMessage(error, 'Không thể tải chi tiết người dùng'));

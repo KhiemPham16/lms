@@ -30,13 +30,13 @@ import {
 import { toast } from 'sonner';
 
 import AppSidebar from '~/components/AppSidebar';
+import { unwrapApiPayload } from '~/lib/apiPayload';
 import { departmentService } from '~/services/departmentService';
 import { roleService } from '~/services/roleService';
 import { userService } from '~/services/userService';
 import { useAuthStore } from '~/stores/useAuthStore';
 import { useUserManagementStore } from '~/stores/useUserManagementStore';
-import { roleHasPermission } from '~/utils/permissions';
-import { useDashboardPermissions } from '~/hooks/useDashboardPermissions';
+import { userHasBackendPermission } from '~/utils/permissions';
 import layoutStyles from '~/pages/FlowWorkbench/FlowWorkbench.module.scss';
 import userStyles from './Users.module.scss';
 
@@ -152,7 +152,10 @@ const formatDateTime = (value) => {
         minute: '2-digit'
     }).format(date);
 };
-const normalizeItems = (payload) => payload?.items || payload?.data?.items || payload?.data || payload || [];
+const normalizeItems = (payload) => {
+    const unwrapped = unwrapApiPayload(payload);
+    return unwrapped?.items || unwrapped || [];
+};
 
 const debounceMs = 400;
 
@@ -194,7 +197,6 @@ function ConfirmDialog({ title, message, danger, confirmLabel = 'Xác nhận', l
 
 export default function AdminUsers({ workspaceKey = 'admin' }) {
     const [searchParams, setSearchParams] = useSearchParams();
-    const permissions = useDashboardPermissions();
     const currentUser = useAuthStore((state) => state.user);
     const currentRole = getUserRole(currentUser) || workspaceRoleFallback[workspaceKey] || workspaceKey.toUpperCase();
     const workspaceLabel = workspaceLabels[workspaceKey] || 'EduLMS';
@@ -271,10 +273,11 @@ export default function AdminUsers({ workspaceKey = 'admin' }) {
     const [temporaryPassword, setTemporaryPassword] = useState('');
     const [changeRoleCode, setChangeRoleCode] = useState('');
 
-    const canRead = roleHasPermission(currentRole, 'users.view', permissions);
-    const canCreate = roleHasPermission(currentRole, 'users.create', permissions) && allowedRoles.length > 0;
-    const canUpdate = roleHasPermission(currentRole, 'users.update', permissions);
-    const canStatus = roleHasPermission(currentRole, 'users.lock', permissions);
+    const canRead = userHasBackendPermission(currentUser, 'users.read');
+    const canCreate = userHasBackendPermission(currentUser, 'users.create') && allowedRoles.length > 0;
+    const canUpdate = userHasBackendPermission(currentUser, 'users.update');
+    const canStatus = userHasBackendPermission(currentUser, 'users.status');
+    const canExport = canRead;
     const canResendActivation = canUpdate;
     const canResetPassword = canUpdate;
     const selectedIdsOnPage = users.map(getUserId).filter(Boolean);
@@ -424,6 +427,8 @@ export default function AdminUsers({ workspaceKey = 'admin' }) {
     };
 
     const openCreate = () => {
+        if (!canCreate) return;
+
         setCreateForm({ ...emptyCreateForm, role: allowedRoles[0] || '' });
         setFormErrors({});
         setCreateOpen(true);
@@ -431,6 +436,7 @@ export default function AdminUsers({ workspaceKey = 'admin' }) {
 
     const submitCreate = async (event) => {
         event.preventDefault();
+        if (!canCreate) return;
         if (!validateUserForm(createForm, 'create')) return;
 
         const payload = {
@@ -455,6 +461,8 @@ export default function AdminUsers({ workspaceKey = 'admin' }) {
     };
 
     const openEdit = (user) => {
+        if (!canUpdate) return;
+
         setEditForm({
             fullName: user.fullName || '',
             phone: user.phone || '',
@@ -470,6 +478,7 @@ export default function AdminUsers({ workspaceKey = 'admin' }) {
 
     const submitEdit = async (event) => {
         event.preventDefault();
+        if (!canUpdate) return;
         if (!validateUserForm(editForm, 'edit')) return;
         const id = getUserId(editOpen);
         const { status, ...profilePayload } = editForm;
@@ -494,6 +503,7 @@ export default function AdminUsers({ workspaceKey = 'admin' }) {
     const userIsSelf = (user) => getUserId(user) === currentUser?.publicId || user?.email === currentUser?.email;
     const canManageUser = (user) => !userIsSelf(user) && getUserRole(user) !== 'ADMIN';
     const openLock = (user) => {
+        if (!canStatus) return;
         if (userIsSelf(user)) return toast.error('Không thể khóa chính tài khoản đang đăng nhập');
         if (getUserRole(user) === 'ADMIN') return toast.error('Không thể khóa Admin từ giao diện này');
         setLockTarget(user);
@@ -501,12 +511,14 @@ export default function AdminUsers({ workspaceKey = 'admin' }) {
     };
 
     const submitLock = async () => {
+        if (!canStatus) return;
         if (!lockForm.reason.trim()) return toast.error('Vui lòng nhập lý do khóa');
         const result = await lockUser(getUserId(lockTarget), lockForm);
         if (result.ok) setLockTarget(null);
     };
 
     const submitUnlock = async () => {
+        if (!canStatus) return;
         if (!unlockReason.trim()) return toast.error('Vui lòng nhập lý do mở khóa');
         const result = await unlockUser(getUserId(unlockTarget), { reason: unlockReason });
         if (result.ok) {
@@ -516,12 +528,14 @@ export default function AdminUsers({ workspaceKey = 'admin' }) {
     };
 
     const openDeactivate = (user) => {
+        if (!canStatus) return;
         if (userIsSelf(user)) return toast.error('Không thể vô hiệu hóa chính tài khoản đang đăng nhập');
         setDeactivateTarget(user);
         setDeactivateForm({ reason: '', revokeSessions: true, sendEmail: true });
     };
 
     const submitDeactivate = async () => {
+        if (!canStatus) return;
         if (!deactivateForm.reason.trim()) return toast.error('Vui lòng nhập lý do vô hiệu hóa');
         if (deactivateTarget?.bulk) {
             await bulkAction('deactivate');
@@ -534,11 +548,13 @@ export default function AdminUsers({ workspaceKey = 'admin' }) {
     };
 
     const submitActivate = async () => {
+        if (!canStatus) return;
         const result = await activateUser(getUserId(activateTarget), { reason: 'Kích hoạt lại tài khoản' });
         if (result.ok) setActivateTarget(null);
     };
 
     const submitResetPassword = async () => {
+        if (!canResetPassword) return;
         const result = await resetPassword(getUserId(resetTarget), resetForm);
         if (result.ok) {
             const temp = result.data?.temporaryPassword || result.data?.password;
@@ -548,6 +564,7 @@ export default function AdminUsers({ workspaceKey = 'admin' }) {
     };
 
     const submitChangeRole = async () => {
+        if (!canUpdate) return;
         if (!changeRoleCode) return toast.error('Vui lòng chọn vai trò');
         if (userIsSelf(roleTarget)) return toast.error('Không thể tự nâng quyền tài khoản của chính mình');
         const result = await changeUserRole(getUserId(roleTarget), { role: changeRoleCode });
@@ -556,6 +573,8 @@ export default function AdminUsers({ workspaceKey = 'admin' }) {
 
     const bulkAction = async (action) => {
         if (selectedUserIds.length === 0) return;
+        if (['lock', 'unlock', 'deactivate'].includes(action) && !canStatus) return;
+        if (action === 'activation' && !canResendActivation) return;
         try {
             if (action === 'lock') await userService.bulkLockUsers({ userIds: selectedUserIds, reason: 'Bulk lock from Admin UI' });
             if (action === 'unlock') await userService.bulkUnlockUsers({ userIds: selectedUserIds, reason: 'Bulk unlock from Admin UI' });
@@ -570,6 +589,8 @@ export default function AdminUsers({ workspaceKey = 'admin' }) {
     };
 
     const exportUsers = async ({ selectedOnly = false } = {}) => {
+        if (!canExport) return;
+
         if (selectedOnly && selectedUserIds.length === 0) {
             toast.error('Vui long chon it nhat mot nguoi dung de xuat');
             return;
@@ -626,9 +647,9 @@ export default function AdminUsers({ workspaceKey = 'admin' }) {
                     <div>
                         <button type="button" onClick={refreshData} disabled={loading}><FiRefreshCw /> Làm mới</button>
                         <button type="button" onClick={() => exportUsers()}><FiDownload /> Xuất danh sách</button>
-                        <button type="button" className={cx('is-primary')} onClick={openCreate} disabled={!canCreate}>
+                        {canCreate ? <button type="button" className={cx('is-primary')} onClick={openCreate}>
                             <FiUserPlus /> {currentRole === 'ADMIN' ? 'Thêm HR hoặc Hiệu trưởng' : 'Thêm người dùng'}
-                        </button>
+                        </button> : null}
                     </div>
                 </section>
 
@@ -747,6 +768,7 @@ export default function AdminUsers({ workspaceKey = 'admin' }) {
                                             const id = getUserId(user);
                                             const status = user.status || 'INACTIVE';
                                             const canDeactivate = ['ACTIVE', 'PENDING', 'LOCKED'].includes(status);
+                                            const canManageThisUser = canManageUser(user);
                                             return (
                                                 <tr key={id}>
                                                     <td><input type="checkbox" checked={selectedUserIds.includes(id)} onChange={() => selectUser(id)} /></td>
@@ -766,11 +788,11 @@ export default function AdminUsers({ workspaceKey = 'admin' }) {
                                                         <div className={cx('admin-users__actions')}>
                                                             <button type="button" title="Xem chi tiết" onClick={() => openDetail(user)}><FiEye /></button>
                                                             {canUpdate ? <button type="button" title="Chỉnh sửa" onClick={() => openEdit(user)}><FiEdit3 /></button> : null}
-                                                            {canUpdate ? <button type="button" title="Thay đổi vai trò" disabled={userIsSelf(user)} onClick={() => { setRoleTarget(user); setChangeRoleCode(getUserRole(user)); }}><FiShield /></button> : null}
-                                                            {canStatus && status === 'INACTIVE' ? <button type="button" title="Kích hoạt lại" disabled={!canManageUser(user)} onClick={() => setActivateTarget(user)}><FiUserCheck /></button> : null}
-                                                            {canStatus && status !== 'LOCKED' && status !== 'INACTIVE' ? <button type="button" title="Khóa tài khoản" disabled={!canManageUser(user)} onClick={() => openLock(user)}><FiLock /></button> : null}
-                                                            {canStatus && status === 'LOCKED' ? <button type="button" title="Mở khóa tài khoản" disabled={!canManageUser(user)} onClick={() => setUnlockTarget(user)}><FiUnlock /></button> : null}
-                                                            {canStatus && canDeactivate ? <button type="button" title="Vô hiệu hóa tài khoản" disabled={!canManageUser(user)} onClick={() => openDeactivate(user)}><FiArchive /></button> : null}
+                                                            {canUpdate && canManageThisUser ? <button type="button" title="Thay đổi vai trò" onClick={() => { setRoleTarget(user); setChangeRoleCode(getUserRole(user)); }}><FiShield /></button> : null}
+                                                            {canStatus && canManageThisUser && status === 'INACTIVE' ? <button type="button" title="Kích hoạt lại" onClick={() => setActivateTarget(user)}><FiUserCheck /></button> : null}
+                                                            {canStatus && canManageThisUser && status !== 'LOCKED' && status !== 'INACTIVE' ? <button type="button" title="Khóa tài khoản" onClick={() => openLock(user)}><FiLock /></button> : null}
+                                                            {canStatus && canManageThisUser && status === 'LOCKED' ? <button type="button" title="Mở khóa tài khoản" onClick={() => setUnlockTarget(user)}><FiUnlock /></button> : null}
+                                                            {canStatus && canManageThisUser && canDeactivate ? <button type="button" title="Vô hiệu hóa tài khoản" onClick={() => openDeactivate(user)}><FiArchive /></button> : null}
                                                             {canResendActivation && status !== 'INACTIVE' ? <button type="button" title="Gửi lại email kích hoạt" onClick={() => userService.resendActivation(id).then(() => toast.success('Đã gửi email kích hoạt')).catch(() => toast.error('Backend chưa hỗ trợ gửi lại email kích hoạt'))}><FiMail /></button> : null}
                                                             {canResetPassword && status !== 'INACTIVE' ? <button type="button" title="Đặt lại mật khẩu" onClick={() => { setResetTarget(user); setTemporaryPassword(''); }}><FiKey /></button> : null}
                                                             {canRead ? <button type="button" title="Xem lịch sử hoạt động" onClick={() => { openDetail(user); setActiveTab('activity'); }}><FiMoreVertical /></button> : null}
@@ -787,6 +809,7 @@ export default function AdminUsers({ workspaceKey = 'admin' }) {
                                 {users.map((user) => {
                                     const id = getUserId(user);
                                     const status = user.status || 'INACTIVE';
+                                    const canManageThisUser = canManageUser(user);
                                     return (
                                         <article key={id}>
                                             <header>
@@ -804,11 +827,11 @@ export default function AdminUsers({ workspaceKey = 'admin' }) {
                                             <footer>
                                                 <button type="button" onClick={() => openDetail(user)}>Xem</button>
                                                 {canUpdate ? <button type="button" onClick={() => openEdit(user)}>Sửa</button> : null}
-                                                {canStatus && status === 'INACTIVE'
-                                                    ? <button type="button" onClick={() => setActivateTarget(user)} disabled={!canManageUser(user)}>Kích hoạt lại</button>
+                                                {canStatus && canManageThisUser && status === 'INACTIVE'
+                                                    ? <button type="button" onClick={() => setActivateTarget(user)}>Kích hoạt lại</button>
                                                     : null}
-                                                {canStatus && status !== 'INACTIVE'
-                                                    ? <button type="button" onClick={() => openDeactivate(user)} disabled={!canManageUser(user)}>Vô hiệu hóa</button>
+                                                {canStatus && canManageThisUser && status !== 'INACTIVE'
+                                                    ? <button type="button" onClick={() => openDeactivate(user)}>Vô hiệu hóa</button>
                                                     : null}
                                             </footer>
                                         </article>
@@ -828,7 +851,7 @@ export default function AdminUsers({ workspaceKey = 'admin' }) {
                     <button type="button" onClick={() => setPage(pagination.page + 1)} disabled={pagination.page >= pagination.totalPages}>Trang sau <FiChevronRight /></button>
                 </section>
 
-                {createOpen ? (
+                {createOpen && canCreate ? (
                     <div className={cx('admin-users__backdrop')}>
                         <form className={cx('admin-users__drawer')} onSubmit={submitCreate}>
                             <header><div><span>Tạo tài khoản</span><h2>{currentRole === 'ADMIN' ? 'Thêm HR hoặc Hiệu trưởng' : 'Thêm người dùng'}</h2></div><button type="button" onClick={() => setCreateOpen(false)}><FiX /></button></header>
@@ -865,7 +888,7 @@ export default function AdminUsers({ workspaceKey = 'admin' }) {
                     </div>
                 ) : null}
 
-                {editOpen ? (
+                {editOpen && canUpdate ? (
                     <div className={cx('admin-users__backdrop')}>
                         <form className={cx('admin-users__drawer')} onSubmit={submitEdit}>
                             <header><div><span>Chỉnh sửa người dùng</span><h2>{editOpen.fullName}</h2></div><button type="button" onClick={() => setEditOpen(false)}><FiX /></button></header>
@@ -943,7 +966,7 @@ export default function AdminUsers({ workspaceKey = 'admin' }) {
                     </div>
                 ) : null}
 
-                {lockTarget ? (
+                {lockTarget && canStatus ? (
                     <ConfirmDialog title="Khóa tài khoản" message={`${lockTarget.fullName} · ${lockTarget.email}`} danger loading={submitting} confirmLabel="Xác nhận khóa" onCancel={() => setLockTarget(null)} onConfirm={submitLock}>
                         <Field label="Lý do khóa"><textarea value={lockForm.reason} onChange={(e) => setLockForm({ ...lockForm, reason: e.target.value })} /></Field>
                         <Field label="Thời hạn khóa"><input type="datetime-local" value={lockForm.expiresAt} onChange={(e) => setLockForm({ ...lockForm, expiresAt: e.target.value })} /></Field>
@@ -952,13 +975,13 @@ export default function AdminUsers({ workspaceKey = 'admin' }) {
                     </ConfirmDialog>
                 ) : null}
 
-                {unlockTarget ? (
+                {unlockTarget && canStatus ? (
                     <ConfirmDialog title="Mở khóa tài khoản" message={`${unlockTarget.fullName} · ${unlockTarget.email}`} loading={submitting} confirmLabel="Xác nhận mở khóa" onCancel={() => setUnlockTarget(null)} onConfirm={submitUnlock}>
                         <Field label="Lý do mở khóa"><textarea value={unlockReason} onChange={(e) => setUnlockReason(e.target.value)} /></Field>
                     </ConfirmDialog>
                 ) : null}
 
-                {deactivateTarget ? (
+                {deactivateTarget && canStatus ? (
                     <ConfirmDialog
                         title="Vô hiệu hóa tài khoản"
                         message={deactivateTarget.bulk ? `${selectedUserIds.length} tài khoản đã chọn` : `Bạn đang vô hiệu hóa tài khoản: ${deactivateTarget.fullName} · Email: ${deactivateTarget.email} · Vai trò: ${getUserRoleName(deactivateTarget)}`}
@@ -982,13 +1005,13 @@ export default function AdminUsers({ workspaceKey = 'admin' }) {
                     </ConfirmDialog>
                 ) : null}
 
-                {activateTarget ? (
+                {activateTarget && canStatus ? (
                     <ConfirmDialog title="Kích hoạt lại tài khoản" message={`${activateTarget.fullName} · ${activateTarget.email}`} loading={submitting} confirmLabel="Kích hoạt lại" onCancel={() => setActivateTarget(null)} onConfirm={submitActivate}>
                         <p>Tài khoản sẽ được chuyển về trạng thái đang hoạt động và có thể đăng nhập trở lại.</p>
                     </ConfirmDialog>
                 ) : null}
 
-                {resetTarget ? (
+                {resetTarget && canResetPassword ? (
                     <ConfirmDialog title="Đặt lại mật khẩu" message={`${resetTarget.fullName} · ${resetTarget.email}`} loading={submitting} confirmLabel="Xác nhận" onCancel={() => { setResetTarget(null); setTemporaryPassword(''); }} onConfirm={submitResetPassword}>
                         <div className={cx('admin-users__radio-group')}><label><input type="radio" checked={resetForm.mode === 'link'} onChange={() => setResetForm({ ...resetForm, mode: 'link' })} /> Gửi liên kết đặt lại mật khẩu</label><label><input type="radio" checked={resetForm.mode === 'temporary'} onChange={() => setResetForm({ ...resetForm, mode: 'temporary' })} /> Tạo mật khẩu tạm thời</label></div>
                         <label className={cx('admin-users__check')}><input type="checkbox" checked={resetForm.forceChange} onChange={(e) => setResetForm({ ...resetForm, forceChange: e.target.checked })} /> Yêu cầu đổi mật khẩu lần đăng nhập tiếp theo</label>
@@ -997,7 +1020,7 @@ export default function AdminUsers({ workspaceKey = 'admin' }) {
                     </ConfirmDialog>
                 ) : null}
 
-                {roleTarget ? (
+                {roleTarget && canUpdate ? (
                     <ConfirmDialog title={roleTarget.bulk ? 'Gán vai trò hàng loạt' : 'Thay đổi vai trò'} message={roleTarget.bulk ? `${selectedUserIds.length} người dùng đã chọn` : `${roleTarget.fullName} · ${roleTarget.email}`} loading={submitting} confirmLabel="Gán vai trò" onCancel={() => setRoleTarget(null)} onConfirm={roleTarget.bulk ? () => userService.bulkAssignRole({ userIds: selectedUserIds, role: changeRoleCode }).then(() => { toast.success('Đã gán vai trò'); setRoleTarget(null); refreshData(); }).catch(() => toast.error('Backend chưa hỗ trợ gán vai trò hàng loạt')) : submitChangeRole}>
                         <Field label="Vai trò">
                             <select value={changeRoleCode} onChange={(e) => setChangeRoleCode(e.target.value)}>

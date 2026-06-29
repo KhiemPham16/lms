@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { toast } from 'sonner';
 
 import { auditLogService } from '~/services/auditLogService';
+import { getApiErrorMessage, getPayloadItems, getPayloadMeta } from '~/lib/apiPayload';
 
 const defaultFilters = {
     action: '',
@@ -11,9 +12,7 @@ const defaultFilters = {
     actorId: ''
 };
 
-const getItems = (payload) => payload?.items || payload?.data?.items || [];
-const getMeta = (payload) => payload?.meta || payload?.data?.meta || {};
-const getErrorMessage = (error, fallback) => error?.response?.data?.message || error?.message || fallback;
+const getErrorMessage = getApiErrorMessage;
 
 const buildParams = (state) => ({
     page: state.pagination.page,
@@ -43,10 +42,10 @@ export const useAuditLogStore = create((set, get) => ({
         try {
             const state = get();
             const payload = await auditLogService.getAuditLogs({ ...buildParams(state), ...params });
-            const meta = getMeta(payload);
+            const meta = getPayloadMeta(payload);
 
             set({
-                logs: getItems(payload),
+                logs: getPayloadItems(payload),
                 pagination: {
                     page: Number(meta.page || params.page || state.pagination.page || 1),
                     limit: Number(meta.limit || params.limit || state.pagination.limit || 20),

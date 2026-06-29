@@ -23,22 +23,30 @@ export default function ProtectedRoute() {
     const [starting, setStarting] = useState(true);
 
     useEffect(() => {
-        const init = async () => {
+        let cancelled = false;
+
+        const initSession = async () => {
             const currentToken = useAuthStore.getState().accessToken;
+            let hasToken = Boolean(currentToken);
 
-            if (!currentToken) {
-                await refresh();
+            if (!hasToken) {
+                hasToken = await refresh({ silent: true });
             }
 
-            const latestToken = useAuthStore.getState().accessToken;
-            if (latestToken) {
-                await fetchMe();
+            if (hasToken) {
+                await fetchMe({ silent: true, clearOnFailure: true });
             }
 
-            setStarting(false);
+            if (!cancelled) {
+                setStarting(false);
+            }
         };
 
-        init();
+        initSession();
+
+        return () => {
+            cancelled = true;
+        };
     }, [refresh, fetchMe]);
 
     useEffect(() => {
@@ -46,7 +54,7 @@ export default function ProtectedRoute() {
             const currentToken = useAuthStore.getState().accessToken;
 
             if (currentToken) {
-                fetchMe({ silent: true });
+                fetchMe({ silent: true, clearOnFailure: true });
             }
         };
 
@@ -58,12 +66,10 @@ export default function ProtectedRoute() {
 
         window.addEventListener('focus', syncCurrentUser);
         document.addEventListener('visibilitychange', syncWhenVisible);
-        const intervalId = window.setInterval(syncCurrentUser, 5000);
 
         return () => {
             window.removeEventListener('focus', syncCurrentUser);
             document.removeEventListener('visibilitychange', syncWhenVisible);
-            window.clearInterval(intervalId);
         };
     }, [fetchMe]);
 
@@ -71,7 +77,7 @@ export default function ProtectedRoute() {
         return <div>Đang tải trang...</div>;
     }
 
-    if (!accessToken) {
+    if (!accessToken || !user) {
         return <Navigate to={routes.login} replace state={{ from: location }} />;
     }
 
