@@ -1,5 +1,5 @@
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
-import { ApprovalAction, ApprovalLevel, AuditAction, ClassStatus, CourseStatus } from '@prisma/client';
+import { ApprovalAction, ApprovalLevel, AuditAction, ClassStatus, CourseStatus, Prisma } from '@prisma/client';
 
 import { PrismaService } from '~/prisma/prisma.service';
 import { AuditLogsService } from '~/modules/audit-logs/audit-logs.service';
@@ -7,6 +7,62 @@ import { ApproveCourseDto } from './dto/approve-course.dto';
 import { CreateCourseProposalDto } from './dto/create-course-proposal.dto';
 import { QueryCourseDto } from './dto/query-course.dto';
 import { UpdateCourseDto } from './dto/update-course.dto';
+
+const courseSelect = () =>
+    ({
+        id: true,
+        publicId: true,
+        code: true,
+        name: true,
+        description: true,
+        credits: true,
+        requestedClassCount: true,
+        requiresPrincipalApproval: true,
+        status: true,
+        departmentId: true,
+        department: {
+            select: {
+                publicId: true,
+                code: true,
+                name: true
+            }
+        },
+        proposedBy: {
+            select: {
+                publicId: true,
+                code: true,
+                fullName: true,
+                email: true
+            }
+        },
+        approvals: {
+            orderBy: {
+                createdAt: 'desc' as const
+            },
+            select: {
+                level: true,
+                action: true,
+                note: true,
+                createdAt: true,
+                approver: {
+                    select: {
+                        publicId: true,
+                        code: true,
+                        fullName: true
+                    }
+                }
+            }
+        },
+        _count: {
+            select: {
+                classes: true
+            }
+        },
+        createdAt: true,
+        updatedAt: true
+    }) satisfies Prisma.CourseSelect;
+
+type CourseWithDetails = Prisma.CourseGetPayload<{ select: ReturnType<typeof courseSelect> }>;
 
 @Injectable()
 export class CoursesService {
@@ -40,59 +96,109 @@ export class CoursesService {
 
         const approvedCourseStatuses: CourseStatus[] = [CourseStatus.ACTIVE, CourseStatus.INACTIVE];
         const isExistingApprovedCourse = existingCourse && approvedCourseStatuses.includes(existingCourse.status);
+        this.ensureProposalCreatorCanSubmit(proposedBy.role.code, Boolean(isExistingApprovedCourse));
 
-        const course = existingCourse
-            ? await this.prisma.course.update({
-                  where: { id: existingCourse.id },
-                  data: {
-                      ...(isExistingApprovedCourse
-                          ? {}
-                          : {
-                                name: dto.name,
-                                description: dto.description,
-                                credits: dto.credits,
-                                departmentId: dto.departmentId
-                            }),
-                      requestedClassCount: dto.requestedClassCount,
-                      proposedById: proposedBy.id,
-                      status: CourseStatus.PENDING_PDT,
-                      requiresPrincipalApproval: isExistingApprovedCourse
-                          ? false
-                          : existingCourse.requiresPrincipalApproval
-                  },
-                  select: this.courseSelect()
-              })
-            : await this.prisma.course.create({
-                  data: {
-                      code: dto.code,
-                      name: dto.name,
-                      description: dto.description,
-                      credits: dto.credits,
-                      requestedClassCount: dto.requestedClassCount,
-                      departmentId: dto.departmentId,
-                      proposedById: proposedBy.id,
-                      status: CourseStatus.PENDING_PDT,
-                      requiresPrincipalApproval: true
-                  },
-                  select: this.courseSelect()
-              });
+        const nextStatus = isExistingApprovedCourse ? CourseStatus.PENDING_PRINCIPAL : CourseStatus.PENDING_PDT;
 
-        await this.auditLogsService.create({
-            actorId: proposedBy.id,
-            action: AuditAction.CREATE,
-            module: 'courses',
-            targetType: 'Course',
-            targetId: course.id,
-            targetPublicId: course.publicId,
-            newValue: {
-                code: course.code,
-                name: course.name,
-                credits: course.credits,
-                requestedClassCount: course.requestedClassCount,
-                requiresPrincipalApproval: course.requiresPrincipalApproval,
-                departmentId: course.departmentId,
-                status: course.status
+        const course = await this.prisma.$transaction(async (tx) => {
+            let course = existingCourse
+                ? await tx.course.update({
+                      where: { id: existingCourse.id },
+                      data: {
+                          ...(isExistingApprovedCourse
+                              ? {}
+                              : {
+                                    name: dto.name,
+                                    description: dto.description,
+                                    credits: dto.credits,
+                                    departmentId: dto.departmentId
+                                }),
+                          requestedClassCount: dto.requestedClassCount,
+                          proposedById: proposedBy.id,
+                          status: nextStatus,
+                          requiresPrincipalApproval: true
+                      },
+                      select: this.courseSelect()
+                  })
+                : await tx.course.create({
+                      data: {
+                          code: dto.code,
+                          name: dto.name,
+                          description: dto.description,
+                          credits: dto.credits,
+                          requestedClassCount: dto.requestedClassCount,
+                          departmentId: dto.departmentId,
+                          proposedById: proposedBy.id,
+                          status: nextStatus,
+                          requiresPrincipalApproval: true
+                      },
+                      select: this.courseSelect()
+                  });
+
+            await this.auditLogsService.create(
+                {
+                    actorId: proposedBy.id,
+                    action: AuditAction.CREATE,
+                    module: 'courses',
+                    targetType: 'Course',
+                    targetId: course.id,
+                    targetPublicId: course.publicId,
+                    newValue: {
+                        code: course.code,
+                        name: course.name,
+                        credits: course.credits,
+                        requestedClassCount: course.requestedClassCount,
+                        requiresPrincipalApproval: course.requiresPrincipalApproval,
+                        departmentId: course.departmentId,
+                        status: course.status
+                    }
+                },
+                tx
+            );
+
+            if (isExistingApprovedCourse) {
+                await tx.courseApproval.create({
+                    data: {
+                        courseId: course.id,
+                        approverId: proposedBy.id,
+                        level: ApprovalLevel.PDT,
+                        action: ApprovalAction.APPROVED,
+                        note: 'PDT submit môn cũ, tự duyệt bước PDT'
+                    }
+                });
+
+                await this.auditLogsService.create(
+                    {
+                        actorId: proposedBy.id,
+                        action: AuditAction.APPROVE,
+                        module: 'course_proposals',
+                        targetType: 'Course',
+                        targetId: course.id,
+                        targetPublicId: course.publicId,
+                        oldValue: {
+                            status: existingCourse?.status
+                        },
+                        newValue: {
+                            level: ApprovalLevel.PDT,
+                            action: ApprovalAction.APPROVED,
+                            note: 'PDT submit môn cũ, tự duyệt bước PDT',
+                            status: CourseStatus.PENDING_PRINCIPAL
+                        }
+                    },
+                    tx
+                );
+
+                const courseWithApproval = await tx.course.findUnique({
+                    where: { id: course.id },
+                    select: this.courseSelect()
+                });
+
+                if (courseWithApproval) {
+                    course = courseWithApproval;
+                }
             }
+
+            return course;
         });
 
         return this.formatCourse(course);
@@ -277,7 +383,6 @@ export class CoursesService {
                 code: true,
                 name: true,
                 requestedClassCount: true,
-                requiresPrincipalApproval: true,
                 proposedBy: {
                     select: {
                         id: true,
@@ -302,9 +407,7 @@ export class CoursesService {
 
         const nextStatus =
             options.dto.action === ApprovalAction.APPROVED
-                ? options.level === ApprovalLevel.PDT && !course.requiresPrincipalApproval
-                    ? CourseStatus.ACTIVE
-                    : options.approvedStatus
+                ? options.approvedStatus
                 : options.rejectedStatus;
 
         const updatedCourse = await this.prisma.$transaction(async (tx) => {
@@ -325,16 +428,6 @@ export class CoursesService {
                 },
                 select: this.courseSelect()
             });
-
-            if (options.dto.action === ApprovalAction.APPROVED && nextStatus === CourseStatus.ACTIVE) {
-                await this.createApprovedClasses(tx, {
-                    courseId: course.id,
-                    courseCode: course.code,
-                    courseName: course.name,
-                    requestedClassCount: course.requestedClassCount ?? 0,
-                    departmentHeadId: course.proposedBy.id
-                });
-            }
 
             await this.auditLogsService.create(
                 {
@@ -364,7 +457,7 @@ export class CoursesService {
     }
 
     private async createApprovedClasses(
-        tx: any,
+        tx: Prisma.TransactionClient,
         data: {
             courseId: number;
             courseCode: string;
@@ -454,6 +547,20 @@ export class CoursesService {
         }
     }
 
+    private ensureProposalCreatorCanSubmit(roleCode: string, isExistingApprovedCourse: boolean) {
+        if (roleCode === 'ADMIN') {
+            return;
+        }
+
+        if (isExistingApprovedCourse && roleCode !== 'TRAINING_OFFICER') {
+            throw new ForbiddenException('Chỉ Phòng đào tạo được submit môn cũ lên Hiệu trưởng');
+        }
+
+        if (!isExistingApprovedCourse && roleCode !== 'DEPARTMENT_HEAD') {
+            throw new ForbiddenException('Chỉ Trưởng bộ môn được submit môn mới cho Phòng đào tạo');
+        }
+    }
+
     private async ensureCourseCodeAvailable(code: string, exceptPublicId?: string) {
         const duplicate = await this.prisma.course.findFirst({
             where: {
@@ -497,62 +604,12 @@ export class CoursesService {
     }
 
     private courseSelect() {
-        return {
-            id: true,
-            publicId: true,
-            code: true,
-            name: true,
-            description: true,
-            credits: true,
-            requestedClassCount: true,
-            requiresPrincipalApproval: true,
-            status: true,
-            departmentId: true,
-            department: {
-                select: {
-                    publicId: true,
-                    code: true,
-                    name: true
-                }
-            },
-            proposedBy: {
-                select: {
-                    publicId: true,
-                    code: true,
-                    fullName: true,
-                    email: true
-                }
-            },
-            approvals: {
-                orderBy: {
-                    createdAt: 'desc' as const
-                },
-                select: {
-                    level: true,
-                    action: true,
-                    note: true,
-                    createdAt: true,
-                    approver: {
-                        select: {
-                            publicId: true,
-                            code: true,
-                            fullName: true
-                        }
-                    }
-                }
-            },
-            _count: {
-                select: {
-                    classes: true
-                }
-            },
-            createdAt: true,
-            updatedAt: true
-        };
+        return courseSelect();
     }
 
-    private formatCourse(course: any) {
-        const { id, _count, ...rest } = course;
+    private formatCourse(course: CourseWithDetails) {
+        const { id: _id, _count, ...rest } = course;
+        void _id;
 
         return {
             ...rest,

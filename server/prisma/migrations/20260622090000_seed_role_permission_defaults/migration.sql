@@ -15,8 +15,7 @@ JOIN `Permission` p ON p.code IN (
     'users.create',
     'users.update',
     'users.status',
-    'departments.read',
-    'system.audit.read'
+    'departments.read'
 )
 WHERE r.code = 'HR';
 
@@ -25,7 +24,6 @@ SELECT r.id, p.id
 FROM `Role` r
 JOIN `Permission` p ON p.code IN (
     'departments.read',
-    'system.audit.read',
     'curriculum.read',
     'courses.read',
     'course_proposals.approve',

@@ -67,10 +67,9 @@ const permissions = [
 
 const rolePermissionDefaults: Record<string, string[]> = {
     ADMIN: permissions.map((permission) => permission.code),
-    HR: ['users.read', 'users.create', 'users.update', 'users.status', 'departments.read', 'system.audit.read'],
+    HR: ['users.read', 'users.create', 'users.update', 'users.status', 'departments.read'],
     PRINCIPAL: [
         'departments.read',
-        'system.audit.read',
         'curriculum.read',
         'courses.read',
         'course_proposals.approve',
@@ -86,6 +85,7 @@ const rolePermissionDefaults: Record<string, string[]> = {
         'curriculum.create',
         'courses.read',
         'courses.update',
+        'course_proposals.create',
         'course_proposals.approve',
         'course_proposals.history.read',
         'classes.read',
