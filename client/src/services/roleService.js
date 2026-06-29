@@ -1,29 +1,30 @@
 import { axiosInstance as api } from '~/lib/axios';
+import { unwrapApiResponse } from '~/lib/apiPayload';
 
 export const roleService = {
     createRole: async (data) => {
         const res = await api.post('/roles', data);
-        return res.data;
+        return unwrapApiResponse(res);
     },
 
     getRoles: async () => {
         const res = await api.get('/roles');
-        return res.data;
+        return unwrapApiResponse(res);
     },
 
     getRoleById: async (publicId) => {
         const res = await api.get(`/roles/${publicId}`);
-        return res.data;
+        return unwrapApiResponse(res);
     },
 
     getPermissions: async () => {
         const res = await api.get('/roles/permissions');
-        return res.data;
+        return unwrapApiResponse(res);
     },
 
     updateRole: async (publicId, data) => {
         const res = await api.patch(`/roles/${publicId}`, data);
-        return res.data;
+        return unwrapApiResponse(res);
     },
 
     updateRolePermissions: async (publicId, permissionCodes, reason) => {
@@ -32,11 +33,11 @@ export const roleService = {
             reason
         });
 
-        return res.data;
+        return unwrapApiResponse(res);
     },
 
     deleteRole: async (publicId) => {
         const res = await api.delete(`/roles/${publicId}`);
-        return res.data;
+        return unwrapApiResponse(res);
     }
 };

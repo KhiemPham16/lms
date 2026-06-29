@@ -29,8 +29,9 @@ import AppSidebar from '~/components/AppSidebar';
 import { auditLogService } from '~/services/auditLogService';
 import { roleService } from '~/services/roleService';
 import { userService } from '~/services/userService';
+import { getPayloadItems, unwrapApiPayload } from '~/lib/apiPayload';
 import { useAuthStore } from '~/stores/useAuthStore';
-import { userHasBackendPermission, userHasAnyBackendPermission } from '~/utils/permissions';
+import { userHasBackendPermission } from '~/utils/permissions';
 import layoutStyles from '~/pages/FlowWorkbench/FlowWorkbench.module.scss';
 import permissionStyles from './Permissions.module.scss';
 
@@ -169,8 +170,11 @@ const fallbackRolePermissions = {
     STUDENT: ['classes.read', 'lessons.read', 'exams.read', 'grades.read']
 };
 
-const unwrapList = (payload) => payload?.items || payload?.data?.items || payload?.data || payload || [];
-const unwrapItems = (payload) => payload?.items || payload?.data?.items || [];
+const unwrapList = (payload) => {
+    const unwrapped = unwrapApiPayload(payload);
+    return unwrapped?.items || unwrapped || [];
+};
+const unwrapItems = getPayloadItems;
 const emptyRoleForm = { code: '', name: '', description: '', isSystem: false };
 
 const formatDate = (value) => {
@@ -353,11 +357,11 @@ export default function AdminPermissions({ workspaceKey = 'admin' }) {
         () => roles.reduce((result, role) => ({ ...result, [role.code]: role.name || role.code }), {}),
         [roles]
     );
-    const canReadRoles = userHasAnyBackendPermission(currentUser, ['roles.read', 'roles.create', 'roles.update', 'roles.delete', 'system.permissions.manage']);
-    const canCreateRole = userHasBackendPermission(currentUser, 'roles.create');
-    const canUpdateRole = userHasBackendPermission(currentUser, 'roles.update');
-    const canDeleteRolePermission = userHasBackendPermission(currentUser, 'roles.delete');
     const canManagePermissions = userHasBackendPermission(currentUser, 'system.permissions.manage');
+    const canReadRoles = canManagePermissions;
+    const canCreateRole = canManagePermissions;
+    const canUpdateRole = canManagePermissions;
+    const canDeleteRolePermission = canManagePermissions;
     const canViewUsers = userHasBackendPermission(currentUser, 'users.read');
     const canViewPermissionHistory = userHasBackendPermission(currentUser, 'system.audit.read');
     const activeViewMode = useMemo(() => {

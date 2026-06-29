@@ -1,6 +1,6 @@
 import { axiosInstance as api } from '~/lib/axios';
+import { unwrapApiResponse } from '~/lib/apiPayload';
 
-const unwrap = (response) => response.data?.data || response.data;
 const cleanParams = (params = {}) =>
     Object.entries(params).reduce((nextParams, [key, value]) => {
         if (value === '' || value === undefined || value === null) {
@@ -14,32 +14,32 @@ const cleanParams = (params = {}) =>
 export const userService = {
     getUsers: async (params = {}) => {
         const res = await api.get('/users', { params: cleanParams(params) });
-        return unwrap(res);
+        return unwrapApiResponse(res);
     },
 
     getUserSummary: async (params = {}) => {
         const res = await api.get('/users/summary', { params: cleanParams(params) });
-        return unwrap(res);
+        return unwrapApiResponse(res);
     },
 
     getUserById: async (id) => {
         const res = await api.get(`/users/${id}`);
-        return unwrap(res);
+        return unwrapApiResponse(res);
     },
 
     createUser: async (data) => {
         const res = await api.post('/users', data);
-        return unwrap(res);
+        return unwrapApiResponse(res);
     },
 
     updateUser: async (id, data) => {
         const res = await api.patch(`/users/${id}`, data);
-        return unwrap(res);
+        return unwrapApiResponse(res);
     },
 
     changeUserRole: async (id, data) => {
         const res = await api.patch(`/users/${id}/role`, data);
-        return unwrap(res);
+        return unwrapApiResponse(res);
     },
 
     lockUser: async (id, data = {}) => {
@@ -47,7 +47,7 @@ export const userService = {
             ...data,
             status: 'LOCKED'
         });
-        return unwrap(res);
+        return unwrapApiResponse(res);
     },
 
     unlockUser: async (id, data = {}) => {
@@ -55,7 +55,7 @@ export const userService = {
             ...data,
             status: 'ACTIVE'
         });
-        return unwrap(res);
+        return unwrapApiResponse(res);
     },
 
     deactivateUser: async (id, data = {}) => {
@@ -63,7 +63,7 @@ export const userService = {
             ...data,
             status: 'INACTIVE'
         });
-        return unwrap(res);
+        return unwrapApiResponse(res);
     },
 
     activateUser: async (id, data = {}) => {
@@ -71,42 +71,42 @@ export const userService = {
             ...data,
             status: 'ACTIVE'
         });
-        return unwrap(res);
+        return unwrapApiResponse(res);
     },
 
     resetPassword: async (id, data) => {
         const res = await api.post(`/users/${id}/reset-password`, data);
-        return unwrap(res);
+        return unwrapApiResponse(res);
     },
 
     resendActivation: async (id) => {
         const res = await api.post(`/users/${id}/resend-activation`);
-        return unwrap(res);
+        return unwrapApiResponse(res);
     },
 
     getUserActivities: async (id, params = {}) => {
         const res = await api.get(`/users/${id}/activities`, { params: cleanParams(params) });
-        return unwrap(res);
+        return unwrapApiResponse(res);
     },
 
     getUserLoginHistory: async (id, params = {}) => {
         const res = await api.get(`/users/${id}/login-history`, { params: cleanParams(params) });
-        return unwrap(res);
+        return unwrapApiResponse(res);
     },
 
     bulkLockUsers: async (data) => {
         const res = await api.post('/users/bulk/lock', data);
-        return unwrap(res);
+        return unwrapApiResponse(res);
     },
 
     bulkUnlockUsers: async (data) => {
         const res = await api.post('/users/bulk/unlock', data);
-        return unwrap(res);
+        return unwrapApiResponse(res);
     },
 
     bulkAssignRole: async (data) => {
         const res = await api.post('/users/bulk/assign-role', data);
-        return unwrap(res);
+        return unwrapApiResponse(res);
     },
 
     exportUsers: async (params = {}) => {
@@ -119,6 +119,6 @@ export const userService = {
 
     updateUserStatus: async (id, status) => {
         const res = await api.patch(`/users/${id}/status`, { status });
-        return unwrap(res);
+        return unwrapApiResponse(res);
     }
 };

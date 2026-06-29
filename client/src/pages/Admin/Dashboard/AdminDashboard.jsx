@@ -5,6 +5,7 @@ import { FiRefreshCw } from 'react-icons/fi';
 import { useAuthStore } from '~/stores/useAuthStore';
 import { useAdminDashboardStore } from '~/stores/useAdminDashboardStore';
 import { formatNumber } from '~/utils/formatNumber';
+import { userHasBackendPermission } from '~/utils/permissions';
 import AppSidebar from '~/components/AppSidebar';
 
 import styles from './AdminDashboard.module.scss';
@@ -37,6 +38,9 @@ export default function AdminDashboard() {
     const [modalRole, setModalRole] = useState(null);
 
     const user = useAuthStore((state) => state.user);
+    const canCreateUsers = userHasBackendPermission(user, 'users.create');
+    const canReadUsers = userHasBackendPermission(user, 'users.read');
+    const canChangeUserStatus = userHasBackendPermission(user, 'users.status');
     const {
         loading,
         error,
@@ -111,7 +115,11 @@ export default function AdminDashboard() {
                     </section>
 
                     <section className={cx('lowerGrid')}>
-                        <RecentUsersTable users={recentUsers} />
+                        <RecentUsersTable
+                            users={recentUsers}
+                            canReadUsers={canReadUsers}
+                            canChangeUserStatus={canChangeUserStatus}
+                        />
                         <AlertsPanel alerts={mockAlerts} />
                     </section>
 
@@ -122,7 +130,9 @@ export default function AdminDashboard() {
                 </main>
             </div>
 
-            <CreateAdminUserModal role={modalRole} onClose={() => setModalRole(null)} onSubmit={createPrivilegedUser} />
+            {canCreateUsers ? (
+                <CreateAdminUserModal role={modalRole} onClose={() => setModalRole(null)} onSubmit={createPrivilegedUser} />
+            ) : null}
         </div>
     );
 }

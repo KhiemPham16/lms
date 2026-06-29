@@ -1,10 +1,9 @@
 import { axiosInstance as api } from '~/lib/axios';
-
-const unwrap = (response) => response.data?.data || response.data;
+import { unwrapApiResponse } from '~/lib/apiPayload';
 
 export const departmentService = {
     getDepartments: async () => {
         const res = await api.get('/departments');
-        return unwrap(res);
+        return unwrapApiResponse(res);
     }
 };

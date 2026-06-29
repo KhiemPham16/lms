@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { toast } from 'sonner';
 
 import { adminDashboardService } from '~/services/adminDashboardService';
+import { getPayloadItems, getPayloadMeta } from '~/lib/apiPayload';
 import {
     mockActivities,
     mockGrowth,
@@ -11,9 +12,6 @@ import {
     mockStatusDistribution,
     roleLabels
 } from '~/pages/Admin/Dashboard/data/adminDashboardMock';
-
-const unwrapItems = (payload) => payload?.data?.items || payload?.items || [];
-const unwrapMeta = (payload) => payload?.data?.meta || payload?.meta || {};
 
 const buildRoleDistribution = (users) => {
     if (!users.length) return mockRoleDistribution;
@@ -120,9 +118,9 @@ export const useAdminDashboardStore = create((set, get) => ({
             const usersPayload = usersRes.status === 'fulfilled' ? usersRes.value : null;
             const auditPayload = auditRes.status === 'fulfilled' ? auditRes.value : null;
             const health = healthRes.status === 'fulfilled' ? healthRes.value : null;
-            const users = unwrapItems(usersPayload);
-            const auditLogs = unwrapItems(auditPayload);
-            const meta = unwrapMeta(usersPayload);
+            const users = getPayloadItems(usersPayload);
+            const auditLogs = getPayloadItems(auditPayload);
+            const meta = getPayloadMeta(usersPayload);
             const roleDistribution = buildRoleDistribution(users);
             const statusDistribution = buildStatusDistribution(users);
             const total = meta.total || users.length || 1258;

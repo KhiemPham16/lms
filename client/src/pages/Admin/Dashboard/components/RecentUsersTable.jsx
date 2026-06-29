@@ -1,5 +1,5 @@
 import classNames from 'classnames/bind';
-import { FiEye, FiLock, FiMoreHorizontal } from 'react-icons/fi';
+import { FiEye, FiLock } from 'react-icons/fi';
 
 import { routes } from '~/config/routes';
 import { roleLabels, statusLabels } from '../data/adminDashboardMock';
@@ -20,9 +20,11 @@ const formatDate = (value) => {
     return new Intl.DateTimeFormat('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(date);
 };
 
-export default function RecentUsersTable({ users }) {
+export default function RecentUsersTable({ users, canReadUsers = false, canChangeUserStatus = false }) {
+    const showActions = canReadUsers || canChangeUserStatus;
+
     return (
-        <SectionCard title="Tài khoản mới tạo" action={<a href={routes.adminUsers}>Xem tất cả</a>}>
+        <SectionCard title="Tài khoản mới tạo" action={canReadUsers ? <a href={routes.adminUsers}>Xem tất cả</a> : null}>
             <div className={cx('tableWrap')}>
                 <table>
                     <thead>
@@ -32,7 +34,7 @@ export default function RecentUsersTable({ users }) {
                             <th>Người tạo</th>
                             <th>Ngày tạo</th>
                             <th>Trạng thái</th>
-                            <th>Thao tác</th>
+                            {showActions ? <th>Thao tác</th> : null}
                         </tr>
                     </thead>
                     <tbody>
@@ -48,13 +50,14 @@ export default function RecentUsersTable({ users }) {
                                 <td>{user.creator}</td>
                                 <td>{formatDate(user.createdAt)}</td>
                                 <td><span className={cx('statusBadge', `status${user.status}`)}>{statusLabels[user.status] || user.status}</span></td>
-                                <td>
-                                    <div className={cx('rowActions')}>
-                                        <button type="button"><FiEye /> Xem</button>
-                                        <button type="button"><FiLock /> Khóa</button>
-                                        <button type="button" aria-label="Thêm thao tác"><FiMoreHorizontal /></button>
-                                    </div>
-                                </td>
+                                {showActions ? (
+                                    <td>
+                                        <div className={cx('rowActions')}>
+                                            {canReadUsers ? <a href={routes.adminUsers}><FiEye /> Xem</a> : null}
+                                            {canChangeUserStatus ? <a href={routes.adminUsers}><FiLock /> Khóa</a> : null}
+                                        </div>
+                                    </td>
+                                ) : null}
                             </tr>
                         ))}
                     </tbody>
