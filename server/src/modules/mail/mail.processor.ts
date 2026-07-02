@@ -34,7 +34,13 @@ export class MailProcessor extends WorkerHost {
     }
 
     private isForgotPasswordMailData(data: MailJob['data']): data is ForgotPasswordMailData {
-        return 'otp' in data;
+        return (
+            !!data &&
+            typeof data === 'object' &&
+            !Array.isArray(data) &&
+            'otp' in data &&
+            typeof (data as { otp?: unknown }).otp === 'string'
+        );
     }
 
     private isActivationMailData(data: MailJob['data']): data is ActivationMailData {
