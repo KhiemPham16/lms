@@ -1,10 +1,11 @@
-import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 
 import { CurrentUser } from '~/common/decorators/current-user.decorator';
 import { Permissions } from '~/common/decorators/permissions.decorator';
 import { JwtAuthGuard, type JwtPayload } from '~/common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '~/common/guards/permissions.guard';
+import { AssignClassHeadDto } from './dto/assign-class-head.dto';
 import { AssignLecturerDto } from './dto/assign-lecturer.dto';
 import { QueryClassDto } from './dto/query-class.dto';
 import { UpdateClassDto } from './dto/update-class.dto';
@@ -35,6 +36,13 @@ export class ClassesController {
         return this.classesService.findAll(query);
     }
 
+    @Get('summary')
+    @Permissions('classes.read')
+    @ApiOperation({ summary: 'Thong ke lop hoc' })
+    summary(@Query() query: QueryClassDto) {
+        return this.classesService.summary(query);
+    }
+
     @Get(':publicId')
     @Permissions('classes.read')
     @ApiOperation({ summary: 'Chi tiết lớp học' })
@@ -47,6 +55,24 @@ export class ClassesController {
     @ApiOperation({ summary: 'Cập nhật lớp học' })
     update(@Param('publicId') publicId: string, @Body() dto: UpdateClassDto, @CurrentUser() user: JwtPayload) {
         return this.classesService.update(publicId, dto, user.sub);
+    }
+
+    @Delete(':publicId')
+    @Permissions('classes.create')
+    @ApiOperation({ summary: 'Xoa lop hoc chua phat sinh du lieu' })
+    remove(@Param('publicId') publicId: string, @CurrentUser() user: JwtPayload) {
+        return this.classesService.remove(publicId, user.sub);
+    }
+
+    @Patch(':publicId/department-head')
+    @Permissions('classes.create')
+    @ApiOperation({ summary: 'Gan truong bo mon quan ly lop' })
+    assignDepartmentHead(
+        @Param('publicId') publicId: string,
+        @Body() dto: AssignClassHeadDto,
+        @CurrentUser() user: JwtPayload
+    ) {
+        return this.classesService.assignDepartmentHead(publicId, dto, user.sub);
     }
 
     @Patch(':publicId/lecturer')

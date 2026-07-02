@@ -4,6 +4,8 @@ import { flowWorkspaces } from '~/config/flowNavigation';
 import AdminAuditLogs from '~/pages/Admin/AuditLogs';
 import AdminPermissions from '~/pages/Admin/Permissions';
 import AdminUsers from '~/pages/Admin/Users';
+import ClassesPage from '~/pages/Classes';
+import CoursesPage from '~/pages/Courses';
 import FlowWorkbench from '~/pages/FlowWorkbench';
 
 const moduleKeyBySegment = {
@@ -48,6 +50,14 @@ export default function WorkspaceModuleRoute() {
 
     if (moduleKey === 'audit') {
         return <AdminAuditLogs workspaceKey={workspaceKey} />;
+    }
+
+    if (moduleKey === 'subjects' || moduleKey === 'proposals') {
+        return <CoursesPage workspaceKey={workspaceKey} />;
+    }
+
+    if (moduleKey === 'classes' || moduleKey === 'registration') {
+        return <ClassesPage workspaceKey={workspaceKey} />;
     }
 
     return <FlowWorkbench workspaceKey={workspaceKey} moduleKey={moduleKey} />;

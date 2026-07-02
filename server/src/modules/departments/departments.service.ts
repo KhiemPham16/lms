@@ -108,6 +108,7 @@ export class DepartmentsService {
 
     private defaultSelect() {
         return {
+            id: true,
             publicId: true,
             code: true,
             name: true,

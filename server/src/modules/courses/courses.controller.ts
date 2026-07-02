@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 
 import { CurrentUser } from '~/common/decorators/current-user.decorator';
@@ -6,8 +6,11 @@ import { Permissions } from '~/common/decorators/permissions.decorator';
 import { JwtAuthGuard, type JwtPayload } from '~/common/guards/jwt-auth.guard';
 import { PermissionsGuard } from '~/common/guards/permissions.guard';
 import { ApproveCourseDto } from './dto/approve-course.dto';
+import { AssignCourseDepartmentHeadDto } from './dto/assign-course-department-head.dto';
+import { AssignCourseLecturersDto } from './dto/assign-course-lecturers.dto';
 import { CreateCourseProposalDto } from './dto/create-course-proposal.dto';
 import { QueryCourseDto } from './dto/query-course.dto';
+import { UpdateCourseStatusDto } from './dto/update-course-status.dto';
 import { UpdateCourseDto } from './dto/update-course.dto';
 import { CoursesService } from './courses.service';
 
@@ -44,6 +47,46 @@ export class CoursesController {
     @ApiOperation({ summary: 'Cập nhật môn học đang đề xuất' })
     update(@Param('publicId') publicId: string, @Body() dto: UpdateCourseDto, @CurrentUser() user: JwtPayload) {
         return this.coursesService.update(publicId, dto, user.sub);
+    }
+
+    @Delete(':publicId')
+    @Permissions('courses.update')
+    @ApiOperation({ summary: 'Xóa đề xuất môn học đã bị từ chối' })
+    removeRejected(@Param('publicId') publicId: string, @CurrentUser() user: JwtPayload) {
+        return this.coursesService.removeRejected(publicId, user.sub);
+    }
+
+    @Patch(':publicId/department-head')
+    @Permissions('courses.update')
+    @ApiOperation({ summary: 'Gán trưởng bộ môn phụ trách môn học' })
+    assignDepartmentHead(
+        @Param('publicId') publicId: string,
+        @Body() dto: AssignCourseDepartmentHeadDto,
+        @CurrentUser() user: JwtPayload
+    ) {
+        return this.coursesService.assignDepartmentHead(publicId, dto, user.sub);
+    }
+
+    @Patch(':publicId/lecturers')
+    @Permissions('classes.assign_lecturer')
+    @ApiOperation({ summary: 'Gán giảng viên vào môn học' })
+    assignLecturers(
+        @Param('publicId') publicId: string,
+        @Body() dto: AssignCourseLecturersDto,
+        @CurrentUser() user: JwtPayload
+    ) {
+        return this.coursesService.assignLecturers(publicId, dto, user.sub);
+    }
+
+    @Patch(':publicId/status')
+    @Permissions('courses.update')
+    @ApiOperation({ summary: 'Kích hoạt hoặc vô hiệu hóa môn học' })
+    updateStatus(
+        @Param('publicId') publicId: string,
+        @Body() dto: UpdateCourseStatusDto,
+        @CurrentUser() user: JwtPayload
+    ) {
+        return this.coursesService.updateStatus(publicId, dto.status, user.sub);
     }
 
     @Patch(':publicId/pdt-decision')

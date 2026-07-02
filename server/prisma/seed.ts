@@ -460,7 +460,7 @@ async function main() {
             maxStudents: 40,
             startDate: new Date('2026-08-01'),
             endDate: new Date('2026-12-15'),
-            status: ClassStatus.OPEN
+            status: ClassStatus.OPEN_REGISTRATION
         },
         create: {
             code: 'JAVA101-01',
@@ -471,7 +471,7 @@ async function main() {
             maxStudents: 40,
             startDate: new Date('2026-08-01'),
             endDate: new Date('2026-12-15'),
-            status: ClassStatus.OPEN
+            status: ClassStatus.OPEN_REGISTRATION
         }
     });
 
@@ -487,7 +487,7 @@ async function main() {
             maxStudents: 35,
             startDate: new Date('2026-08-01'),
             endDate: new Date('2026-12-15'),
-            status: ClassStatus.UPCOMING
+            status: ClassStatus.DRAFT
         },
         create: {
             code: 'JAVA101-02',
@@ -498,7 +498,7 @@ async function main() {
             maxStudents: 35,
             startDate: new Date('2026-08-01'),
             endDate: new Date('2026-12-15'),
-            status: ClassStatus.UPCOMING
+            status: ClassStatus.DRAFT
         }
     });
 

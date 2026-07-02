@@ -65,7 +65,7 @@ export class EnrollmentsService {
             this.findStudentByPublicIdOrThrow(studentPublicId)
         ]);
 
-        if (classItem.status !== ClassStatus.OPEN) {
+        if (classItem.status !== ClassStatus.OPEN_REGISTRATION) {
             throw new BadRequestException('Lớp học chưa mở đăng ký');
         }
 
@@ -80,39 +80,54 @@ export class EnrollmentsService {
             throw new BadRequestException('Lớp học đã đủ số lượng sinh viên');
         }
 
-        const enrollment = await this.prisma.enrollment.upsert({
-            where: {
-                studentId_classId: {
+        return this.prisma.$transaction(async (tx) => {
+            const enrollment = await tx.enrollment.upsert({
+                where: {
+                    studentId_classId: {
+                        studentId: student.id,
+                        classId: classItem.id
+                    }
+                },
+                update: {
+                    status: EnrollmentStatus.APPROVED,
+                    enrolledAt: new Date()
+                },
+                create: {
                     studentId: student.id,
-                    classId: classItem.id
-                }
-            },
-            update: {
-                status: EnrollmentStatus.APPROVED,
-                enrolledAt: new Date()
-            },
-            create: {
-                studentId: student.id,
-                classId: classItem.id,
-                status: EnrollmentStatus.APPROVED
-            },
-            select: this.enrollmentSelect()
-        });
+                    classId: classItem.id,
+                    status: EnrollmentStatus.APPROVED
+                },
+                select: this.enrollmentSelect()
+            });
 
-        await this.auditLogsService.create({
-            actorId: student.id,
-            action: AuditAction.ENROLL,
-            module: 'enrollments',
-            targetType: 'Enrollment',
-            targetId: enrollment.id,
-            newValue: {
-                classId: classItem.id,
-                classPublicId: classItem.publicId,
-                status: enrollment.status
+            await this.auditLogsService.create(
+                {
+                    actorId: student.id,
+                    action: AuditAction.ENROLL,
+                    module: 'enrollments',
+                    targetType: 'Enrollment',
+                    targetId: enrollment.id,
+                    newValue: {
+                        classId: classItem.id,
+                        classPublicId: classItem.publicId,
+                        status: enrollment.status
+                    }
+                },
+                tx
+            );
+
+            if (classItem.autoCloseWhenFull && approvedCount + 1 >= classItem.maxStudents) {
+                await tx.class.update({
+                    where: { id: classItem.id },
+                    data: {
+                        status: ClassStatus.FULL,
+                        registrationClosedAt: new Date()
+                    }
+                });
             }
-        });
 
-        return enrollment;
+            return enrollment;
+        });
     }
 
     async drop(classPublicId: string, studentPublicId: string) {
@@ -134,36 +149,41 @@ export class EnrollmentsService {
             throw new NotFoundException('Sinh viên chưa đăng ký lớp này');
         }
 
-        const droppedEnrollment = await this.prisma.enrollment.update({
-            where: {
-                studentId_classId: {
-                    studentId: student.id,
-                    classId: classItem.id
-                }
-            },
-            data: {
-                status: EnrollmentStatus.DROPPED
-            },
-            select: this.enrollmentSelect()
-        });
+        return this.prisma.$transaction(async (tx) => {
+            const droppedEnrollment = await tx.enrollment.update({
+                where: {
+                    studentId_classId: {
+                        studentId: student.id,
+                        classId: classItem.id
+                    }
+                },
+                data: {
+                    status: EnrollmentStatus.DROPPED
+                },
+                select: this.enrollmentSelect()
+            });
 
-        await this.auditLogsService.create({
-            actorId: student.id,
-            action: AuditAction.DROP,
-            module: 'enrollments',
-            targetType: 'Enrollment',
-            targetId: droppedEnrollment.id,
-            oldValue: {
-                status: enrollment.status
-            },
-            newValue: {
-                classId: classItem.id,
-                classPublicId: classItem.publicId,
-                status: droppedEnrollment.status
-            }
-        });
+            await this.auditLogsService.create(
+                {
+                    actorId: student.id,
+                    action: AuditAction.DROP,
+                    module: 'enrollments',
+                    targetType: 'Enrollment',
+                    targetId: droppedEnrollment.id,
+                    oldValue: {
+                        status: enrollment.status
+                    },
+                    newValue: {
+                        classId: classItem.id,
+                        classPublicId: classItem.publicId,
+                        status: droppedEnrollment.status
+                    }
+                },
+                tx
+            );
 
-        return droppedEnrollment;
+            return droppedEnrollment;
+        });
     }
 
     private async findStudentByPublicIdOrThrow(publicId: string) {
@@ -202,7 +222,8 @@ export class EnrollmentsService {
                 id: true,
                 publicId: true,
                 status: true,
-                maxStudents: true
+                maxStudents: true,
+                autoCloseWhenFull: true
             }
         });
 
