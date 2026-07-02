@@ -412,6 +412,12 @@ export default function CoursesPage({ workspaceKey = 'training' }) {
         }
     }, []);
 
+    const resetAssignmentState = useCallback(() => {
+        setAssignmentMode('');
+        setDepartmentHeads([]);
+        setLecturers([]);
+    }, []);
+
     useEffect(() => {
         const handle = window.setTimeout(loadDepartments, 0);
         return () => window.clearTimeout(handle);
@@ -462,7 +468,7 @@ export default function CoursesPage({ workspaceKey = 'training' }) {
             const handle = window.setTimeout(() => {
                 setSelectedCourse(null);
                 setEditMode(false);
-                setAssignmentMode('');
+                resetAssignmentState();
             }, 0);
             return () => window.clearTimeout(handle);
         }
@@ -470,6 +476,7 @@ export default function CoursesPage({ workspaceKey = 'training' }) {
         if (selectedDraft) {
             const handle = window.setTimeout(() => {
                 setSelectedCourse(selectedDraft);
+                resetAssignmentState();
             }, 0);
             return () => window.clearTimeout(handle);
         }
@@ -477,6 +484,7 @@ export default function CoursesPage({ workspaceKey = 'training' }) {
         if (isDraftCourseId(selectedCourseId)) {
             const handle = window.setTimeout(() => {
                 setSelectedCourse(null);
+                resetAssignmentState();
             }, 0);
             return () => window.clearTimeout(handle);
         }
@@ -489,6 +497,7 @@ export default function CoursesPage({ workspaceKey = 'training' }) {
             try {
                 const detail = await courseService.getCourse(selectedCourseId);
                 setSelectedCourse(detail);
+                resetAssignmentState();
             } catch (error) {
                 toast.error(getApiErrorMessage(error, 'Không tải được chi tiết môn học'));
             }
@@ -496,7 +505,7 @@ export default function CoursesPage({ workspaceKey = 'training' }) {
 
         loadDetail();
         return undefined;
-    }, [canRead, selectedCourseId, selectedDraft]);
+    }, [canRead, resetAssignmentState, selectedCourseId, selectedDraft]);
 
     useEffect(() => {
         if (!selectedCourse) return undefined;
@@ -523,7 +532,7 @@ export default function CoursesPage({ workspaceKey = 'training' }) {
         setSearchParams(nextParams);
         setSelectedCourse(null);
         setEditMode(false);
-        setAssignmentMode('');
+        resetAssignmentState();
     };
 
     const openDetail = (course) => {
@@ -532,6 +541,7 @@ export default function CoursesPage({ workspaceKey = 'training' }) {
         nextParams.set('course', getCourseId(course));
         setSearchParams(nextParams);
         setSelectedCourse(course);
+        resetAssignmentState();
     };
 
     const openAssignment = (mode) => {
