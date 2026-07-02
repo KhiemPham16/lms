@@ -14,8 +14,6 @@ export const clientToBackendPermissionMap = {
     'departments.create': 'departments.create',
     'departments.update': 'departments.update',
     'departments.delete': 'departments.delete',
-    'programs.view': 'curriculum.read',
-    'programs.create': 'curriculum.create',
     'subjects.view': 'courses.read',
     'subjects.update': 'courses.update',
     'proposals.create': 'course_proposals.create',

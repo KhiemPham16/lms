@@ -5,7 +5,11 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
 import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
+import type { RequestHandler } from 'express';
 import { AppHealthService } from './app-health.service';
+
+const helmetMiddleware = helmet as () => RequestHandler;
+const cookieParserMiddleware = cookieParser as () => RequestHandler;
 
 async function bootstrap() {
     const app = await NestFactory.create(AppModule);
@@ -27,9 +31,9 @@ async function bootstrap() {
         })
     );
 
-    app.use(helmet());
+    app.use(helmetMiddleware());
 
-    app.use(cookieParser());
+    app.use(cookieParserMiddleware());
 
     app.enableCors({
         origin: corsOrigin,
@@ -57,4 +61,4 @@ async function bootstrap() {
     console.log(`📚 Swagger running at http://localhost:${port}/api/docs`);
 }
 
-bootstrap();
+void bootstrap();

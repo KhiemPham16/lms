@@ -489,7 +489,6 @@ export default function CoursesPage({ workspaceKey = 'training' }) {
             try {
                 const detail = await courseService.getCourse(selectedCourseId);
                 setSelectedCourse(detail);
-                loadAssignees(detail.departmentId);
             } catch (error) {
                 toast.error(getApiErrorMessage(error, 'Không tải được chi tiết môn học'));
             }
@@ -497,7 +496,7 @@ export default function CoursesPage({ workspaceKey = 'training' }) {
 
         loadDetail();
         return undefined;
-    }, [canRead, loadAssignees, selectedCourseId, selectedDraft]);
+    }, [canRead, selectedCourseId, selectedDraft]);
 
     useEffect(() => {
         if (!selectedCourse) return undefined;
@@ -533,8 +532,14 @@ export default function CoursesPage({ workspaceKey = 'training' }) {
         nextParams.set('course', getCourseId(course));
         setSearchParams(nextParams);
         setSelectedCourse(course);
-        if (!isLocalDraft(course)) {
-            loadAssignees(course.departmentId);
+    };
+
+    const openAssignment = (mode) => {
+        const nextMode = assignmentMode === mode ? '' : mode;
+        setAssignmentMode(nextMode);
+
+        if (nextMode && selectedCourse?.departmentId) {
+            loadAssignees(selectedCourse.departmentId);
         }
     };
 
@@ -894,12 +899,12 @@ export default function CoursesPage({ workspaceKey = 'training' }) {
                                             </button>
                                         ) : null}
                                         {canUpdate && !isLocalDraft(selectedCourse) ? (
-                                            <button type="button" onClick={() => setAssignmentMode((mode) => (mode === 'head' ? '' : 'head'))}>
+                                            <button type="button" onClick={() => openAssignment('head')}>
                                                 <FiUserCheck /> Gán trưởng bộ môn
                                             </button>
                                         ) : null}
                                         {canAssignLecturer && !isLocalDraft(selectedCourse) ? (
-                                            <button type="button" onClick={() => setAssignmentMode((mode) => (mode === 'lecturers' ? '' : 'lecturers'))}>
+                                            <button type="button" onClick={() => openAssignment('lecturers')}>
                                                 <FiUsers /> Gán giảng viên
                                             </button>
                                         ) : null}

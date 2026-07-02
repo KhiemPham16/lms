@@ -76,17 +76,6 @@ export const flowWorkspaces = {
                 actions: ['Lọc audit log', 'Xem chi tiết audit log', 'Ghi nhận oldValue/newValue']
             },
             {
-                key: 'curriculums',
-                path: '/admin/curriculums',
-                roles: ['ADMIN'],
-                permission: 'programs.view',
-                title: 'Chương trình học',
-                description: 'Theo dõi và điều phối dữ liệu chương trình giảng dạy toàn hệ thống.',
-                icon: FaBookOpen,
-                status: 'Chờ BE',
-                actions: ['Xem chương trình', 'Kiểm tra môn đã duyệt', 'Theo dõi thay đổi']
-            },
-            {
                 key: 'subjects',
                 path: '/admin/subjects',
                 roles: ['ADMIN'],
@@ -288,17 +277,6 @@ export const flowWorkspaces = {
                 icon: FaShieldAlt,
                 status: 'Có API roles/permissions',
                 actions: ['Xem vai trò', 'Xem quyền', 'Cập nhật quyền theo vai trò']
-            },
-            {
-                key: 'curriculums',
-                path: '/training/curriculums',
-                roles: ['TRAINING_OFFICER'],
-                permission: 'programs.view',
-                title: 'Chương trình giảng dạy',
-                description: 'Quản lý CTGD và thêm môn đã được duyệt vào chương trình.',
-                icon: FaBookOpen,
-                status: 'Chờ BE',
-                actions: ['Quản lý chương trình', 'Thêm môn học vào CTGD', 'Tìm kiếm/Lọc môn học']
             },
             {
                 key: 'subjects',
@@ -613,16 +591,6 @@ const grantableModuleTemplates = [
         icon: FaListAlt,
         status: 'Có API audit logs',
         actions: ['Lọc audit log', 'Xem chi tiết audit log']
-    },
-    {
-        key: 'curriculums',
-        segment: 'curriculums',
-        permission: 'programs.view',
-        title: 'Chương trình học',
-        description: 'Xem chương trình học theo quyền curriculum được Admin cấp.',
-        icon: FaBookOpen,
-        status: 'Chờ BE',
-        actions: ['Xem chương trình', 'Theo dõi thay đổi']
     },
     {
         key: 'subjects',

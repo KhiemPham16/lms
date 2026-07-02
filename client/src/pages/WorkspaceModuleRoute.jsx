@@ -13,7 +13,6 @@ const moduleKeyBySegment = {
     departments: 'departments',
     permissions: 'permissions',
     'audit-logs': 'audit',
-    curriculums: 'curriculums',
     subjects: 'subjects',
     classes: 'classes',
     lessons: 'lessons',

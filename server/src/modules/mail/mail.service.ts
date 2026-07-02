@@ -3,6 +3,12 @@ import { ConfigService } from '@nestjs/config';
 import * as ejs from 'ejs';
 import * as nodemailer from 'nodemailer';
 import * as path from 'path';
+import { readFile } from 'fs/promises';
+import { ActivationMailData, ForgotPasswordMailData } from './mail.types';
+
+const templateRenderer = ejs as {
+    render: (template: string, data: Record<string, unknown>) => string;
+};
 
 @Injectable()
 export class MailService {
@@ -28,8 +34,8 @@ export class MailService {
         });
     }
 
-    async sendForgotPassword(data: { email: string; fullName: string; otp: string }) {
-        return this.sendMail({
+    async sendForgotPassword(data: ForgotPasswordMailData): Promise<void> {
+        await this.sendMail({
             to: data.email,
             subject: '[LMS] Đặt lại mật khẩu',
             template: 'forgot-password',
@@ -40,8 +46,8 @@ export class MailService {
         });
     }
 
-    async sendActivation(data: { email: string; fullName: string; status: string }) {
-        return this.sendMail({
+    async sendActivation(data: ActivationMailData): Promise<void> {
+        await this.sendMail({
             to: data.email,
             subject: '[LMS] Kich hoat tai khoan',
             template: 'activation',
@@ -52,10 +58,10 @@ export class MailService {
         });
     }
 
-    private async sendMail(options: { to: string; subject: string; template: string; data: Record<string, unknown> }) {
+    private async sendMail(options: { to: string; subject: string; template: string; data: Record<string, unknown> }): Promise<void> {
         const html = await this.renderTemplate(options.template, options.data);
 
-        return this.transporter.sendMail({
+        await this.transporter.sendMail({
             from: this.configService.get<string>('mail.from'),
             to: options.to,
             subject: options.subject,
@@ -63,7 +69,8 @@ export class MailService {
         });
     }
 
-    private renderTemplate(templateName: string, data: Record<string, unknown>) {
-        return ejs.renderFile(path.join(this.templatesPath, `${templateName}.ejs`), data);
+    private async renderTemplate(templateName: string, data: Record<string, unknown>) {
+        const template = await readFile(path.join(this.templatesPath, `${templateName}.ejs`), 'utf8');
+        return templateRenderer.render(template, data);
     }
 }

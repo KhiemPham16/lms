@@ -19,6 +19,8 @@ const accountNotActiveError = (status: string) =>
         message: 'Tai khoan khong hoat dong'
     });
 
+type RefreshTokenPayload = JwtPayload & { type?: string };
+
 @Injectable()
 export class AuthService {
     constructor(
@@ -152,10 +154,10 @@ export class AuthService {
             throw new Error('auth.refreshJwtSecret is missing');
         }
 
-        let payload: JwtPayload & { type?: string };
+        let payload: RefreshTokenPayload;
 
         try {
-            payload = await this.jwtService.verifyAsync(refreshToken, {
+            payload = await this.jwtService.verifyAsync<RefreshTokenPayload>(refreshToken, {
                 secret
             });
         } catch {
@@ -218,7 +220,7 @@ export class AuthService {
         }
 
         try {
-            const payload = await this.jwtService.verifyAsync(refreshToken, {
+            const payload = await this.jwtService.verifyAsync<RefreshTokenPayload>(refreshToken, {
                 secret
             });
 

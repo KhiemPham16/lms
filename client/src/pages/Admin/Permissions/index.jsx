@@ -132,7 +132,6 @@ const moduleLabels = {
     permissions: 'Phân quyền',
     system: 'Hệ thống',
     audit: 'Audit Log',
-    curriculum: 'Chương trình học',
     courses: 'Môn học',
     course_proposals: 'Đề xuất môn học',
     classes: 'Lớp học',
@@ -149,7 +148,6 @@ const moduleIcons = {
     permissions: FiShield,
     system: FiList,
     audit: FiList,
-    curriculum: FiBookOpen,
     courses: FiClipboard,
     course_proposals: FiClipboard,
     classes: FiLayers,
@@ -164,7 +162,7 @@ const fallbackRolePermissions = {
     ADMIN: fallbackPermissionGroups.flatMap((group) => group.permissions.map((permission) => permission.code)),
     HR: ['users.read', 'users.create', 'users.update', 'users.status'],
     PRINCIPAL: ['courses.read', 'course_proposals.approve', 'system.audit.read'],
-    TRAINING_OFFICER: ['curriculum.read', 'courses.read', 'courses.update', 'classes.read', 'classes.create', 'classes.registration.toggle', 'grades.read'],
+    TRAINING_OFFICER: ['users.read', 'courses.read', 'courses.update', 'classes.read', 'classes.create', 'classes.registration.toggle', 'grades.read'],
     DEPARTMENT_HEAD: ['courses.read', 'course_proposals.create', 'classes.read', 'classes.assign_lecturer'],
     LECTURER: ['classes.read', 'lessons.read', 'lessons.create', 'exams.read', 'exams.grade', 'grades.read'],
     STUDENT: ['classes.read', 'lessons.read', 'exams.read', 'grades.read']
@@ -800,6 +798,14 @@ export default function AdminPermissions({ workspaceKey = 'admin' }) {
                                     <div>
                                         <span>Đang chỉnh sửa quyền cho</span>
                                         <h2>{selectedRole?.name}</h2>
+                                    </div>
+                                    <div className={cx('admin-permissions__role-actions')}>
+                                        {canUpdateRole && <button type="button" onClick={openEditRole} disabled={!selectedRole?.publicId || isAdminRoleSelected}><FiEdit3 /> Sửa thông tin</button>}
+                                        {canCreateRole && canManagePermissions && <button type="button" onClick={openCopyRole} disabled={!selectedRole || isAdminRoleSelected}><FiCopy /> Sao chép role</button>}
+                                        {canDeleteRolePermission && <button type="button" disabled={!canDeleteSelectedRole} onClick={() => setDeleteTarget(selectedRole)}><FiTrash2 /> Xóa role</button>}
+                                        {canViewUsers && <button type="button" onClick={() => { setShowUsers(true); fetchRoleUsers(selectedRole?.code); }}><FiUsers /> Xem người dùng</button>}
+                                    </div>
+                                    <div className={cx('admin-permissions__role-meta')}>
                                         <p>{selectedRole?.description}</p>
                                         <dl>
                                             <div><dt>Mã vai trò</dt><dd>{selectedRole?.code}</dd></div>
@@ -807,12 +813,6 @@ export default function AdminPermissions({ workspaceKey = 'admin' }) {
                                             <div><dt>Cập nhật</dt><dd>{selectedRole?.updatedAt}</dd></div>
                                             <div><dt>Nguồn dữ liệu</dt><dd>{selectedRole?.source === 'backend' ? 'Backend' : 'Fallback'}</dd></div>
                                         </dl>
-                                    </div>
-                                    <div className={cx('admin-permissions__role-actions')}>
-                                        {canUpdateRole && <button type="button" onClick={openEditRole} disabled={!selectedRole?.publicId || isAdminRoleSelected}><FiEdit3 /> Sửa thông tin</button>}
-                                        {canCreateRole && canManagePermissions && <button type="button" onClick={openCopyRole} disabled={!selectedRole || isAdminRoleSelected}><FiCopy /> Sao chép role</button>}
-                                        {canDeleteRolePermission && <button type="button" disabled={!canDeleteSelectedRole} onClick={() => setDeleteTarget(selectedRole)}><FiTrash2 /> Xóa role</button>}
-                                        {canViewUsers && <button type="button" onClick={() => { setShowUsers(true); fetchRoleUsers(selectedRole?.code); }}><FiUsers /> Xem người dùng</button>}
                                     </div>
                                 </section>
 
