@@ -1,23 +1,27 @@
 import { Injectable } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
+import { ActivationMailData, ForgotPasswordMailData, MailJob } from './mail.types';
 
 @Injectable()
 export class MailQueueService {
     constructor(
         @InjectQueue('mail')
-        private readonly mailQueue: Queue
+        private readonly mailQueue: Queue<MailJob['data']>
     ) {}
 
-    async sendForgotPassword(data: { email: string; fullName: string; otp: string }) {
+    async sendForgotPassword(data: ForgotPasswordMailData) {
         return this.addMailJob('forgot-password', data);
     }
 
-    async sendActivation(data: { email: string; fullName: string; status: string }) {
+    async sendActivation(data: ActivationMailData) {
         return this.addMailJob('activation', data);
     }
 
-    private addMailJob(name: string, data: unknown) {
+    private addMailJob<TName extends MailJob['name']>(
+        name: TName,
+        data: Extract<MailJob, { name: TName }>['data']
+    ) {
         return this.mailQueue.add(name, data, {
             attempts: 3,
             backoff: {

@@ -248,11 +248,17 @@
     padding: 18px;
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
-    gap: 16px;
+    column-gap: 16px;
+    row-gap: 14px;
+    align-items: start;
 }
 
 .admin-permissions__role-card h2 {
-    margin: 4px 0 8px;
+    margin: 4px 0 0;
+}
+
+.admin-permissions__role-meta {
+    grid-column: 1 / -1;
 }
 
 .admin-permissions__role-card dl {

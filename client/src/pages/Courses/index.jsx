@@ -412,6 +412,12 @@ export default function CoursesPage({ workspaceKey = 'training' }) {
         }
     }, []);
 
+    const resetAssignmentState = useCallback(() => {
+        setAssignmentMode('');
+        setDepartmentHeads([]);
+        setLecturers([]);
+    }, []);
+
     useEffect(() => {
         const handle = window.setTimeout(loadDepartments, 0);
         return () => window.clearTimeout(handle);
@@ -462,7 +468,7 @@ export default function CoursesPage({ workspaceKey = 'training' }) {
             const handle = window.setTimeout(() => {
                 setSelectedCourse(null);
                 setEditMode(false);
-                setAssignmentMode('');
+                resetAssignmentState();
             }, 0);
             return () => window.clearTimeout(handle);
         }
@@ -470,6 +476,7 @@ export default function CoursesPage({ workspaceKey = 'training' }) {
         if (selectedDraft) {
             const handle = window.setTimeout(() => {
                 setSelectedCourse(selectedDraft);
+                resetAssignmentState();
             }, 0);
             return () => window.clearTimeout(handle);
         }
@@ -477,6 +484,7 @@ export default function CoursesPage({ workspaceKey = 'training' }) {
         if (isDraftCourseId(selectedCourseId)) {
             const handle = window.setTimeout(() => {
                 setSelectedCourse(null);
+                resetAssignmentState();
             }, 0);
             return () => window.clearTimeout(handle);
         }
@@ -489,7 +497,7 @@ export default function CoursesPage({ workspaceKey = 'training' }) {
             try {
                 const detail = await courseService.getCourse(selectedCourseId);
                 setSelectedCourse(detail);
-                loadAssignees(detail.departmentId);
+                resetAssignmentState();
             } catch (error) {
                 toast.error(getApiErrorMessage(error, 'Không tải được chi tiết môn học'));
             }
@@ -497,7 +505,7 @@ export default function CoursesPage({ workspaceKey = 'training' }) {
 
         loadDetail();
         return undefined;
-    }, [canRead, loadAssignees, selectedCourseId, selectedDraft]);
+    }, [canRead, resetAssignmentState, selectedCourseId, selectedDraft]);
 
     useEffect(() => {
         if (!selectedCourse) return undefined;
@@ -524,7 +532,7 @@ export default function CoursesPage({ workspaceKey = 'training' }) {
         setSearchParams(nextParams);
         setSelectedCourse(null);
         setEditMode(false);
-        setAssignmentMode('');
+        resetAssignmentState();
     };
 
     const openDetail = (course) => {
@@ -533,8 +541,15 @@ export default function CoursesPage({ workspaceKey = 'training' }) {
         nextParams.set('course', getCourseId(course));
         setSearchParams(nextParams);
         setSelectedCourse(course);
-        if (!isLocalDraft(course)) {
-            loadAssignees(course.departmentId);
+        resetAssignmentState();
+    };
+
+    const openAssignment = (mode) => {
+        const nextMode = assignmentMode === mode ? '' : mode;
+        setAssignmentMode(nextMode);
+
+        if (nextMode && selectedCourse?.departmentId) {
+            loadAssignees(selectedCourse.departmentId);
         }
     };
 
@@ -894,12 +909,12 @@ export default function CoursesPage({ workspaceKey = 'training' }) {
                                             </button>
                                         ) : null}
                                         {canUpdate && !isLocalDraft(selectedCourse) ? (
-                                            <button type="button" onClick={() => setAssignmentMode((mode) => (mode === 'head' ? '' : 'head'))}>
+                                            <button type="button" onClick={() => openAssignment('head')}>
                                                 <FiUserCheck /> Gán trưởng bộ môn
                                             </button>
                                         ) : null}
                                         {canAssignLecturer && !isLocalDraft(selectedCourse) ? (
-                                            <button type="button" onClick={() => setAssignmentMode((mode) => (mode === 'lecturers' ? '' : 'lecturers'))}>
+                                            <button type="button" onClick={() => openAssignment('lecturers')}>
                                                 <FiUsers /> Gán giảng viên
                                             </button>
                                         ) : null}

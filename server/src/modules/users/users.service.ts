@@ -14,6 +14,59 @@ import { UserStatusActionDto } from './dto/user-status-action.dto';
 import { ResetUserPasswordDto } from './dto/reset-user-password.dto';
 import { BulkAssignRoleDto } from './dto/bulk-assign-role.dto';
 
+const defaultUserSelect = () =>
+    ({
+        id: true,
+        publicId: true,
+        code: true,
+        fullName: true,
+        email: true,
+        phone: true,
+        roleId: true,
+        role: {
+            select: {
+                publicId: true,
+                code: true,
+                name: true,
+                permissions: {
+                    select: {
+                        permission: {
+                            select: {
+                                code: true,
+                                name: true,
+                                module: true
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        status: true,
+        gender: true,
+        avatarUrl: true,
+        dateOfBirth: true,
+        address: true,
+        departmentId: true,
+        lastLoginAt: true,
+        createdAt: true,
+        updatedAt: true
+    }) satisfies Prisma.UserSelect;
+
+type UserWithDetails = Prisma.UserGetPayload<{ select: ReturnType<typeof defaultUserSelect> }>;
+type UserPermission = NonNullable<UserWithDetails['role']>['permissions'][number]['permission'];
+type FormattedUser = Omit<UserWithDetails, 'role'> & {
+    role: string | undefined;
+    roleDetail: {
+        publicId: string;
+        code: string;
+        name: string;
+        permissions: UserPermission[];
+        permissionCodes: string[];
+    } | null;
+    permissions: UserPermission[];
+    permissionCodes: string[];
+};
+
 @Injectable()
 export class UsersService {
     private readonly defaultPassword = 'Lms@123';
@@ -700,7 +753,7 @@ export class UsersService {
         dto: UserStatusActionDto = {},
         request?: Request
     ) {
-        const results: any[] = [];
+        const results: FormattedUser[] = [];
 
         for (const publicId of publicIds) {
             const user = await this.updateStatus(publicId, status, actorPublicId, dto, request);
@@ -719,7 +772,7 @@ export class UsersService {
             throw new BadRequestException('Vui long chon vai tro');
         }
 
-        const results: any[] = [];
+        const results: FormattedUser[] = [];
 
         for (const publicId of dto.userIds) {
             const user = await this.updateRole(publicId, dto, actorPublicId, request);
@@ -1130,42 +1183,7 @@ export class UsersService {
     }
 
     private defaultSelect() {
-        return {
-            id: true,
-            publicId: true,
-            code: true,
-            fullName: true,
-            email: true,
-            phone: true,
-            roleId: true,
-            role: {
-                select: {
-                    publicId: true,
-                    code: true,
-                    name: true,
-                    permissions: {
-                        select: {
-                            permission: {
-                                select: {
-                                    code: true,
-                                    name: true,
-                                    module: true
-                                }
-                            }
-                        }
-                    }
-                }
-            },
-            status: true,
-            gender: true,
-            avatarUrl: true,
-            dateOfBirth: true,
-            address: true,
-            departmentId: true,
-            lastLoginAt: true,
-            createdAt: true,
-            updatedAt: true
-        };
+        return defaultUserSelect();
     }
 
     private async resolveRoleId(roleId?: number, roleCode?: string) {
@@ -1229,7 +1247,7 @@ export class UsersService {
         return `${rolePrefixMap[roleCode] ?? '49'}${yearCode}10`;
     }
 
-    private formatUser(user: any) {
+    private formatUser(user: UserWithDetails): FormattedUser {
         const { id, role, ...rest } = user;
         const permissions = role?.permissions?.map((item) => item.permission) ?? [];
         const roleDetail = role

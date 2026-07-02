@@ -150,10 +150,17 @@
 
 .courses__filters label {
     color: #64748b;
+    flex-wrap: nowrap;
+}
+
+.courses__search {
+    min-width: 260px;
 }
 
 .courses__filters input {
-    width: 100%;
+    flex: 1 1 auto;
+    width: auto;
+    min-width: 0;
     min-height: 0;
     border: 0;
     padding: 0;

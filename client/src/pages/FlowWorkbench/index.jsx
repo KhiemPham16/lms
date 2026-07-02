@@ -7,7 +7,6 @@ const cx = classNames.bind(styles);
 
 const moduleTitles = {
     audit: 'Nhật ký hệ thống',
-    curriculums: 'Chương trình đào tạo',
     subjects: 'Môn học',
     classes: 'Lớp học',
     lessons: 'Bài học',

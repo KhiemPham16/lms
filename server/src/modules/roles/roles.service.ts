@@ -1,5 +1,5 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
-import { AuditAction } from '@prisma/client';
+import { AuditAction, Prisma } from '@prisma/client';
 import type { Request } from 'express';
 
 import { AuditLogsService } from '~/modules/audit-logs/audit-logs.service';
@@ -12,6 +12,47 @@ type RoleAuditActorClient = {
     user: {
         findUnique: PrismaService['user']['findUnique'];
     };
+};
+
+const defaultRoleSelect = () =>
+    ({
+        id: true,
+        publicId: true,
+        code: true,
+        name: true,
+        description: true,
+        isSystem: true,
+        permissions: {
+            select: {
+                permission: {
+                    select: {
+                        id: true,
+                        publicId: true,
+                        code: true,
+                        name: true,
+                        module: true
+                    }
+                }
+            }
+        },
+        _count: {
+            select: {
+                users: {
+                    where: {
+                        deletedAt: null
+                    }
+                }
+            }
+        },
+        createdAt: true,
+        updatedAt: true
+    }) satisfies Prisma.RoleSelect;
+
+type RoleWithDetails = Prisma.RoleGetPayload<{ select: ReturnType<typeof defaultRoleSelect> }>;
+type RolePermissionDetail = RoleWithDetails['permissions'][number]['permission'];
+type FormattedRole = Omit<RoleWithDetails, 'permissions'> & {
+    permissions: RolePermissionDetail[];
+    permissionCodes: string[];
 };
 
 @Injectable()
@@ -279,41 +320,10 @@ export class RolesService {
     }
 
     private defaultSelect() {
-        return {
-            id: true,
-            publicId: true,
-            code: true,
-            name: true,
-            description: true,
-            isSystem: true,
-            permissions: {
-                select: {
-                    permission: {
-                        select: {
-                            id: true,
-                            publicId: true,
-                            code: true,
-                            name: true,
-                            module: true
-                        }
-                    }
-                }
-            },
-            _count: {
-                select: {
-                    users: {
-                        where: {
-                            deletedAt: null
-                        }
-                    }
-                }
-            },
-            createdAt: true,
-            updatedAt: true
-        };
+        return defaultRoleSelect();
     }
 
-    private formatRole(role: any) {
+    private formatRole(role: RoleWithDetails): FormattedRole {
         const permissions = role.permissions.map((item) => item.permission);
 
         return {

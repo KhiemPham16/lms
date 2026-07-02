@@ -6,12 +6,6 @@ import { LoginDto } from './dto/login.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 
-type RequestWithCookies = Request & {
-    cookies: {
-        refreshToken?: string;
-    };
-};
-
 @Controller('auth')
 export class AuthController {
     constructor(private readonly authService: AuthService) {}
@@ -34,13 +28,13 @@ export class AuthController {
     }
 
     @Post('refresh')
-    refresh(@Req() req: RequestWithCookies) {
-        return this.authService.refresh(req.cookies.refreshToken);
+    refresh(@Req() req: Request) {
+        return this.authService.refresh(this.getCookie(req, 'refreshToken'));
     }
 
     @Post('logout')
-    async logout(@Req() req: RequestWithCookies, @Res({ passthrough: true }) res: Response) {
-        const result = await this.authService.logout(req.cookies.refreshToken);
+    async logout(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
+        const result = await this.authService.logout(this.getCookie(req, 'refreshToken'));
 
         res.clearCookie('refreshToken', {
             httpOnly: true,
@@ -59,5 +53,12 @@ export class AuthController {
     @Post('reset-password')
     resetPassword(@Body() dto: ResetPasswordDto) {
         return this.authService.resetPassword(dto);
+    }
+
+    private getCookie(request: Request, name: string) {
+        const cookies = (request as unknown as { cookies?: Record<string, unknown> }).cookies;
+        const value = cookies?.[name];
+
+        return typeof value === 'string' ? value : undefined;
     }
 }

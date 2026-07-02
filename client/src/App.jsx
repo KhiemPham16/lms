@@ -35,7 +35,6 @@ export default function App() {
                     <Route path={routes.adminUsers} element={<AdminUsers />} />
                     <Route path={routes.adminPermissions} element={<AdminPermissions />} />
                     <Route path={routes.adminAuditLogs} element={<AdminAuditLogs />} />
-                    <Route path={routes.adminCurriculums} element={<FlowWorkbench workspaceKey="admin" moduleKey="curriculums" />} />
                     <Route path={routes.adminSubjects} element={<CoursesPage workspaceKey="admin" />} />
                     <Route path={routes.adminClasses} element={<ClassesPage workspaceKey="admin" />} />
                     <Route path={routes.adminLessons} element={<FlowWorkbench workspaceKey="admin" moduleKey="lessons" />} />
@@ -55,7 +54,6 @@ export default function App() {
                     <Route path={routes.trainingUsers} element={<AdminUsers workspaceKey="training" />} />
                     <Route path={routes.trainingDepartments} element={<FlowWorkbench workspaceKey="training" moduleKey="departments" />} />
                     <Route path={routes.trainingPermissions} element={<AdminPermissions workspaceKey="training" />} />
-                    <Route path={routes.trainingCurriculums} element={<FlowWorkbench workspaceKey="training" moduleKey="curriculums" />} />
                     <Route path={routes.trainingSubjects} element={<CoursesPage workspaceKey="training" />} />
                     <Route path={routes.trainingClasses} element={<ClassesPage workspaceKey="training" />} />
                     <Route path={routes.trainingGrades} element={<FlowWorkbench workspaceKey="training" moduleKey="grades" />} />

@@ -15,7 +15,6 @@ import { UpdateUserDto } from './dto/update-user.dto';
 import { ChangeUserStatusDto } from './dto/change-user-status.dto';
 import { QueryUserDto } from './dto/query-user.dto';
 import { UpdateUserRoleDto } from './dto/update-user-role.dto';
-import { UserStatusActionDto } from './dto/user-status-action.dto';
 import { ResetUserPasswordDto } from './dto/reset-user-password.dto';
 import { BulkUserActionDto } from './dto/bulk-user-action.dto';
 import { BulkAssignRoleDto } from './dto/bulk-assign-role.dto';

@@ -40,8 +40,6 @@ const permissions = [
     { code: 'departments.delete', name: 'Xóa khoa/phòng ban', module: 'departments' },
     { code: 'system.permissions.manage', name: 'Quản lý phân quyền', module: 'system' },
     { code: 'system.audit.read', name: 'Xem Audit Log', module: 'system' },
-    { code: 'curriculum.read', name: 'Xem chương trình', module: 'curriculum' },
-    { code: 'curriculum.create', name: 'Tạo chương trình', module: 'curriculum' },
     { code: 'courses.read', name: 'Xem môn học', module: 'courses' },
     { code: 'courses.update', name: 'Cập nhật môn học', module: 'courses' },
     { code: 'course_proposals.create', name: 'Tạo đề xuất', module: 'course_proposals' },
@@ -70,7 +68,6 @@ const rolePermissionDefaults: Record<string, string[]> = {
     HR: ['users.read', 'users.create', 'users.update', 'users.status', 'departments.read'],
     PRINCIPAL: [
         'departments.read',
-        'curriculum.read',
         'courses.read',
         'course_proposals.approve',
         'course_proposals.history.read',
@@ -80,9 +77,8 @@ const rolePermissionDefaults: Record<string, string[]> = {
         'enrollments.read'
     ],
     TRAINING_OFFICER: [
+        'users.read',
         'departments.read',
-        'curriculum.read',
-        'curriculum.create',
         'courses.read',
         'courses.update',
         'course_proposals.create',

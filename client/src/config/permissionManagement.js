@@ -44,12 +44,10 @@ export const permissionGroups = [
     },
     {
         id: 'programs',
-        title: 'Chương trình học & Môn học',
+        title: 'Môn học',
         icon: FaBookOpen,
         defaultOpen: false,
         permissions: [
-            { id: 'programs.view', label: 'Xem chương trình' },
-            { id: 'programs.create', label: 'Tạo chương trình' },
             { id: 'subjects.view', label: 'Xem môn học' },
             { id: 'subjects.update', label: 'Cập nhật môn học' }
         ]

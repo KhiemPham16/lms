@@ -2,6 +2,7 @@ import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Job } from 'bullmq';
 
 import { MailService } from './mail.service';
+import { ActivationMailData, ForgotPasswordMailData, MailJob } from './mail.types';
 
 @Processor('mail')
 export class MailProcessor extends WorkerHost {
@@ -9,16 +10,46 @@ export class MailProcessor extends WorkerHost {
         super();
     }
 
-    async process(job: Job) {
+    async process(job: Job<MailJob['data'], void, string>): Promise<void> {
         switch (job.name) {
             case 'forgot-password':
-                return this.mailService.sendForgotPassword(job.data);
+                if (!this.isForgotPasswordMailData(job.data)) {
+                    throw new Error('Invalid forgot-password mail payload');
+                }
+
+                await this.mailService.sendForgotPassword(job.data);
+                return;
 
             case 'activation':
-                return this.mailService.sendActivation(job.data);
+                if (!this.isActivationMailData(job.data)) {
+                    throw new Error('Invalid activation mail payload');
+                }
+
+                await this.mailService.sendActivation(job.data);
+                return;
 
             default:
                 throw new Error(`Unknown mail job: ${job.name}`);
         }
+    }
+
+    private isForgotPasswordMailData(data: MailJob['data']): data is ForgotPasswordMailData {
+        return (
+            !!data &&
+            typeof data === 'object' &&
+            !Array.isArray(data) &&
+            'otp' in data &&
+            typeof (data as { otp?: unknown }).otp === 'string'
+        );
+    }
+
+    private isActivationMailData(data: MailJob['data']): data is ActivationMailData {
+        return (
+            !!data &&
+            typeof data === 'object' &&
+            !Array.isArray(data) &&
+            'status' in data &&
+            typeof (data as { status?: unknown }).status === 'string'
+        );
     }
 }

@@ -122,6 +122,17 @@ const classSelect = (includeEnrollments = false) =>
     }) satisfies Prisma.ClassSelect;
 
 type ClassWithDetails = Prisma.ClassGetPayload<{ select: ReturnType<typeof classSelect> }>;
+type ClassAuditValueSource = Pick<
+    ClassWithDetails,
+    'code' | 'name' | 'courseId' | 'lecturerId' | 'assistantId' | 'departmentHeadId' | 'maxStudents' | 'status'
+>;
+type FormattedClass = Omit<ClassWithDetails, 'id' | '_count'> & {
+    weeklyScheduleText: string;
+    enrolledCount: number;
+    availableSlots: number;
+    isFull: boolean;
+    fullBadge: string | null;
+};
 
 @Injectable()
 export class ClassesService {
@@ -173,7 +184,7 @@ export class ClassesService {
     }
 
     async summary(query: QueryClassDto) {
-        const where = await this.buildClassWhere({ ...query, page: undefined, limit: undefined });
+        const where = this.buildClassWhere({ ...query, page: undefined, limit: undefined });
         const total = await this.prisma.class.count({ where });
         const approvedEnrollmentWhere = { ...where, enrollments: { some: { status: EnrollmentStatus.APPROVED } } };
 
@@ -241,7 +252,7 @@ export class ClassesService {
         const page = query.page ?? 1;
         const limit = query.limit ?? 10;
         const skip = (page - 1) * limit;
-        const where = await this.buildClassWhere(query);
+        const where = this.buildClassWhere(query);
 
         const [items, total] = await Promise.all([
             this.prisma.class.findMany({
@@ -472,7 +483,7 @@ export class ClassesService {
         return this.formatClass(updatedClass);
     }
 
-    private async buildClassWhere(query: QueryClassDto): Promise<Prisma.ClassWhereInput> {
+    private buildClassWhere(query: QueryClassDto): Prisma.ClassWhereInput {
         return {
             ...(query.keyword
                 ? {
@@ -698,7 +709,7 @@ export class ClassesService {
         return classSelect(includeEnrollments);
     }
 
-    private auditClassValue(classItem: any) {
+    private auditClassValue(classItem: ClassAuditValueSource) {
         return {
             code: classItem.code,
             name: classItem.name,
@@ -711,7 +722,7 @@ export class ClassesService {
         };
     }
 
-    private formatClass(classItem: ClassWithDetails | any) {
+    private formatClass(classItem: ClassWithDetails): FormattedClass {
         const { id: _id, _count, ...rest } = classItem;
         void _id;
         const enrolledCount = _count?.enrollments ?? 0;
@@ -719,12 +730,21 @@ export class ClassesService {
 
         return {
             ...rest,
-            weeklyScheduleText: classItem.weeklySchedule?.text || '',
+            weeklyScheduleText: this.getWeeklyScheduleText(classItem.weeklySchedule),
             enrolledCount,
             availableSlots,
             isFull: availableSlots <= 0,
             fullBadge: availableSlots <= 0 ? 'Đã đầy' : null
         };
+    }
+
+    private getWeeklyScheduleText(value: Prisma.JsonValue) {
+        if (!value || typeof value !== 'object' || Array.isArray(value)) {
+            return '';
+        }
+
+        const text = value.text;
+        return typeof text === 'string' ? text : '';
     }
 
     private percent(value: number, total: number) {
