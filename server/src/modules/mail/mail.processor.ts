@@ -44,6 +44,12 @@ export class MailProcessor extends WorkerHost {
     }
 
     private isActivationMailData(data: MailJob['data']): data is ActivationMailData {
-        return 'status' in data;
+        return (
+            !!data &&
+            typeof data === 'object' &&
+            !Array.isArray(data) &&
+            'status' in data &&
+            typeof (data as { status?: unknown }).status === 'string'
+        );
     }
 }
