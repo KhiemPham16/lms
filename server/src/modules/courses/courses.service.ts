@@ -4,6 +4,8 @@ import { ApprovalAction, ApprovalLevel, AuditAction, ClassStatus, CourseStatus, 
 import { PrismaService } from '~/prisma/prisma.service';
 import { AuditLogsService } from '~/modules/audit-logs/audit-logs.service';
 import { ApproveCourseDto } from './dto/approve-course.dto';
+import { AssignCourseDepartmentHeadDto } from './dto/assign-course-department-head.dto';
+import { AssignCourseLecturersDto } from './dto/assign-course-lecturers.dto';
 import { CreateCourseProposalDto } from './dto/create-course-proposal.dto';
 import { QueryCourseDto } from './dto/query-course.dto';
 import { UpdateCourseDto } from './dto/update-course.dto';
@@ -22,9 +24,37 @@ const courseSelect = () =>
         departmentId: true,
         department: {
             select: {
+                id: true,
                 publicId: true,
                 code: true,
                 name: true
+            }
+        },
+        departmentHeadId: true,
+        departmentHead: {
+            select: {
+                publicId: true,
+                code: true,
+                fullName: true,
+                email: true,
+                departmentId: true
+            }
+        },
+        lecturers: {
+            orderBy: {
+                assignedAt: 'desc' as const
+            },
+            select: {
+                assignedAt: true,
+                lecturer: {
+                    select: {
+                        publicId: true,
+                        code: true,
+                        fullName: true,
+                        email: true,
+                        departmentId: true
+                    }
+                }
             }
         },
         proposedBy: {
@@ -358,10 +388,194 @@ export class CoursesService {
             approverPublicId,
             level: ApprovalLevel.PRINCIPAL,
             expectedStatus: CourseStatus.PENDING_PRINCIPAL,
-            approvedStatus: CourseStatus.ACTIVE,
+            approvedStatus: CourseStatus.PRINCIPAL_APPROVED,
             rejectedStatus: CourseStatus.PRINCIPAL_REJECTED,
             approverRoleCodes: ['ADMIN', 'PRINCIPAL']
         });
+    }
+
+    async assignDepartmentHead(
+        publicId: string,
+        dto: AssignCourseDepartmentHeadDto,
+        actorPublicId: string
+    ) {
+        const actor = await this.findUserByPublicIdOrThrow(actorPublicId);
+        this.ensureOfficialCatalogManager(actor);
+
+        const course = await this.findCourseRecordOrThrow(publicId);
+        const departmentHead = await this.ensureDepartmentHead(dto.departmentHeadId, course.departmentId);
+
+        const updatedCourse = await this.prisma.course.update({
+            where: { publicId },
+            data: {
+                departmentHeadId: departmentHead.id
+            },
+            select: this.courseSelect()
+        });
+
+        await this.auditLogsService.create({
+            actorId: actor.id,
+            action: AuditAction.ASSIGN,
+            module: 'courses',
+            targetType: 'Course',
+            targetId: updatedCourse.id,
+            targetPublicId: updatedCourse.publicId,
+            oldValue: {
+                departmentHeadId: course.departmentHeadId
+            },
+            newValue: {
+                departmentHeadId: departmentHead.id
+            }
+        });
+
+        return this.formatCourse(updatedCourse);
+    }
+
+    async assignLecturers(publicId: string, dto: AssignCourseLecturersDto, actorPublicId: string) {
+        const actor = await this.findUserByPublicIdOrThrow(actorPublicId);
+        const course = await this.findCourseRecordOrThrow(publicId);
+        this.ensureCanAssignCourseLecturers(actor, course);
+
+        const uniqueLecturerIds = [...new Set(dto.lecturerIds)];
+        const lecturers = await this.ensureLecturers(uniqueLecturerIds, course.departmentId);
+
+        const updatedCourse = await this.prisma.$transaction(async (tx) => {
+            await tx.courseLecturer.deleteMany({
+                where: { courseId: course.id }
+            });
+
+            await tx.courseLecturer.createMany({
+                data: lecturers.map((lecturer) => ({
+                    courseId: course.id,
+                    lecturerId: lecturer.id
+                }))
+            });
+
+            return tx.course.findUniqueOrThrow({
+                where: { publicId },
+                select: this.courseSelect()
+            });
+        });
+
+        await this.auditLogsService.create({
+            actorId: actor.id,
+            action: AuditAction.ASSIGN,
+            module: 'courses',
+            targetType: 'Course',
+            targetId: updatedCourse.id,
+            targetPublicId: updatedCourse.publicId,
+            oldValue: {
+                lecturerIds: course.lecturers.map((item) => item.lecturerId)
+            },
+            newValue: {
+                lecturerIds: uniqueLecturerIds
+            }
+        });
+
+        return this.formatCourse(updatedCourse);
+    }
+
+    async updateStatus(publicId: string, status: CourseStatus, actorPublicId: string) {
+        const actor = await this.findUserByPublicIdOrThrow(actorPublicId);
+        this.ensureOfficialCatalogManager(actor);
+
+        const course = await this.findCourseRecordOrThrow(publicId);
+
+        if (status !== CourseStatus.ACTIVE && status !== CourseStatus.INACTIVE) {
+            throw new BadRequestException('Chỉ hỗ trợ kích hoạt hoặc vô hiệu hóa môn học');
+        }
+
+        if (status === course.status) {
+            return this.findByPublicIdOrThrow(publicId);
+        }
+
+        if (status === CourseStatus.ACTIVE) {
+            const activatableStatuses: CourseStatus[] = [CourseStatus.PRINCIPAL_APPROVED, CourseStatus.INACTIVE];
+
+            if (!activatableStatuses.includes(course.status)) {
+                throw new BadRequestException('Chỉ môn đã được Hiệu trưởng duyệt hoặc đang INACTIVE mới được kích hoạt');
+            }
+
+            if (!course.departmentHeadId) {
+                throw new BadRequestException('Phải gán Trưởng bộ môn trước khi kích hoạt môn học');
+            }
+
+            if (course.lecturers.length === 0) {
+                throw new BadRequestException('Phải gán ít nhất một Giảng viên trước khi kích hoạt môn học');
+            }
+        }
+
+        if (status === CourseStatus.INACTIVE && course.status !== CourseStatus.ACTIVE) {
+            throw new BadRequestException('Chỉ môn ACTIVE mới được vô hiệu hóa');
+        }
+
+        const updatedCourse = await this.prisma.course.update({
+            where: { publicId },
+            data: { status },
+            select: this.courseSelect()
+        });
+
+        await this.auditLogsService.create({
+            actorId: actor.id,
+            action: AuditAction.STATUS_CHANGE,
+            module: 'courses',
+            targetType: 'Course',
+            targetId: updatedCourse.id,
+            targetPublicId: updatedCourse.publicId,
+            oldValue: {
+                status: course.status
+            },
+            newValue: {
+                status: updatedCourse.status
+            }
+        });
+
+        return this.formatCourse(updatedCourse);
+    }
+
+    async removeRejected(publicId: string, actorPublicId: string) {
+        const actor = await this.findUserByPublicIdOrThrow(actorPublicId);
+        const course = await this.findCourseRecordOrThrow(publicId);
+        const rejectedStatuses: CourseStatus[] = [CourseStatus.PDT_REJECTED, CourseStatus.PRINCIPAL_REJECTED];
+
+        if (!rejectedStatuses.includes(course.status)) {
+            throw new BadRequestException('Chỉ có thể xóa đề xuất môn học đã bị từ chối');
+        }
+
+        if ((course._count?.classes ?? 0) > 0) {
+            throw new BadRequestException('Không thể xóa môn học đã có lớp phát sinh');
+        }
+
+        if (!['ADMIN', 'TRAINING_OFFICER'].includes(actor.role.code) && actor.id !== course.proposedById) {
+            throw new ForbiddenException('Chỉ người đề xuất hoặc Phòng đào tạo được xóa đề xuất bị từ chối');
+        }
+
+        await this.prisma.$transaction(async (tx) => {
+            await this.auditLogsService.create(
+                {
+                    actorId: actor.id,
+                    action: AuditAction.DELETE,
+                    module: 'courses',
+                    targetType: 'Course',
+                    targetId: course.id,
+                    targetPublicId: course.publicId,
+                    oldValue: {
+                        status: course.status,
+                        classCount: course._count?.classes ?? 0
+                    }
+                },
+                tx
+            );
+
+            await tx.course.delete({
+                where: { publicId }
+            });
+        });
+
+        return {
+            publicId,
+            deleted: true
+        };
     }
 
     private async decideCourse(options: {
@@ -510,7 +724,7 @@ export class CoursesService {
                     maxStudents: 40,
                     startDate,
                     endDate,
-                    status: ClassStatus.UPCOMING
+                    status: ClassStatus.DRAFT
                 });
             }
 
@@ -545,6 +759,67 @@ export class CoursesService {
         if (!department) {
             throw new BadRequestException('Khoa/phòng ban không hợp lệ');
         }
+    }
+
+    private ensureOfficialCatalogManager(actor: { role: { code: string } }) {
+        if (!['ADMIN', 'TRAINING_OFFICER'].includes(actor.role.code)) {
+            throw new ForbiddenException('Chỉ Phòng đào tạo được quản lý danh mục môn học chính thức');
+        }
+    }
+
+    private ensureCanAssignCourseLecturers(
+        actor: { id: number; role: { code: string } },
+        course: { departmentHeadId: number | null }
+    ) {
+        if (['ADMIN', 'TRAINING_OFFICER'].includes(actor.role.code)) {
+            return;
+        }
+
+        if (actor.role.code !== 'DEPARTMENT_HEAD' || actor.id !== course.departmentHeadId) {
+            throw new ForbiddenException('Chỉ Trưởng bộ môn được gán cho môn này mới được phân công giảng viên');
+        }
+    }
+
+    private async ensureDepartmentHead(userId: number, departmentId: number) {
+        const user = await this.prisma.user.findFirst({
+            where: {
+                id: userId,
+                deletedAt: null,
+                status: 'ACTIVE',
+                departmentId,
+                role: {
+                    code: 'DEPARTMENT_HEAD'
+                }
+            },
+            select: { id: true }
+        });
+
+        if (!user) {
+            throw new BadRequestException('Trưởng bộ môn không hợp lệ hoặc không thuộc bộ môn của môn học');
+        }
+
+        return user;
+    }
+
+    private async ensureLecturers(lecturerIds: number[], departmentId: number) {
+        const lecturers = await this.prisma.user.findMany({
+            where: {
+                id: { in: lecturerIds },
+                deletedAt: null,
+                status: 'ACTIVE',
+                departmentId,
+                role: {
+                    code: 'LECTURER'
+                }
+            },
+            select: { id: true }
+        });
+
+        if (lecturers.length !== lecturerIds.length) {
+            throw new BadRequestException('Danh sách giảng viên không hợp lệ hoặc không thuộc bộ môn của môn học');
+        }
+
+        return lecturers;
     }
 
     private ensureProposalCreatorCanSubmit(roleCode: string, isExistingApprovedCourse: boolean) {
@@ -584,6 +859,8 @@ export class CoursesService {
                 id: true,
                 publicId: true,
                 fullName: true,
+                status: true,
+                departmentId: true,
                 role: {
                     select: {
                         code: true
@@ -603,16 +880,50 @@ export class CoursesService {
         return { ...user, role: user.role };
     }
 
+    private async findCourseRecordOrThrow(publicId: string) {
+        const course = await this.prisma.course.findUnique({
+            where: { publicId },
+            select: {
+                id: true,
+                publicId: true,
+                status: true,
+                departmentId: true,
+                departmentHeadId: true,
+                proposedById: true,
+                lecturers: {
+                    select: {
+                        lecturerId: true
+                    }
+                },
+                _count: {
+                    select: {
+                        classes: true
+                    }
+                }
+            }
+        });
+
+        if (!course) {
+            throw new NotFoundException('Không tìm thấy môn học');
+        }
+
+        return course;
+    }
+
     private courseSelect() {
         return courseSelect();
     }
 
     private formatCourse(course: CourseWithDetails) {
-        const { id: _id, _count, ...rest } = course;
-        void _id;
+        const { id, _count, ...rest } = course;
 
         return {
+            id,
             ...rest,
+            lecturers: rest.lecturers?.map((item) => ({
+                ...item.lecturer,
+                assignedAt: item.assignedAt
+            })) ?? [],
             classCount: _count?.classes ?? 0
         };
     }

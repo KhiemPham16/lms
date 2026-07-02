@@ -61,7 +61,6 @@ export class UsersService {
                     departmentId: dto.departmentId
                 },
                 select: {
-                    id: true,
                     ...this.defaultSelect()
                 }
             });
@@ -1132,6 +1131,7 @@ export class UsersService {
 
     private defaultSelect() {
         return {
+            id: true,
             publicId: true,
             code: true,
             fullName: true,
@@ -1243,6 +1243,7 @@ export class UsersService {
             : null;
 
         return {
+            id,
             ...rest,
             role: role?.code,
             roleDetail,

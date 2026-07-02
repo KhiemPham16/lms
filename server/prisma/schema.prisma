@@ -50,11 +50,13 @@ enum ApprovalLevel {
 }
 
 enum ClassStatus {
-  UPCOMING
-  OPEN
-  CLOSED
+  DRAFT
+  OPEN_REGISTRATION
+  CLOSED_REGISTRATION
+  IN_PROGRESS
   COMPLETED
   CANCELLED
+  FULL
 }
 
 enum EnrollmentStatus {
@@ -117,7 +119,10 @@ model User {
   deletedAt   DateTime?
 
   proposedCourses    Course[]         @relation("ProposedCourses")
+  managedCourses     Course[]         @relation("ManagedCourses")
+  assignedCourses    CourseLecturer[] @relation("AssignedCourses")
   teachingClasses    Class[]          @relation("TeachingClasses")
+  assistingClasses   Class[]          @relation("AssistingClasses")
   managedClasses     Class[]          @relation("ManagedClasses")
   studentEnrollments Enrollment[]     @relation("StudentEnrollments")
   courseApprovals    CourseApproval[] @relation("CourseApprovals")
@@ -222,6 +227,9 @@ model Course {
   departmentId Int
   department   Department @relation(fields: [departmentId], references: [id])
 
+  departmentHeadId Int?
+  departmentHead   User? @relation("ManagedCourses", fields: [departmentHeadId], references: [id])
+
   status CourseStatus @default(DRAFT)
   requiresPrincipalApproval Boolean @default(true)
 
@@ -229,14 +237,29 @@ model Course {
   proposedBy   User @relation("ProposedCourses", fields: [proposedById], references: [id])
 
   approvals CourseApproval[]
+  lecturers CourseLecturer[]
   classes   Class[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([departmentId])
+  @@index([departmentHeadId])
   @@index([proposedById])
   @@index([status])
+}
+
+model CourseLecturer {
+  courseId   Int
+  lecturerId Int
+
+  course   Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  lecturer User   @relation("AssignedCourses", fields: [lecturerId], references: [id], onDelete: Cascade)
+
+  assignedAt DateTime @default(now())
+
+  @@id([courseId, lecturerId])
+  @@index([lecturerId])
 }
 
 model AuditLog {
@@ -294,6 +317,7 @@ model Class {
 
   code String @unique
   name String
+  description String? @db.Text
 
   courseId Int
   course   Course @relation(fields: [courseId], references: [id])
@@ -301,15 +325,34 @@ model Class {
   lecturerId Int?
   lecturer   User? @relation("TeachingClasses", fields: [lecturerId], references: [id])
 
+  assistantId Int?
+  assistant   User? @relation("AssistingClasses", fields: [assistantId], references: [id])
+
   departmentHeadId Int
   departmentHead   User @relation("ManagedClasses", fields: [departmentHeadId], references: [id])
 
+  semester String?
+  academicYear String?
   maxStudents Int
+  minStudents Int?
+  allowWaitlist Boolean @default(false)
 
   startDate DateTime
   endDate   DateTime
+  weeklySchedule Json?
+  studyShift String?
+  room String?
+  onlineUrl String?
 
-  status ClassStatus @default(UPCOMING)
+  registrationStartDate DateTime?
+  registrationEndDate DateTime?
+  registrationOpenedAt DateTime?
+  registrationClosedAt DateTime?
+  allowStudentDrop Boolean @default(true)
+  checkScheduleConflict Boolean @default(false)
+  autoCloseWhenFull Boolean @default(true)
+
+  status ClassStatus @default(DRAFT)
 
   enrollments Enrollment[]
 
@@ -318,8 +361,11 @@ model Class {
 
   @@index([courseId])
   @@index([lecturerId])
+  @@index([assistantId])
   @@index([departmentHeadId])
   @@index([status])
+  @@index([semester])
+  @@index([academicYear])
 }
 
 model Enrollment {

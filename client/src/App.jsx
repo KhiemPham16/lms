@@ -10,6 +10,8 @@ import AdminDashboard from '~/pages/Admin/Dashboard';
 import AdminPermissions from '~/pages/Admin/Permissions';
 import AdminUsers from '~/pages/Admin/Users';
 import AdminAuditLogs from '~/pages/Admin/AuditLogs';
+import ClassesPage from '~/pages/Classes';
+import CoursesPage from '~/pages/Courses';
 import FlowWorkbench from '~/pages/FlowWorkbench';
 import WorkspaceModuleRoute from '~/pages/WorkspaceModuleRoute';
 import SharedUtility from '~/pages/SharedUtility';
@@ -34,8 +36,8 @@ export default function App() {
                     <Route path={routes.adminPermissions} element={<AdminPermissions />} />
                     <Route path={routes.adminAuditLogs} element={<AdminAuditLogs />} />
                     <Route path={routes.adminCurriculums} element={<FlowWorkbench workspaceKey="admin" moduleKey="curriculums" />} />
-                    <Route path={routes.adminSubjects} element={<FlowWorkbench workspaceKey="admin" moduleKey="subjects" />} />
-                    <Route path={routes.adminClasses} element={<FlowWorkbench workspaceKey="admin" moduleKey="classes" />} />
+                    <Route path={routes.adminSubjects} element={<CoursesPage workspaceKey="admin" />} />
+                    <Route path={routes.adminClasses} element={<ClassesPage workspaceKey="admin" />} />
                     <Route path={routes.adminLessons} element={<FlowWorkbench workspaceKey="admin" moduleKey="lessons" />} />
                     <Route path={routes.adminExams} element={<FlowWorkbench workspaceKey="admin" moduleKey="exams" />} />
                     <Route path={routes.adminGrades} element={<FlowWorkbench workspaceKey="admin" moduleKey="grades" />} />
@@ -47,27 +49,27 @@ export default function App() {
                     <Route path={routes.principalUsers} element={<AdminUsers workspaceKey="principal" />} />
                     <Route path={routes.principalDepartments} element={<FlowWorkbench workspaceKey="principal" moduleKey="departments" />} />
                     <Route path={routes.principalPermissions} element={<AdminPermissions workspaceKey="principal" />} />
-                    <Route path={routes.principalProposals} element={<FlowWorkbench workspaceKey="principal" moduleKey="proposals" />} />
+                    <Route path={routes.principalProposals} element={<CoursesPage workspaceKey="principal" />} />
                     <Route path={routes.principalProposalHistory} element={<FlowWorkbench workspaceKey="principal" moduleKey="history" />} />
                     <Route path={routes.training} element={<FlowWorkbench workspaceKey="training" />} />
                     <Route path={routes.trainingUsers} element={<AdminUsers workspaceKey="training" />} />
                     <Route path={routes.trainingDepartments} element={<FlowWorkbench workspaceKey="training" moduleKey="departments" />} />
                     <Route path={routes.trainingPermissions} element={<AdminPermissions workspaceKey="training" />} />
                     <Route path={routes.trainingCurriculums} element={<FlowWorkbench workspaceKey="training" moduleKey="curriculums" />} />
-                    <Route path={routes.trainingSubjects} element={<FlowWorkbench workspaceKey="training" moduleKey="subjects" />} />
-                    <Route path={routes.trainingClasses} element={<FlowWorkbench workspaceKey="training" moduleKey="classes" />} />
+                    <Route path={routes.trainingSubjects} element={<CoursesPage workspaceKey="training" />} />
+                    <Route path={routes.trainingClasses} element={<ClassesPage workspaceKey="training" />} />
                     <Route path={routes.trainingGrades} element={<FlowWorkbench workspaceKey="training" moduleKey="grades" />} />
                     <Route path={routes.department} element={<FlowWorkbench workspaceKey="department" />} />
                     <Route path={routes.departmentUsers} element={<AdminUsers workspaceKey="department" />} />
                     <Route path={routes.departmentDepartments} element={<FlowWorkbench workspaceKey="department" moduleKey="departments" />} />
                     <Route path={routes.departmentPermissions} element={<AdminPermissions workspaceKey="department" />} />
-                    <Route path={routes.departmentProposals} element={<FlowWorkbench workspaceKey="department" moduleKey="proposals" />} />
-                    <Route path={routes.departmentClasses} element={<FlowWorkbench workspaceKey="department" moduleKey="classes" />} />
+                    <Route path={routes.departmentProposals} element={<CoursesPage workspaceKey="department" />} />
+                    <Route path={routes.departmentClasses} element={<ClassesPage workspaceKey="department" />} />
                     <Route path={routes.teacher} element={<FlowWorkbench workspaceKey="teacher" />} />
                     <Route path={routes.teacherUsers} element={<AdminUsers workspaceKey="teacher" />} />
                     <Route path={routes.teacherDepartments} element={<FlowWorkbench workspaceKey="teacher" moduleKey="departments" />} />
                     <Route path={routes.teacherPermissions} element={<AdminPermissions workspaceKey="teacher" />} />
-                    <Route path={routes.teacherClasses} element={<FlowWorkbench workspaceKey="teacher" moduleKey="classes" />} />
+                    <Route path={routes.teacherClasses} element={<ClassesPage workspaceKey="teacher" />} />
                     <Route path={routes.teacherLessons} element={<FlowWorkbench workspaceKey="teacher" moduleKey="lessons" />} />
                     <Route path={routes.teacherExams} element={<FlowWorkbench workspaceKey="teacher" moduleKey="exams" />} />
                     <Route path={routes.teacherGrades} element={<FlowWorkbench workspaceKey="teacher" moduleKey="grades" />} />
@@ -75,8 +77,8 @@ export default function App() {
                     <Route path={routes.studentUsers} element={<AdminUsers workspaceKey="student" />} />
                     <Route path={routes.studentDepartments} element={<FlowWorkbench workspaceKey="student" moduleKey="departments" />} />
                     <Route path={routes.studentPermissions} element={<AdminPermissions workspaceKey="student" />} />
-                    <Route path={routes.studentRegistration} element={<FlowWorkbench workspaceKey="student" moduleKey="registration" />} />
-                    <Route path={routes.studentClasses} element={<FlowWorkbench workspaceKey="student" moduleKey="classes" />} />
+                    <Route path={routes.studentRegistration} element={<ClassesPage workspaceKey="student" />} />
+                    <Route path={routes.studentClasses} element={<ClassesPage workspaceKey="student" />} />
                     <Route path={routes.studentExams} element={<FlowWorkbench workspaceKey="student" moduleKey="exams" />} />
                     <Route path={routes.studentGrades} element={<FlowWorkbench workspaceKey="student" moduleKey="grades" />} />
                     <Route path="/:workspaceKey/:moduleSegment" element={<WorkspaceModuleRoute />} />
