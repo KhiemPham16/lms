@@ -38,11 +38,6 @@ export class CreateClassDto {
     @IsInt()
     lecturerId?: number;
 
-    @ApiPropertyOptional({ example: 7 })
-    @IsOptional()
-    @IsInt()
-    assistantId?: number;
-
     @ApiProperty({ example: 40 })
     @IsInt()
     @Min(1)

@@ -1,10 +1,17 @@
-import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+    BadRequestException,
+    ConflictException,
+    ForbiddenException,
+    Injectable,
+    NotFoundException
+} from '@nestjs/common';
 import { AuditAction, ClassStatus, CourseStatus, EnrollmentStatus, Prisma } from '@prisma/client';
 
 import { AuditLogsService } from '~/modules/audit-logs/audit-logs.service';
+import { NotificationsService } from '~/modules/notifications/notifications.service';
 import { PrismaService } from '~/prisma/prisma.service';
 import { AssignClassHeadDto } from './dto/assign-class-head.dto';
-import { AssignLecturerDto, ClassTeacherRole } from './dto/assign-lecturer.dto';
+import { AssignLecturerDto } from './dto/assign-lecturer.dto';
 import { CreateClassDto } from './dto/create-class.dto';
 import { QueryClassDto } from './dto/query-class.dto';
 import { UpdateClassDto } from './dto/update-class.dto';
@@ -20,7 +27,6 @@ const classSelect = (includeEnrollments = false) =>
         semester: true,
         academicYear: true,
         lecturerId: true,
-        assistantId: true,
         departmentHeadId: true,
         maxStudents: true,
         minStudents: true,
@@ -68,16 +74,6 @@ const classSelect = (includeEnrollments = false) =>
                 departmentId: true
             }
         },
-        assistant: {
-            select: {
-                id: true,
-                publicId: true,
-                code: true,
-                fullName: true,
-                email: true,
-                departmentId: true
-            }
-        },
         departmentHead: {
             select: {
                 id: true,
@@ -114,7 +110,9 @@ const classSelect = (includeEnrollments = false) =>
                     where: {
                         status: EnrollmentStatus.APPROVED
                     }
-                }
+                },
+                lessonSections: true,
+                lessons: true
             }
         },
         createdAt: true,
@@ -124,7 +122,7 @@ const classSelect = (includeEnrollments = false) =>
 type ClassWithDetails = Prisma.ClassGetPayload<{ select: ReturnType<typeof classSelect> }>;
 type ClassAuditValueSource = Pick<
     ClassWithDetails,
-    'code' | 'name' | 'courseId' | 'lecturerId' | 'assistantId' | 'departmentHeadId' | 'maxStudents' | 'status'
+    'code' | 'name' | 'courseId' | 'lecturerId' | 'departmentHeadId' | 'maxStudents' | 'status'
 >;
 type FormattedClass = Omit<ClassWithDetails, 'id' | '_count'> & {
     weeklyScheduleText: string;
@@ -138,7 +136,8 @@ type FormattedClass = Omit<ClassWithDetails, 'id' | '_count'> & {
 export class ClassesService {
     constructor(
         private readonly prisma: PrismaService,
-        private readonly auditLogsService: AuditLogsService
+        private readonly auditLogsService: AuditLogsService,
+        private readonly notificationsService: NotificationsService
     ) {}
 
     async create(coursePublicId: string, dto: CreateClassDto, actorPublicId: string) {
@@ -151,12 +150,11 @@ export class ClassesService {
 
         const departmentHeadId = dto.departmentHeadId ?? course.departmentHeadId;
         if (!departmentHeadId) {
-            throw new BadRequestException('Phai gan truong bo mon truoc khi tao lop');
+            throw new BadRequestException('Phải gắn trưởng bộ môn trước khi tạo lớp');
         }
 
         await this.ensureDepartmentHead(departmentHeadId, course.departmentId);
         if (dto.lecturerId) await this.ensureLecturer(dto.lecturerId, course.departmentId);
-        if (dto.assistantId) await this.ensureLecturer(dto.assistantId, course.departmentId);
 
         const createdClass = await this.prisma.$transaction(async (tx) => {
             const classItem = await tx.class.create({
@@ -177,6 +175,8 @@ export class ClassesService {
                 tx
             );
 
+            await this.notifyClassCreated(classItem, actor.id, tx);
+
             return classItem;
         });
 
@@ -188,40 +188,33 @@ export class ClassesService {
         const total = await this.prisma.class.count({ where });
         const approvedEnrollmentWhere = { ...where, enrollments: { some: { status: EnrollmentStatus.APPROVED } } };
 
-        const [
-            draft,
-            openRegistration,
-            closedRegistration,
-            inProgress,
-            completed,
-            totalRegistered,
-            fullCandidates
-        ] = await Promise.all([
-            this.prisma.class.count({ where: { ...where, status: ClassStatus.DRAFT } }),
-            this.prisma.class.count({ where: { ...where, status: ClassStatus.OPEN_REGISTRATION } }),
-            this.prisma.class.count({ where: { ...where, status: ClassStatus.CLOSED_REGISTRATION } }),
-            this.prisma.class.count({ where: { ...where, status: ClassStatus.IN_PROGRESS } }),
-            this.prisma.class.count({ where: { ...where, status: ClassStatus.COMPLETED } }),
-            this.prisma.enrollment.count({
-                where: {
-                    status: EnrollmentStatus.APPROVED,
-                    class: where
-                }
-            }),
-            this.prisma.class.findMany({
-                where: approvedEnrollmentWhere,
-                select: {
-                    maxStudents: true,
-                    _count: {
-                        select: {
-                            enrollments: {
-                                where: { status: EnrollmentStatus.APPROVED }
+        const [draft, openRegistration, closedRegistration, inProgress, completed, totalRegistered, fullCandidates] =
+            await Promise.all([
+                this.prisma.class.count({ where: { ...where, status: ClassStatus.DRAFT } }),
+                this.prisma.class.count({ where: { ...where, status: ClassStatus.OPEN_REGISTRATION } }),
+                this.prisma.class.count({ where: { ...where, status: ClassStatus.CLOSED_REGISTRATION } }),
+                this.prisma.class.count({ where: { ...where, status: ClassStatus.IN_PROGRESS } }),
+                this.prisma.class.count({ where: { ...where, status: ClassStatus.COMPLETED } }),
+                this.prisma.enrollment.count({
+                    where: {
+                        status: EnrollmentStatus.APPROVED,
+                        class: where
+                    }
+                }),
+                this.prisma.class.findMany({
+                    where: approvedEnrollmentWhere,
+                    select: {
+                        maxStudents: true,
+                        _count: {
+                            select: {
+                                enrollments: {
+                                    where: { status: EnrollmentStatus.APPROVED }
+                                }
                             }
                         }
                     }
-                }
-            })
-        ]);
+                })
+            ]);
 
         const full = fullCandidates.filter((item) => item._count.enrollments >= item.maxStudents).length;
         const trend = total > 0 ? '100%' : '0%';
@@ -253,6 +246,36 @@ export class ClassesService {
         const limit = query.limit ?? 10;
         const skip = (page - 1) * limit;
         const where = this.buildClassWhere(query);
+        const needsSlotFilter = query.isFull !== undefined || query.hasAvailableSlots !== undefined;
+
+        if (needsSlotFilter) {
+            const allItems = await this.prisma.class.findMany({
+                where,
+                orderBy: { updatedAt: 'desc' },
+                select: this.classSelect()
+            });
+
+            const filteredItems = allItems
+                .map((item) => this.formatClass(item))
+                .filter((item) => {
+                    if (query.isFull !== undefined) return item.isFull === query.isFull;
+                    if (query.hasAvailableSlots !== undefined) {
+                        return query.hasAvailableSlots ? item.availableSlots > 0 : item.availableSlots <= 0;
+                    }
+                    return true;
+                });
+            const total = filteredItems.length;
+
+            return {
+                items: filteredItems.slice(skip, skip + limit),
+                meta: {
+                    page,
+                    limit,
+                    total,
+                    totalPages: Math.ceil(total / limit)
+                }
+            };
+        }
 
         const [items, total] = await Promise.all([
             this.prisma.class.findMany({
@@ -265,15 +288,8 @@ export class ClassesService {
             this.prisma.class.count({ where })
         ]);
 
-        let formattedItems = items.map((item) => this.formatClass(item));
-        if (query.isFull !== undefined || query.hasAvailableSlots !== undefined) {
-            formattedItems = formattedItems.filter((item) =>
-                query.isFull !== undefined ? item.isFull === query.isFull : item.availableSlots > 0
-            );
-        }
-
         return {
-            items: formattedItems,
+            items: items.map((item) => this.formatClass(item)),
             meta: {
                 page,
                 limit,
@@ -290,7 +306,7 @@ export class ClassesService {
         });
 
         if (!classItem) {
-            throw new NotFoundException('Khong tim thay lop hoc');
+            throw new NotFoundException('Không tìm thấy lớp học');
         }
 
         return this.formatClass(classItem);
@@ -309,12 +325,14 @@ export class ClassesService {
             await this.ensureClassCodeAvailable(dto.code, publicId);
         }
         if (dto.startDate || dto.endDate) {
-            this.ensureValidClassDates(dto.startDate ?? classItem.startDate.toISOString(), dto.endDate ?? classItem.endDate.toISOString());
+            this.ensureValidClassDates(
+                dto.startDate ?? classItem.startDate.toISOString(),
+                dto.endDate ?? classItem.endDate.toISOString()
+            );
         }
         this.ensureValidRegistrationDates(dto.registrationStartDate, dto.registrationEndDate);
         if (dto.departmentHeadId) await this.ensureDepartmentHead(dto.departmentHeadId, course.departmentId);
         if (dto.lecturerId) await this.ensureLecturer(dto.lecturerId, course.departmentId);
-        if (dto.assistantId) await this.ensureLecturer(dto.assistantId, course.departmentId);
 
         const updatedClass = await this.prisma.$transaction(async (tx) => {
             const updated = await tx.class.update({
@@ -349,7 +367,7 @@ export class ClassesService {
         const classItem = await this.findClassRecordOrThrow(publicId);
 
         if (classItem._count.enrollments > 0) {
-            throw new BadRequestException('Lop da co sinh vien nen khong duoc xoa cung');
+            throw new BadRequestException('Lớp đã có sinh viên nên không được xóa');
         }
 
         await this.prisma.$transaction(async (tx) => {
@@ -399,6 +417,21 @@ export class ClassesService {
                 tx
             );
 
+            await this.notificationsService.createMany(
+                {
+                    recipientIds: [updated.departmentHeadId],
+                    actorId: actor.id,
+                    type: 'CLASS_DEPARTMENT_HEAD_ASSIGNED',
+                    title: `Lớp ${updated.code} thuộc môn bạn phụ trách`,
+                    message: `Lớp ${updated.name} đã được gán vào phạm vi phụ trách của bạn.`,
+                    data: {
+                        classPublicId: updated.publicId,
+                        coursePublicId: updated.course.publicId
+                    }
+                },
+                tx
+            );
+
             return updated;
         });
 
@@ -411,15 +444,10 @@ export class ClassesService {
         this.ensureCanManageClass(actor, classItem);
         await this.ensureLecturer(dto.lecturerId, classItem.course.departmentId);
 
-        const data =
-            dto.role === ClassTeacherRole.ASSISTANT
-                ? { assistantId: dto.lecturerId }
-                : { lecturerId: dto.lecturerId };
-
         const updatedClass = await this.prisma.$transaction(async (tx) => {
             const updated = await tx.class.update({
                 where: { publicId },
-                data,
+                data: { lecturerId: dto.lecturerId },
                 select: this.classSelect()
             });
 
@@ -431,8 +459,23 @@ export class ClassesService {
                     targetType: 'Class',
                     targetId: updated.id,
                     targetPublicId: updated.publicId,
-                    oldValue: { lecturerId: classItem.lecturerId, assistantId: classItem.assistantId },
-                    newValue: { ...data, role: dto.role, startsAt: dto.startsAt, note: dto.note }
+                    oldValue: { lecturerId: classItem.lecturerId },
+                    newValue: { lecturerId: dto.lecturerId, startsAt: dto.startsAt, note: dto.note }
+                },
+                tx
+            );
+
+            await this.notificationsService.createMany(
+                {
+                    recipientIds: [dto.lecturerId],
+                    actorId: actor.id,
+                    type: 'CLASS_LECTURER_ASSIGNED',
+                    title: `Bạn được phân công lớp: ${updated.code}`,
+                    message: `Bạn đã được gán làm giảng viên của lớp ${updated.name}.`,
+                    data: {
+                        classPublicId: updated.publicId,
+                        coursePublicId: updated.course.publicId
+                    }
                 },
                 tx
             );
@@ -477,10 +520,151 @@ export class ClassesService {
                 tx
             );
 
+            await this.notifyClassStatusChange(updated, actor.id, tx);
+
             return updated;
         });
 
         return this.formatClass(updatedClass);
+    }
+
+    async complete(publicId: string, actorPublicId: string) {
+        return this.updateStatus(publicId, ClassStatus.COMPLETED, actorPublicId);
+    }
+
+    async copyContentFrom(targetPublicId: string, sourcePublicId: string, actorPublicId: string) {
+        const actor = await this.findUserByPublicIdOrThrow(actorPublicId);
+        const [targetClass, sourceClass] = await Promise.all([
+            this.findClassRecordOrThrow(targetPublicId),
+            this.findClassRecordOrThrow(sourcePublicId)
+        ]);
+        this.ensureCanManageClass(actor, targetClass);
+
+        if (targetClass.id === sourceClass.id) {
+            throw new BadRequestException('Không thể copy nội dung từ chính lớp này');
+        }
+
+        if (targetClass.courseId !== sourceClass.courseId) {
+            throw new BadRequestException('Chỉ được copy nội dung giữa các lớp cùng môn học');
+        }
+
+        if ((targetClass._count.lessonSections ?? 0) > 0 || (targetClass._count.lessons ?? 0) > 0) {
+            throw new BadRequestException('Lớp đích đã có nội dung bài học');
+        }
+
+        const sourceSections = await this.prisma.lessonSection.findMany({
+            where: { classId: sourceClass.id },
+            orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
+            select: {
+                id: true,
+                title: true,
+                description: true,
+                sortOrder: true,
+                isPublished: true,
+                lessons: {
+                    orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
+                    select: {
+                        title: true,
+                        description: true,
+                        type: true,
+                        content: true,
+                        resourceUrl: true,
+                        codeConfig: true,
+                        durationMinutes: true,
+                        sortOrder: true,
+                        isPublished: true
+                    }
+                }
+            }
+        });
+
+        const standaloneLessons = await this.prisma.lesson.findMany({
+            where: {
+                classId: sourceClass.id,
+                sectionId: null
+            },
+            orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
+            select: {
+                title: true,
+                description: true,
+                type: true,
+                content: true,
+                resourceUrl: true,
+                codeConfig: true,
+                durationMinutes: true,
+                sortOrder: true,
+                isPublished: true
+            }
+        });
+
+        const copiedClass = await this.prisma.$transaction(async (tx) => {
+            for (const section of sourceSections) {
+                await tx.lessonSection.create({
+                    data: {
+                        classId: targetClass.id,
+                        title: section.title,
+                        description: section.description,
+                        sortOrder: section.sortOrder,
+                        isPublished: section.isPublished,
+                        lessons: {
+                            create: section.lessons.map((lesson) => ({
+                                classId: targetClass.id,
+                                title: lesson.title,
+                                description: lesson.description,
+                                type: lesson.type,
+                                content: lesson.content,
+                                resourceUrl: lesson.resourceUrl,
+                                codeConfig: lesson.codeConfig === null ? undefined : lesson.codeConfig,
+                                durationMinutes: lesson.durationMinutes,
+                                sortOrder: lesson.sortOrder,
+                                isPublished: lesson.isPublished
+                            }))
+                        }
+                    }
+                });
+            }
+
+            if (standaloneLessons.length > 0) {
+                await tx.lesson.createMany({
+                    data: standaloneLessons.map((lesson) => ({
+                        classId: targetClass.id,
+                        title: lesson.title,
+                        description: lesson.description,
+                        type: lesson.type,
+                        content: lesson.content,
+                        resourceUrl: lesson.resourceUrl,
+                        codeConfig: lesson.codeConfig === null ? undefined : lesson.codeConfig,
+                        durationMinutes: lesson.durationMinutes,
+                        sortOrder: lesson.sortOrder,
+                        isPublished: lesson.isPublished
+                    }))
+                });
+            }
+
+            await this.auditLogsService.create(
+                {
+                    actorId: actor.id,
+                    action: AuditAction.CREATE,
+                    module: 'class_content',
+                    targetType: 'Class',
+                    targetId: targetClass.id,
+                    targetPublicId: targetClass.publicId,
+                    newValue: {
+                        sourceClassPublicId: sourceClass.publicId,
+                        sectionCount: sourceSections.length,
+                        standaloneLessonCount: standaloneLessons.length
+                    }
+                },
+                tx
+            );
+
+            return tx.class.findUniqueOrThrow({
+                where: { id: targetClass.id },
+                select: this.classSelect()
+            });
+        });
+
+        return this.formatClass(copiedClass);
     }
 
     private buildClassWhere(query: QueryClassDto): Prisma.ClassWhereInput {
@@ -511,14 +695,17 @@ export class ClassesService {
         };
     }
 
-    private toClassData(dto: CreateClassDto, courseId: number, departmentHeadId: number): Prisma.ClassUncheckedCreateInput {
+    private toClassData(
+        dto: CreateClassDto,
+        courseId: number,
+        departmentHeadId: number
+    ): Prisma.ClassUncheckedCreateInput {
         return {
             code: dto.code,
             name: dto.name,
             description: dto.description,
             courseId,
             lecturerId: dto.lecturerId,
-            assistantId: dto.assistantId,
             departmentHeadId,
             semester: dto.semester,
             academicYear: dto.academicYear,
@@ -546,7 +733,6 @@ export class ClassesService {
             name: dto.name,
             description: dto.description,
             lecturerId: dto.lecturerId,
-            assistantId: dto.assistantId,
             departmentHeadId: dto.departmentHeadId,
             semester: dto.semester,
             academicYear: dto.academicYear,
@@ -574,8 +760,9 @@ export class ClassesService {
             select: { id: true, status: true, departmentId: true, departmentHeadId: true }
         });
 
-        if (!course) throw new NotFoundException('Khong tim thay mon hoc');
-        if (course.status !== CourseStatus.ACTIVE) throw new BadRequestException('Chi co the tao lop tu mon ACTIVE');
+        if (!course) throw new NotFoundException('Không tìm thấy môn học');
+        if (course.status !== CourseStatus.ACTIVE)
+            throw new BadRequestException('Chỉ có thể tạo lớp từ môn học ACTIVE');
         return course;
     }
 
@@ -587,40 +774,52 @@ export class ClassesService {
             }
         });
 
-        if (duplicate) throw new ConflictException('Ma lop hoc da ton tai');
+        if (duplicate) throw new ConflictException('Mã lớp học đã tồn tại');
     }
 
     private ensureTrainingOffice(actor: { role: { code: string } }) {
         if (!['ADMIN', 'TRAINING_OFFICER'].includes(actor.role.code)) {
-            throw new ForbiddenException('Chi Phong dao tao duoc tao hoac cap nhat lop hoc');
+            throw new ForbiddenException('Chỉ Phòng đào tạo mới được thao tác');
         }
     }
 
-    private ensureCanManageClass(actor: { id: number; role: { code: string } }, classItem: { departmentHeadId: number }) {
+    private ensureCanManageClass(
+        actor: { id: number; role: { code: string } },
+        classItem: { departmentHeadId: number; lecturerId?: number | null }
+    ) {
         if (['ADMIN', 'TRAINING_OFFICER'].includes(actor.role.code)) return;
+        if (actor.role.code === 'LECTURER' && actor.id === classItem.lecturerId) return;
         if (actor.role.code !== 'DEPARTMENT_HEAD' || actor.id !== classItem.departmentHeadId) {
-            throw new ForbiddenException('Chi truong bo mon quan ly lop nay moi duoc thao tac');
+            throw new ForbiddenException('Chỉ trưởng bộ môn quản lý lớp này mới được thao tác');
         }
     }
 
-    private ensureCanChangeStatus(actor: { id: number; role: { code: string } }, classItem: { departmentHeadId: number }) {
+    private ensureCanChangeStatus(
+        actor: { id: number; role: { code: string } },
+        classItem: { departmentHeadId: number }
+    ) {
         this.ensureCanManageClass(actor, classItem);
     }
 
-    private ensureStatusTransition(classItem: Awaited<ReturnType<ClassesService['findClassRecordOrThrow']>>, nextStatus: ClassStatus) {
+    private ensureStatusTransition(
+        classItem: Awaited<ReturnType<ClassesService['findClassRecordOrThrow']>>,
+        nextStatus: ClassStatus
+    ) {
         const terminalStatuses: ClassStatus[] = [ClassStatus.COMPLETED, ClassStatus.CANCELLED];
         if (terminalStatuses.includes(classItem.status)) {
-            throw new BadRequestException('Lop da ket thuc hoac da huy khong the doi trang thai');
+            throw new BadRequestException('Lớp đã kết thúc hoặc đã hủy không thể đổi trạng thái');
         }
 
         if (nextStatus === ClassStatus.OPEN_REGISTRATION) {
             const openableStatuses: ClassStatus[] = [ClassStatus.DRAFT, ClassStatus.CLOSED_REGISTRATION];
             if (!openableStatuses.includes(classItem.status)) {
-                throw new BadRequestException('Chi lop DRAFT hoac CLOSED_REGISTRATION moi duoc mo dang ky');
+                throw new BadRequestException('Chỉ lớp DRAFT hoặc CLOSED_REGISTRATION mới được mở đăng ký');
             }
-            if (classItem.course.status !== CourseStatus.ACTIVE) throw new BadRequestException('Mon hoc khong con ACTIVE');
-            if (!classItem.departmentHeadId) throw new BadRequestException('Lop chua co truong bo mon quan ly');
-            if (!classItem.maxStudents || classItem.maxStudents <= 0) throw new BadRequestException('Si so toi da khong hop le');
+            if (classItem.course.status !== CourseStatus.ACTIVE)
+                throw new BadRequestException('Môn học không còn ACTIVE');
+            if (!classItem.departmentHeadId) throw new BadRequestException('Lớp chưa có trưởng bộ môn quản lý');
+            if (!classItem.maxStudents || classItem.maxStudents <= 0)
+                throw new BadRequestException('Sĩ số tối đa không hợp lệ');
             this.ensureValidRegistrationDates(
                 classItem.registrationStartDate?.toISOString(),
                 classItem.registrationEndDate?.toISOString()
@@ -628,11 +827,15 @@ export class ClassesService {
         }
 
         if (nextStatus === ClassStatus.CLOSED_REGISTRATION && classItem.status !== ClassStatus.OPEN_REGISTRATION) {
-            throw new BadRequestException('Chi lop dang mo dang ky moi duoc dong dang ky');
+            throw new BadRequestException('Chỉ lớp đang mở đăng ký mới được đóng đăng ký');
         }
 
         if (nextStatus === ClassStatus.IN_PROGRESS && !classItem.lecturerId) {
-            throw new BadRequestException('Phai gan giang vien chinh truoc khi bat dau lop');
+            throw new BadRequestException('Phải gắn giảng viên chính trước khi bắt đầu lớp');
+        }
+
+        if (nextStatus === ClassStatus.COMPLETED && classItem.status !== ClassStatus.IN_PROGRESS) {
+            throw new BadRequestException('Chỉ lớp đang học mới được hoàn thành');
         }
     }
 
@@ -647,7 +850,7 @@ export class ClassesService {
             },
             select: { id: true }
         });
-        if (!user) throw new BadRequestException('Truong bo mon khong hop le voi bo mon cua lop');
+        if (!user) throw new BadRequestException('Trưởng bộ môn không hợp lệ với bộ môn của lớp');
     }
 
     private async ensureLecturer(lecturerId: number, departmentId: number) {
@@ -661,14 +864,14 @@ export class ClassesService {
             },
             select: { id: true }
         });
-        if (!lecturer) throw new BadRequestException('Giang vien khong hop le voi bo mon cua lop');
+        if (!lecturer) throw new BadRequestException('Giảng viên không hợp lệ với bộ môn của lớp');
     }
 
     private ensureValidClassDates(startDate: string, endDate: string) {
         const start = new Date(startDate);
         const end = new Date(endDate);
         if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || start >= end) {
-            throw new BadRequestException('Ngay ket thuc phai sau ngay bat dau');
+            throw new BadRequestException('Ngày kết thúc phải sau ngày bắt đầu');
         }
     }
 
@@ -677,7 +880,7 @@ export class ClassesService {
         const start = new Date(startDate);
         const end = new Date(endDate);
         if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || start >= end) {
-            throw new BadRequestException('Ngay dong dang ky phai sau ngay mo dang ky');
+            throw new BadRequestException('Ngày đóng đăng ký phải sau ngày mở đăng ký');
         }
     }
 
@@ -691,8 +894,8 @@ export class ClassesService {
                 role: { select: { code: true } }
             }
         });
-        if (!user) throw new NotFoundException('Khong tim thay nguoi dung');
-        if (!user.role) throw new ForbiddenException('Nguoi dung chua duoc gan vai tro');
+        if (!user) throw new NotFoundException('Không tìm thấy người dùng');
+        if (!user.role) throw new ForbiddenException('Người dùng chưa được gán vai trò');
         return { ...user, role: user.role };
     }
 
@@ -701,8 +904,88 @@ export class ClassesService {
             where: { publicId },
             select: this.classSelect()
         });
-        if (!classItem) throw new NotFoundException('Khong tim thay lop hoc');
+        if (!classItem) throw new NotFoundException('Không tìm thấy lớp học');
         return classItem;
+    }
+
+    private async notifyClassStatusChange(classItem: ClassWithDetails, actorId: number, tx: Prisma.TransactionClient) {
+        if (classItem.status === ClassStatus.OPEN_REGISTRATION) {
+            const students = await tx.user.findMany({
+                where: {
+                    deletedAt: null,
+                    status: 'ACTIVE',
+                    role: { code: 'STUDENT' }
+                },
+                select: { id: true }
+            });
+
+            await this.notificationsService.createMany(
+                {
+                    recipientIds: students.map((student) => student.id),
+                    actorId,
+                    type: 'CLASS_REGISTRATION_OPENED',
+                    title: `Mở đăng ký lớp ${classItem.code}`,
+                    message: `${classItem.name} đã mở đăng ký. Sĩ số tối đa: ${classItem.maxStudents}.`,
+                    data: {
+                        classPublicId: classItem.publicId,
+                        coursePublicId: classItem.course.publicId,
+                        status: classItem.status
+                    }
+                },
+                tx
+            );
+        }
+
+        if (classItem.status === ClassStatus.COMPLETED) {
+            const enrollments = await tx.enrollment.findMany({
+                where: {
+                    classId: classItem.id,
+                    status: EnrollmentStatus.APPROVED
+                },
+                select: { studentId: true }
+            });
+            const managerIds = [classItem.lecturerId, classItem.departmentHeadId].filter(
+                (id): id is number => typeof id === 'number'
+            );
+
+            await this.notificationsService.createMany(
+                {
+                    recipientIds: [...enrollments.map((enrollment) => enrollment.studentId), ...managerIds],
+                    actorId,
+                    type: 'CLASS_COMPLETED',
+                    title: `Lớp ${classItem.code} đã hoàn thành`,
+                    message: `${classItem.name} đã được chuyển sang trạng thái hoàn thành.`,
+                    data: {
+                        classPublicId: classItem.publicId,
+                        coursePublicId: classItem.course.publicId,
+                        status: classItem.status
+                    }
+                },
+                tx
+            );
+        }
+    }
+
+    private async notifyClassCreated(classItem: ClassWithDetails, actorId: number, tx: Prisma.TransactionClient) {
+        const recipientIds = [classItem.departmentHeadId, classItem.lecturerId].filter(
+            (id): id is number => typeof id === 'number'
+        );
+
+        await this.notificationsService.createMany(
+            {
+                recipientIds,
+                actorId,
+                type: 'CLASS_CREATED',
+                title: `Lớp mới được tạo: ${classItem.code}`,
+                message: `${classItem.name} đã được tạo cho môn ${classItem.course.name}.`,
+                data: {
+                    classPublicId: classItem.publicId,
+                    coursePublicId: classItem.course.publicId,
+                    status: classItem.status
+                }
+            },
+            tx
+        );
     }
 
     private classSelect(includeEnrollments = false) {
@@ -715,7 +998,6 @@ export class ClassesService {
             name: classItem.name,
             courseId: classItem.courseId,
             lecturerId: classItem.lecturerId,
-            assistantId: classItem.assistantId,
             departmentHeadId: classItem.departmentHeadId,
             maxStudents: classItem.maxStudents,
             status: classItem.status

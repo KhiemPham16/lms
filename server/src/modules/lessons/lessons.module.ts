@@ -3,12 +3,12 @@ import { JwtModule } from '@nestjs/jwt';
 
 import { AuditLogsModule } from '~/modules/audit-logs/audit-logs.module';
 import { NotificationsModule } from '~/modules/notifications/notifications.module';
-import { ClassesController } from './classes.controller';
-import { ClassesService } from './classes.service';
+import { LessonsController } from './lessons.controller';
+import { LessonsService } from './lessons.service';
 
 @Module({
     imports: [JwtModule.register({}), AuditLogsModule, NotificationsModule],
-    controllers: [ClassesController],
-    providers: [ClassesService]
+    controllers: [LessonsController],
+    providers: [LessonsService]
 })
-export class ClassesModule {}
+export class LessonsModule {}

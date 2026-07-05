@@ -67,6 +67,30 @@ enum EnrollmentStatus {
   DROPPED
 }
 
+enum LessonType {
+  TEXT
+  VIDEO
+  DOCUMENT
+  FILE
+  LINK
+  CODE
+}
+
+enum ExamQuestionType {
+  SINGLE_CHOICE
+  MULTIPLE_CHOICE
+}
+
+enum ExamAttemptStatus {
+  IN_PROGRESS
+  SUBMITTED
+}
+
+enum GradeStatus {
+  PASS
+  FAIL
+}
+
 enum AuditAction {
   CREATE
   UPDATE
@@ -125,6 +149,12 @@ model User {
   assistingClasses   Class[]          @relation("AssistingClasses")
   managedClasses     Class[]          @relation("ManagedClasses")
   studentEnrollments Enrollment[]     @relation("StudentEnrollments")
+  lessonProgresses   LessonProgress[] @relation("StudentLessonProgresses")
+  examAttempts       ExamAttempt[]    @relation("StudentExamAttempts")
+  codeSubmissions    CodeSubmission[] @relation("StudentCodeSubmissions")
+  grades             Grade[]          @relation("StudentGrades")
+  notifications      Notification[]   @relation("UserNotifications")
+  sentNotifications  Notification[]   @relation("NotificationActors")
   courseApprovals    CourseApproval[] @relation("CourseApprovals")
   auditLogs          AuditLog[]       @relation("AuditLogs")
 
@@ -220,8 +250,8 @@ model Course {
   code String @unique
   name String
 
-  description String? @db.Text
-  credits     Int
+  description         String? @db.Text
+  credits             Int
   requestedClassCount Int?
 
   departmentId Int
@@ -230,8 +260,8 @@ model Course {
   departmentHeadId Int?
   departmentHead   User? @relation("ManagedCourses", fields: [departmentHeadId], references: [id])
 
-  status CourseStatus @default(DRAFT)
-  requiresPrincipalApproval Boolean @default(true)
+  status                    CourseStatus @default(DRAFT)
+  requiresPrincipalApproval Boolean      @default(true)
 
   proposedById Int
   proposedBy   User @relation("ProposedCourses", fields: [proposedById], references: [id])
@@ -315,8 +345,8 @@ model Class {
   id       Int    @id @default(autoincrement())
   publicId String @unique @default(uuid())
 
-  code String @unique
-  name String
+  code        String  @unique
+  name        String
   description String? @db.Text
 
   courseId Int
@@ -331,30 +361,34 @@ model Class {
   departmentHeadId Int
   departmentHead   User @relation("ManagedClasses", fields: [departmentHeadId], references: [id])
 
-  semester String?
-  academicYear String?
-  maxStudents Int
-  minStudents Int?
+  semester      String?
+  academicYear  String?
+  maxStudents   Int
+  minStudents   Int?
   allowWaitlist Boolean @default(false)
 
-  startDate DateTime
-  endDate   DateTime
+  startDate      DateTime
+  endDate        DateTime
   weeklySchedule Json?
-  studyShift String?
-  room String?
-  onlineUrl String?
+  studyShift     String?
+  room           String?
+  onlineUrl      String?
 
   registrationStartDate DateTime?
-  registrationEndDate DateTime?
-  registrationOpenedAt DateTime?
-  registrationClosedAt DateTime?
-  allowStudentDrop Boolean @default(true)
-  checkScheduleConflict Boolean @default(false)
-  autoCloseWhenFull Boolean @default(true)
+  registrationEndDate   DateTime?
+  registrationOpenedAt  DateTime?
+  registrationClosedAt  DateTime?
+  allowStudentDrop      Boolean   @default(true)
+  checkScheduleConflict Boolean   @default(false)
+  autoCloseWhenFull     Boolean   @default(true)
 
   status ClassStatus @default(DRAFT)
 
-  enrollments Enrollment[]
+  enrollments    Enrollment[]
+  lessonSections LessonSection[]
+  lessons        Lesson[]
+  exams          Exam[]
+  grades         Grade[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -385,4 +419,263 @@ model Enrollment {
   @@index([studentId])
   @@index([classId])
   @@index([status])
+}
+
+model LessonSection {
+  id       Int    @id @default(autoincrement())
+  publicId String @unique @default(uuid())
+
+  classId Int
+  class   Class @relation(fields: [classId], references: [id], onDelete: Cascade)
+
+  title       String
+  description String? @db.Text
+  sortOrder   Int
+  isPublished Boolean @default(false)
+
+  lessons Lesson[]
+  exams   Exam[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([classId, sortOrder])
+  @@index([classId])
+  @@index([isPublished])
+}
+
+model Lesson {
+  id       Int    @id @default(autoincrement())
+  publicId String @unique @default(uuid())
+
+  classId Int
+  class   Class @relation(fields: [classId], references: [id], onDelete: Cascade)
+
+  sectionId Int?
+  section   LessonSection? @relation(fields: [sectionId], references: [id], onDelete: SetNull)
+
+  title           String
+  description     String?    @db.Text
+  type            LessonType @default(TEXT)
+  content         String?    @db.Text
+  resourceUrl     String?
+  codeConfig      Json?
+  durationMinutes Int?
+  sortOrder       Int
+  isPublished     Boolean    @default(false)
+
+  progress        LessonProgress[]
+  exams           Exam[]
+  codeSubmissions CodeSubmission[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([sectionId, sortOrder])
+  @@index([classId])
+  @@index([sectionId])
+  @@index([isPublished])
+}
+
+model CodeSubmission {
+  id       Int    @id @default(autoincrement())
+  publicId String @unique @default(uuid())
+
+  lessonId Int
+  lesson   Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  studentId Int
+  student   User @relation("StudentCodeSubmissions", fields: [studentId], references: [id], onDelete: Cascade)
+
+  files       Json
+  results     Json?
+  passed      Boolean  @default(false)
+  score       Float?
+  submittedAt DateTime @default(now())
+
+  @@index([lessonId])
+  @@index([studentId])
+  @@index([passed])
+  @@index([submittedAt])
+}
+
+model Exam {
+  id       Int    @id @default(autoincrement())
+  publicId String @unique @default(uuid())
+
+  classId Int
+  class   Class @relation(fields: [classId], references: [id], onDelete: Cascade)
+
+  sectionId Int?
+  section   LessonSection? @relation(fields: [sectionId], references: [id], onDelete: SetNull)
+
+  lessonId Int?
+  lesson   Lesson? @relation(fields: [lessonId], references: [id], onDelete: SetNull)
+
+  title       String
+  description String? @db.Text
+
+  durationMinutes Int?
+  maxAttempts     Int     @default(1)
+  passScore       Float   @default(5)
+  isPublished     Boolean @default(false)
+
+  questions ExamQuestion[]
+  attempts  ExamAttempt[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([classId])
+  @@index([sectionId])
+  @@index([lessonId])
+  @@index([isPublished])
+}
+
+model ExamQuestion {
+  id       Int    @id @default(autoincrement())
+  publicId String @unique @default(uuid())
+
+  examId Int
+  exam   Exam @relation(fields: [examId], references: [id], onDelete: Cascade)
+
+  type      ExamQuestionType @default(SINGLE_CHOICE)
+  content   String           @db.Text
+  points    Float            @default(1)
+  sortOrder Int
+
+  options ExamOption[]
+  answers ExamAnswer[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([examId, sortOrder])
+  @@index([examId])
+}
+
+model ExamOption {
+  id       Int    @id @default(autoincrement())
+  publicId String @unique @default(uuid())
+
+  questionId Int
+  question   ExamQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  content   String  @db.Text
+  isCorrect Boolean @default(false)
+  sortOrder Int
+
+  answers ExamAnswer[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([questionId, sortOrder])
+  @@index([questionId])
+}
+
+model ExamAttempt {
+  id       Int    @id @default(autoincrement())
+  publicId String @unique @default(uuid())
+
+  examId Int
+  exam   Exam @relation(fields: [examId], references: [id], onDelete: Cascade)
+
+  studentId Int
+  student   User @relation("StudentExamAttempts", fields: [studentId], references: [id], onDelete: Cascade)
+
+  status         ExamAttemptStatus @default(IN_PROGRESS)
+  score          Float?
+  focusLostCount Int               @default(0)
+  violationCount Int               @default(0)
+  startedAt      DateTime          @default(now())
+  submittedAt    DateTime?
+
+  answers ExamAnswer[]
+
+  @@index([examId])
+  @@index([studentId])
+  @@index([status])
+}
+
+model ExamAnswer {
+  id Int @id @default(autoincrement())
+
+  attemptId Int
+  attempt   ExamAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+
+  questionId Int
+  question   ExamQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  optionId Int
+  option   ExamOption @relation(fields: [optionId], references: [id], onDelete: Cascade)
+
+  @@unique([attemptId, questionId, optionId])
+  @@index([attemptId])
+  @@index([questionId])
+  @@index([optionId])
+}
+
+model Grade {
+  id       Int    @id @default(autoincrement())
+  publicId String @unique @default(uuid())
+
+  classId Int
+  class   Class @relation(fields: [classId], references: [id], onDelete: Cascade)
+
+  studentId Int
+  student   User @relation("StudentGrades", fields: [studentId], references: [id], onDelete: Cascade)
+
+  finalScore Float
+  passScore  Float       @default(5)
+  status     GradeStatus
+
+  calculatedAt DateTime @default(now())
+
+  @@unique([classId, studentId])
+  @@index([classId])
+  @@index([studentId])
+  @@index([status])
+}
+
+model LessonProgress {
+  id Int @id @default(autoincrement())
+
+  lessonId Int
+  lesson   Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  studentId Int
+  student   User @relation("StudentLessonProgresses", fields: [studentId], references: [id], onDelete: Cascade)
+
+  completedAt  DateTime?
+  lastViewedAt DateTime  @default(now())
+
+  @@unique([lessonId, studentId])
+  @@index([studentId])
+  @@index([lessonId])
+}
+
+model Notification {
+  id       Int    @id @default(autoincrement())
+  publicId String @unique @default(uuid())
+
+  recipientId Int
+  recipient   User @relation("UserNotifications", fields: [recipientId], references: [id], onDelete: Cascade)
+
+  actorId Int?
+  actor   User? @relation("NotificationActors", fields: [actorId], references: [id], onDelete: SetNull)
+
+  type    String
+  title   String
+  message String @db.Text
+  data    Json?
+
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([recipientId])
+  @@index([actorId])
+  @@index([type])
+  @@index([readAt])
+  @@index([createdAt])
 }

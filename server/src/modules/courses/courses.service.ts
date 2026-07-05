@@ -1,11 +1,19 @@
-import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
-import { ApprovalAction, ApprovalLevel, AuditAction, ClassStatus, CourseStatus, Prisma } from '@prisma/client';
+import {
+    BadRequestException,
+    ConflictException,
+    ForbiddenException,
+    Injectable,
+    NotFoundException
+} from '@nestjs/common';
+import { ApprovalAction, ApprovalLevel, AuditAction, CourseStatus, Prisma } from '@prisma/client';
 
 import { PrismaService } from '~/prisma/prisma.service';
 import { AuditLogsService } from '~/modules/audit-logs/audit-logs.service';
+import { NotificationsService } from '~/modules/notifications/notifications.service';
 import { ApproveCourseDto } from './dto/approve-course.dto';
 import { AssignCourseDepartmentHeadDto } from './dto/assign-course-department-head.dto';
 import { AssignCourseLecturersDto } from './dto/assign-course-lecturers.dto';
+import { CreateCourseDto } from './dto/create-course.dto';
 import { CreateCourseProposalDto } from './dto/create-course-proposal.dto';
 import { QueryCourseDto } from './dto/query-course.dto';
 import { UpdateCourseDto } from './dto/update-course.dto';
@@ -98,72 +106,87 @@ type CourseWithDetails = Prisma.CourseGetPayload<{ select: ReturnType<typeof cou
 export class CoursesService {
     constructor(
         private readonly prisma: PrismaService,
-        private readonly auditLogsService: AuditLogsService
+        private readonly auditLogsService: AuditLogsService,
+        private readonly notificationsService: NotificationsService
     ) {}
+
+    async createOfficialCourse(dto: CreateCourseDto, actorPublicId: string) {
+        const actor = await this.findUserByPublicIdOrThrow(actorPublicId);
+        this.ensureOfficialCatalogManager(actor);
+        await this.ensureDepartmentExists(dto.departmentId);
+        await this.ensureCourseCodeAvailable(dto.code);
+
+        if (dto.departmentHeadId !== undefined) {
+            await this.ensureDepartmentHead(dto.departmentHeadId, dto.departmentId);
+        }
+
+        const course = await this.prisma.$transaction(async (tx) => {
+            const createdCourse = await tx.course.create({
+                data: {
+                    code: dto.code,
+                    name: dto.name,
+                    description: dto.description,
+                    credits: dto.credits,
+                    requestedClassCount: dto.requestedClassCount,
+                    departmentId: dto.departmentId,
+                    departmentHeadId: dto.departmentHeadId,
+                    proposedById: actor.id,
+                    status: CourseStatus.ACTIVE,
+                    requiresPrincipalApproval: false
+                },
+                select: this.courseSelect()
+            });
+
+            await this.auditLogsService.create(
+                {
+                    actorId: actor.id,
+                    action: AuditAction.CREATE,
+                    module: 'courses',
+                    targetType: 'Course',
+                    targetId: createdCourse.id,
+                    targetPublicId: createdCourse.publicId,
+                    newValue: {
+                        source: 'official_curriculum',
+                        code: createdCourse.code,
+                        name: createdCourse.name,
+                        credits: createdCourse.credits,
+                        requestedClassCount: createdCourse.requestedClassCount,
+                        requiresPrincipalApproval: createdCourse.requiresPrincipalApproval,
+                        departmentId: createdCourse.departmentId,
+                        departmentHeadId: createdCourse.departmentHeadId,
+                        status: createdCourse.status
+                    }
+                },
+                tx
+            );
+
+            return createdCourse;
+        });
+
+        return this.formatCourse(course);
+    }
 
     async createProposal(dto: CreateCourseProposalDto, proposedByPublicId: string) {
         const proposedBy = await this.findUserByPublicIdOrThrow(proposedByPublicId);
+        this.ensureNewCourseProposalCreator(proposedBy.role.code);
         await this.ensureDepartmentExists(dto.departmentId);
 
-        const existingCourse = await this.prisma.course.findUnique({
-            where: { code: dto.code },
-            select: {
-                id: true,
-                status: true,
-                requiresPrincipalApproval: true
-            }
-        });
-
-        const pendingStatuses: CourseStatus[] = [
-            CourseStatus.PENDING_PDT,
-            CourseStatus.PDT_APPROVED,
-            CourseStatus.PENDING_PRINCIPAL
-        ];
-
-        if (existingCourse && pendingStatuses.includes(existingCourse.status)) {
-            throw new BadRequestException('Môn học này đang có đề xuất chờ duyệt');
-        }
-
-        const approvedCourseStatuses: CourseStatus[] = [CourseStatus.ACTIVE, CourseStatus.INACTIVE];
-        const isExistingApprovedCourse = existingCourse && approvedCourseStatuses.includes(existingCourse.status);
-        this.ensureProposalCreatorCanSubmit(proposedBy.role.code, Boolean(isExistingApprovedCourse));
-
-        const nextStatus = isExistingApprovedCourse ? CourseStatus.PENDING_PRINCIPAL : CourseStatus.PENDING_PDT;
+        await this.ensureCourseCodeAvailable(dto.code);
 
         const course = await this.prisma.$transaction(async (tx) => {
-            let course = existingCourse
-                ? await tx.course.update({
-                      where: { id: existingCourse.id },
-                      data: {
-                          ...(isExistingApprovedCourse
-                              ? {}
-                              : {
-                                    name: dto.name,
-                                    description: dto.description,
-                                    credits: dto.credits,
-                                    departmentId: dto.departmentId
-                                }),
-                          requestedClassCount: dto.requestedClassCount,
-                          proposedById: proposedBy.id,
-                          status: nextStatus,
-                          requiresPrincipalApproval: true
-                      },
-                      select: this.courseSelect()
-                  })
-                : await tx.course.create({
-                      data: {
-                          code: dto.code,
-                          name: dto.name,
-                          description: dto.description,
-                          credits: dto.credits,
-                          requestedClassCount: dto.requestedClassCount,
-                          departmentId: dto.departmentId,
-                          proposedById: proposedBy.id,
-                          status: nextStatus,
-                          requiresPrincipalApproval: true
-                      },
-                      select: this.courseSelect()
-                  });
+            const createdCourse = await tx.course.create({
+                data: {
+                    code: dto.code,
+                    name: dto.name,
+                    description: dto.description,
+                    credits: dto.credits,
+                    departmentId: dto.departmentId,
+                    proposedById: proposedBy.id,
+                    status: CourseStatus.PENDING_PDT,
+                    requiresPrincipalApproval: true
+                },
+                select: this.courseSelect()
+            });
 
             await this.auditLogsService.create(
                 {
@@ -171,64 +194,24 @@ export class CoursesService {
                     action: AuditAction.CREATE,
                     module: 'courses',
                     targetType: 'Course',
-                    targetId: course.id,
-                    targetPublicId: course.publicId,
+                    targetId: createdCourse.id,
+                    targetPublicId: createdCourse.publicId,
                     newValue: {
-                        code: course.code,
-                        name: course.name,
-                        credits: course.credits,
-                        requestedClassCount: course.requestedClassCount,
-                        requiresPrincipalApproval: course.requiresPrincipalApproval,
-                        departmentId: course.departmentId,
-                        status: course.status
+                        source: 'missing_curriculum_proposal',
+                        code: createdCourse.code,
+                        name: createdCourse.name,
+                        credits: createdCourse.credits,
+                        requiresPrincipalApproval: createdCourse.requiresPrincipalApproval,
+                        departmentId: createdCourse.departmentId,
+                        status: createdCourse.status
                     }
                 },
                 tx
             );
 
-            if (isExistingApprovedCourse) {
-                await tx.courseApproval.create({
-                    data: {
-                        courseId: course.id,
-                        approverId: proposedBy.id,
-                        level: ApprovalLevel.PDT,
-                        action: ApprovalAction.APPROVED,
-                        note: 'PDT submit môn cũ, tự duyệt bước PDT'
-                    }
-                });
+            await this.notifyCourseProposalCreated(createdCourse, proposedBy.id, tx);
 
-                await this.auditLogsService.create(
-                    {
-                        actorId: proposedBy.id,
-                        action: AuditAction.APPROVE,
-                        module: 'course_proposals',
-                        targetType: 'Course',
-                        targetId: course.id,
-                        targetPublicId: course.publicId,
-                        oldValue: {
-                            status: existingCourse?.status
-                        },
-                        newValue: {
-                            level: ApprovalLevel.PDT,
-                            action: ApprovalAction.APPROVED,
-                            note: 'PDT submit môn cũ, tự duyệt bước PDT',
-                            status: CourseStatus.PENDING_PRINCIPAL
-                        }
-                    },
-                    tx
-                );
-
-                const courseWithApproval = await tx.course.findUnique({
-                    where: { id: course.id },
-                    select: this.courseSelect()
-                });
-
-                if (courseWithApproval) {
-                    course = courseWithApproval;
-                }
-            }
-
-            return course;
+            return createdCourse;
         });
 
         return this.formatCourse(course);
@@ -331,7 +314,6 @@ export class CoursesService {
                 name: dto.name,
                 description: dto.description,
                 credits: dto.credits,
-                requestedClassCount: dto.requestedClassCount,
                 departmentId: dto.departmentId,
                 status: course.status === CourseStatus.PDT_REJECTED ? CourseStatus.PENDING_PDT : undefined
             },
@@ -394,38 +376,56 @@ export class CoursesService {
         });
     }
 
-    async assignDepartmentHead(
-        publicId: string,
-        dto: AssignCourseDepartmentHeadDto,
-        actorPublicId: string
-    ) {
+    async assignDepartmentHead(publicId: string, dto: AssignCourseDepartmentHeadDto, actorPublicId: string) {
         const actor = await this.findUserByPublicIdOrThrow(actorPublicId);
         this.ensureOfficialCatalogManager(actor);
 
         const course = await this.findCourseRecordOrThrow(publicId);
         const departmentHead = await this.ensureDepartmentHead(dto.departmentHeadId, course.departmentId);
 
-        const updatedCourse = await this.prisma.course.update({
-            where: { publicId },
-            data: {
-                departmentHeadId: departmentHead.id
-            },
-            select: this.courseSelect()
-        });
+        const updatedCourse = await this.prisma.$transaction(async (tx) => {
+            const updated = await tx.course.update({
+                where: { publicId },
+                data: {
+                    departmentHeadId: departmentHead.id
+                },
+                select: this.courseSelect()
+            });
 
-        await this.auditLogsService.create({
-            actorId: actor.id,
-            action: AuditAction.ASSIGN,
-            module: 'courses',
-            targetType: 'Course',
-            targetId: updatedCourse.id,
-            targetPublicId: updatedCourse.publicId,
-            oldValue: {
-                departmentHeadId: course.departmentHeadId
-            },
-            newValue: {
-                departmentHeadId: departmentHead.id
-            }
+            await this.auditLogsService.create(
+                {
+                    actorId: actor.id,
+                    action: AuditAction.ASSIGN,
+                    module: 'courses',
+                    targetType: 'Course',
+                    targetId: updated.id,
+                    targetPublicId: updated.publicId,
+                    oldValue: {
+                        departmentHeadId: course.departmentHeadId
+                    },
+                    newValue: {
+                        departmentHeadId: departmentHead.id
+                    }
+                },
+                tx
+            );
+
+            await this.notificationsService.createMany(
+                {
+                    recipientIds: [departmentHead.id],
+                    actorId: actor.id,
+                    type: 'COURSE_DEPARTMENT_HEAD_ASSIGNED',
+                    title: `Bạn được gán phụ trách môn ${updated.code}`,
+                    message: `Bạn đã được gán phụ trách môn ${updated.name}. ạn có thể phân công giảng viên cho các lớp của môn này.`,
+                    data: {
+                        coursePublicId: updated.publicId,
+                        status: updated.status
+                    }
+                },
+                tx
+            );
+
+            return updated;
         });
 
         return this.formatCourse(updatedCourse);
@@ -493,7 +493,9 @@ export class CoursesService {
             const activatableStatuses: CourseStatus[] = [CourseStatus.PRINCIPAL_APPROVED, CourseStatus.INACTIVE];
 
             if (!activatableStatuses.includes(course.status)) {
-                throw new BadRequestException('Chỉ môn đã được Hiệu trưởng duyệt hoặc đang INACTIVE mới được kích hoạt');
+                throw new BadRequestException(
+                    'Chỉ môn đã được Hiệu trưởng duyệt hoặc đang INACTIVE mới được kích hoạt'
+                );
             }
 
             if (!course.departmentHeadId) {
@@ -620,9 +622,7 @@ export class CoursesService {
         }
 
         const nextStatus =
-            options.dto.action === ApprovalAction.APPROVED
-                ? options.approvedStatus
-                : options.rejectedStatus;
+            options.dto.action === ApprovalAction.APPROVED ? options.approvedStatus : options.rejectedStatus;
 
         const updatedCourse = await this.prisma.$transaction(async (tx) => {
             await tx.courseApproval.create({
@@ -664,90 +664,19 @@ export class CoursesService {
                 tx
             );
 
+            await this.notifyCourseDecision(
+                updatedCourse,
+                course.proposedBy.id,
+                approver.id,
+                options.level,
+                options.dto.action,
+                tx
+            );
+
             return updatedCourse;
         });
 
         return this.formatCourse(updatedCourse);
-    }
-
-    private async createApprovedClasses(
-        tx: Prisma.TransactionClient,
-        data: {
-            courseId: number;
-            courseCode: string;
-            courseName: string;
-            requestedClassCount: number;
-            departmentHeadId: number;
-        }
-    ) {
-        if (data.requestedClassCount <= 0) {
-            return;
-        }
-
-        const existingClasses = await tx.class.findMany({
-            where: {
-                courseId: data.courseId
-            },
-            select: {
-                code: true
-            }
-        });
-
-        const usedCodes = new Set(existingClasses.map((classItem: { code: string }) => classItem.code));
-        const startDate = this.defaultClassStartDate();
-        const endDate = this.defaultClassEndDate(startDate);
-        const classes: {
-            code: string;
-            name: string;
-            courseId: number;
-            lecturerId: null;
-            departmentHeadId: number;
-            maxStudents: number;
-            startDate: Date;
-            endDate: Date;
-            status: ClassStatus;
-        }[] = [];
-        let sequence = 1;
-
-        while (classes.length < data.requestedClassCount) {
-            const suffix = String(sequence).padStart(2, '0');
-            const code = `${data.courseCode}-${suffix}`;
-
-            if (!usedCodes.has(code)) {
-                usedCodes.add(code);
-                classes.push({
-                    code,
-                    name: `${data.courseName} - Lớp ${suffix}`,
-                    courseId: data.courseId,
-                    lecturerId: null,
-                    departmentHeadId: data.departmentHeadId,
-                    maxStudents: 40,
-                    startDate,
-                    endDate,
-                    status: ClassStatus.DRAFT
-                });
-            }
-
-            sequence += 1;
-        }
-
-        await tx.class.createMany({
-            data: classes
-        });
-    }
-
-    private defaultClassStartDate() {
-        const date = new Date();
-        date.setMonth(date.getMonth() + 1);
-        date.setDate(1);
-        date.setHours(0, 0, 0, 0);
-        return date;
-    }
-
-    private defaultClassEndDate(startDate: Date) {
-        const date = new Date(startDate);
-        date.setMonth(date.getMonth() + 4);
-        return date;
     }
 
     private async ensureDepartmentExists(departmentId: number) {
@@ -822,18 +751,12 @@ export class CoursesService {
         return lecturers;
     }
 
-    private ensureProposalCreatorCanSubmit(roleCode: string, isExistingApprovedCourse: boolean) {
-        if (roleCode === 'ADMIN') {
+    private ensureNewCourseProposalCreator(roleCode: string) {
+        if (roleCode === 'ADMIN' || roleCode === 'DEPARTMENT_HEAD') {
             return;
         }
 
-        if (isExistingApprovedCourse && roleCode !== 'TRAINING_OFFICER') {
-            throw new ForbiddenException('Chỉ Phòng đào tạo được submit môn cũ lên Hiệu trưởng');
-        }
-
-        if (!isExistingApprovedCourse && roleCode !== 'DEPARTMENT_HEAD') {
-            throw new ForbiddenException('Chỉ Trưởng bộ môn được submit môn mới cho Phòng đào tạo');
-        }
+        throw new ForbiddenException('Chỉ có trưởng bộ môn tạo mới chưa có trong giáo trình');
     }
 
     private async ensureCourseCodeAvailable(code: string, exceptPublicId?: string) {
@@ -847,6 +770,112 @@ export class CoursesService {
         if (duplicate) {
             throw new ConflictException('Mã môn học đã tồn tại');
         }
+    }
+
+    private async notifyCourseProposalCreated(
+        course: CourseWithDetails,
+        actorId: number,
+        tx: Prisma.TransactionClient
+    ) {
+        const trainingOfficers = await this.findActiveUserIdsByRoles(['TRAINING_OFFICER'], tx);
+        await this.notificationsService.createMany(
+            {
+                recipientIds: trainingOfficers,
+                actorId,
+                type: 'COURSE_PROPOSAL_SUBMITTED',
+                title: `Đề xuất môn học mới: ${course.code}`,
+                message: `${course.name} Đang chờ Phòng đào tạo xử lý.`,
+                data: {
+                    coursePublicId: course.publicId,
+                    status: course.status
+                }
+            },
+            tx
+        );
+    }
+
+    private async notifyCourseDecision(
+        course: CourseWithDetails,
+        proposedById: number,
+        actorId: number,
+        level: ApprovalLevel,
+        action: ApprovalAction,
+        tx: Prisma.TransactionClient
+    ) {
+        if (level === ApprovalLevel.PDT && action === ApprovalAction.APPROVED) {
+            const principals = await this.findActiveUserIdsByRoles(['PRINCIPAL'], tx);
+            await this.notificationsService.createMany(
+                {
+                    recipientIds: principals,
+                    actorId,
+                    type: 'COURSE_PROPOSAL_PENDING_PRINCIPAL',
+                    title: `Môn ${course.code} chờ Hiệu trưởng duyệt`,
+                    message: `${course.name} đã được Phòng đào tạo duyệt và đang chờ Hiệu trưởng.`,
+                    data: {
+                        coursePublicId: course.publicId,
+                        status: course.status
+                    }
+                },
+                tx
+            );
+            return;
+        }
+
+        if (level === ApprovalLevel.PDT && action === ApprovalAction.REJECTED) {
+            await this.notificationsService.createMany(
+                {
+                    recipientIds: [proposedById],
+                    actorId,
+                    type: 'COURSE_PROPOSAL_REJECTED_BY_PDT',
+                    title: `Đề xuất môn ${course.code} bị phòng đào tạo từ chối`,
+                    message: `${course.name} đã bị Phòng đào tạo từ chối.`,
+                    data: {
+                        coursePublicId: course.publicId,
+                        status: course.status
+                    }
+                },
+                tx
+            );
+            return;
+        }
+
+        if (level === ApprovalLevel.PRINCIPAL) {
+            const trainingOfficers = await this.findActiveUserIdsByRoles(['TRAINING_OFFICER'], tx);
+            const isApproved = action === ApprovalAction.APPROVED;
+            await this.notificationsService.createMany(
+                {
+                    recipientIds: [proposedById, ...trainingOfficers],
+                    actorId,
+                    type: isApproved ? 'COURSE_PROPOSAL_PRINCIPAL_APPROVED' : 'COURSE_PROPOSAL_PRINCIPAL_REJECTED',
+                    title: isApproved
+                        ? `Môn ${course.code} đã được Hiệu trưởng duyệt`
+                        : `Môn ${course.code} bị Hiệu trưởng từ chối`,
+                    message: isApproved
+                        ? `${course.name} đã được Hiệu trưởng duyệt. Phòng đào tạo có thể kích hoạt môn.`
+                        : `${course.name} đã bị Hiệu trưởng từ chối.`,
+                    data: {
+                        coursePublicId: course.publicId,
+                        status: course.status
+                    }
+                },
+                tx
+            );
+        }
+    }
+
+    private async findActiveUserIdsByRoles(roleCodes: string[], tx: Prisma.TransactionClient) {
+        const users = await tx.user.findMany({
+            where: {
+                deletedAt: null,
+                status: 'ACTIVE',
+                role: {
+                    code: { in: roleCodes }
+                }
+            },
+            select: { id: true }
+        });
+
+        return users.map((user) => user.id);
     }
 
     private async findUserByPublicIdOrThrow(publicId: string) {
@@ -920,12 +949,12 @@ export class CoursesService {
         return {
             id,
             ...rest,
-            lecturers: rest.lecturers?.map((item) => ({
-                ...item.lecturer,
-                assignedAt: item.assignedAt
-            })) ?? [],
+            lecturers:
+                rest.lecturers?.map((item) => ({
+                    ...item.lecturer,
+                    assignedAt: item.assignedAt
+                })) ?? [],
             classCount: _count?.classes ?? 0
         };
     }
-
 }

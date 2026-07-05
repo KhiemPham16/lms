@@ -2,13 +2,15 @@ import { BadRequestException, ForbiddenException, Injectable, NotFoundException 
 import { AuditAction, ClassStatus, EnrollmentStatus } from '@prisma/client';
 
 import { AuditLogsService } from '~/modules/audit-logs/audit-logs.service';
+import { NotificationsService } from '~/modules/notifications/notifications.service';
 import { PrismaService } from '~/prisma/prisma.service';
 
 @Injectable()
 export class EnrollmentsService {
     constructor(
         private readonly prisma: PrismaService,
-        private readonly auditLogsService: AuditLogsService
+        private readonly auditLogsService: AuditLogsService,
+        private readonly notificationsService: NotificationsService
     ) {}
 
     async findMyEnrollments(studentPublicId: string) {
@@ -126,6 +128,38 @@ export class EnrollmentsService {
                 });
             }
 
+            await this.notificationsService.createMany(
+                {
+                    recipientIds: [student.id],
+                    actorId: student.id,
+                    type: 'ENROLLMENT_APPROVED',
+                    title: `Đăng ký thành công lớp ${classItem.code}`,
+                    message: `Bạn đã đăng ký thành công lớp ${classItem.name}.`,
+                    data: {
+                        classPublicId: classItem.publicId,
+                        status: enrollment.status
+                    }
+                },
+                tx
+            );
+            await this.notificationsService.createMany(
+                {
+                    recipientIds: [classItem.lecturerId, classItem.departmentHeadId].filter(
+                        (id): id is number => typeof id === 'number'
+                    ),
+                    actorId: student.id,
+                    type: 'CLASS_STUDENT_ENROLLED',
+                    title: `Sinh viên mới đăng ký lớp ${classItem.code}`,
+                    message: `${student.fullName} đã đăng ký lớp ${classItem.name}.`,
+                    data: {
+                        classPublicId: classItem.publicId,
+                        studentPublicId: student.publicId,
+                        status: enrollment.status
+                    }
+                },
+                tx
+            );
+
             return enrollment;
         });
     }
@@ -147,6 +181,14 @@ export class EnrollmentsService {
 
         if (!enrollment || enrollment.status === EnrollmentStatus.DROPPED) {
             throw new NotFoundException('Sinh viên chưa đăng ký lớp này');
+        }
+
+        if (classItem.status === ClassStatus.COMPLETED) {
+            throw new BadRequestException('Lớp đã hoàn thành nên không thể hủy đăng ký');
+        }
+
+        if (!classItem.allowStudentDrop) {
+            throw new BadRequestException('Lớp không cho phép sinh viên hủy đăng ký');
         }
 
         return this.prisma.$transaction(async (tx) => {
@@ -181,6 +223,23 @@ export class EnrollmentsService {
                 },
                 tx
             );
+
+            const approvedCountAfterDrop = await tx.enrollment.count({
+                where: {
+                    classId: classItem.id,
+                    status: EnrollmentStatus.APPROVED
+                }
+            });
+
+            if (classItem.status === ClassStatus.FULL && approvedCountAfterDrop < classItem.maxStudents) {
+                await tx.class.update({
+                    where: { id: classItem.id },
+                    data: {
+                        status: ClassStatus.OPEN_REGISTRATION,
+                        registrationClosedAt: null
+                    }
+                });
+            }
 
             return droppedEnrollment;
         });
@@ -221,9 +280,14 @@ export class EnrollmentsService {
             select: {
                 id: true,
                 publicId: true,
+                code: true,
+                name: true,
                 status: true,
                 maxStudents: true,
-                autoCloseWhenFull: true
+                autoCloseWhenFull: true,
+                allowStudentDrop: true,
+                lecturerId: true,
+                departmentHeadId: true
             }
         });
 

@@ -60,8 +60,11 @@ const permissions = [
     { code: 'exams.grade', name: 'Chấm điểm', module: 'exams' },
     { code: 'grades.read', name: 'Xem điểm', module: 'grades' },
     { code: 'grades.calculate', name: 'Tính điểm', module: 'grades' },
-    { code: 'grades.export', name: 'Xuất bảng điểm', module: 'grades' }
+    { code: 'grades.export', name: 'Xuất bảng điểm', module: 'grades' },
+    { code: 'notifications.read', name: 'Xem thong bao', module: 'notifications' }
 ];
+
+const commonUserPermissions = ['notifications.read'];
 
 const rolePermissionDefaults: Record<string, string[]> = {
     ADMIN: permissions.map((permission) => permission.code),
@@ -187,7 +190,10 @@ async function main() {
             return [];
         }
 
-        return permissionCodes
+        const effectivePermissionCodes =
+            roleCode === 'ADMIN' ? permissionCodes : Array.from(new Set([...permissionCodes, ...commonUserPermissions]));
+
+        return effectivePermissionCodes
             .map((permissionCode) => {
                 const permissionId = permissionMap.get(permissionCode);
 
