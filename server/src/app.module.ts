@@ -13,6 +13,12 @@ import { CoursesModule } from './modules/courses/courses.module';
 import { AuditLogsModule } from './modules/audit-logs/audit-logs.module';
 import { ClassesModule } from './modules/classes/classes.module';
 import { EnrollmentsModule } from './modules/enrollments/enrollments.module';
+import { LessonSectionsModule } from './modules/lesson-sections/lesson-sections.module';
+import { LessonsModule } from './modules/lessons/lessons.module';
+import { ExamsModule } from './modules/exams/exams.module';
+import { GradebookModule } from './modules/gradebook/gradebook.module';
+import { NotificationsModule } from './modules/notifications/notifications.module';
+import { CourseProgressModule } from './modules/course-progress/course-progress.module';
 import { AppHealthService } from './app-health.service';
 
 @Module({
@@ -31,7 +37,13 @@ import { AppHealthService } from './app-health.service';
         AuditLogsModule,
         CoursesModule,
         ClassesModule,
-        EnrollmentsModule
+        EnrollmentsModule,
+        LessonSectionsModule,
+        LessonsModule,
+        ExamsModule,
+        GradebookModule,
+        NotificationsModule,
+        CourseProgressModule
     ],
     controllers: [AppController],
     providers: [AppHealthService]

@@ -8,6 +8,7 @@ import { PermissionsGuard } from '~/common/guards/permissions.guard';
 import { ApproveCourseDto } from './dto/approve-course.dto';
 import { AssignCourseDepartmentHeadDto } from './dto/assign-course-department-head.dto';
 import { AssignCourseLecturersDto } from './dto/assign-course-lecturers.dto';
+import { CreateCourseDto } from './dto/create-course.dto';
 import { CreateCourseProposalDto } from './dto/create-course-proposal.dto';
 import { QueryCourseDto } from './dto/query-course.dto';
 import { UpdateCourseStatusDto } from './dto/update-course-status.dto';
@@ -20,6 +21,13 @@ import { CoursesService } from './courses.service';
 @Controller('courses')
 export class CoursesController {
     constructor(private readonly coursesService: CoursesService) {}
+
+    @Post()
+    @Permissions('courses.update')
+    @ApiOperation({ summary: 'Phong dao tao tao mon hoc da co trong giao trinh' })
+    create(@Body() dto: CreateCourseDto, @CurrentUser() user: JwtPayload) {
+        return this.coursesService.createOfficialCourse(dto, user.sub);
+    }
 
     @Post('proposals')
     @Permissions('course_proposals.create')

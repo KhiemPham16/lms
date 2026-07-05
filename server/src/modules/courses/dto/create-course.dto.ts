@@ -1,18 +1,18 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsInt, IsNotEmpty, IsOptional, IsString, Min } from 'class-validator';
 
-export class CreateCourseProposalDto {
+export class CreateCourseDto {
     @ApiProperty({ example: 'JAVA101' })
     @IsString()
     @IsNotEmpty()
     code: string;
 
-    @ApiProperty({ example: 'Lập trình JavaScript cơ bản' })
+    @ApiProperty({ example: 'Lap trinh Java co ban' })
     @IsString()
     @IsNotEmpty()
     name: string;
 
-    @ApiPropertyOptional({ example: 'Môn học nhập môn về JavaScript và OOP' })
+    @ApiPropertyOptional({ example: 'Mon hoc co san trong giao trinh' })
     @IsOptional()
     @IsString()
     description?: string;
@@ -25,4 +25,15 @@ export class CreateCourseProposalDto {
     @ApiProperty({ example: 1 })
     @IsInt()
     departmentId: number;
+
+    @ApiPropertyOptional({ example: 5 })
+    @IsOptional()
+    @IsInt()
+    departmentHeadId?: number;
+
+    @ApiPropertyOptional({ example: 2 })
+    @IsOptional()
+    @IsInt()
+    @Min(0)
+    requestedClassCount?: number;
 }

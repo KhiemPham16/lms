@@ -96,7 +96,7 @@ export class UsersController {
     @ApiBearerAuth()
     @UseGuards(JwtAuthGuard, PermissionsGuard)
     @Permissions('users.read')
-    @ApiOperation({ summary: 'Tong hop so lieu nguoi dung' })
+    @ApiOperation({ summary: 'Tổng hợp số liệu người dùng' })
     summary(@CurrentUser() actor: JwtPayload, @Query() query: QueryUserDto) {
         return this.usersService.summary(query, actor.sub);
     }
@@ -107,7 +107,7 @@ export class UsersController {
     @Permissions('users.read')
     @Header('Content-Type', 'text/csv; charset=utf-8')
     @Header('Content-Disposition', 'attachment; filename="users.csv"')
-    @ApiOperation({ summary: 'Xuat danh sach nguoi dung CSV' })
+    @ApiOperation({ summary: 'Xuất danh sách người dùng CSV' })
     export(@CurrentUser() actor: JwtPayload, @Query() query: QueryUserDto) {
         return this.usersService.exportCsv(query, actor.sub);
     }
@@ -116,7 +116,7 @@ export class UsersController {
     @ApiBearerAuth()
     @UseGuards(JwtAuthGuard, PermissionsGuard)
     @Permissions('users.status')
-    @ApiOperation({ summary: 'Khoa nhieu tai khoan' })
+    @ApiOperation({ summary: 'Khoá nhiều tài khoản' })
     bulkLock(@CurrentUser() actor: JwtPayload, @Body() dto: BulkUserActionDto, @Req() request: Request) {
         return this.usersService.bulkUpdateStatus(dto.userIds, UserStatus.LOCKED, actor.sub, dto, request);
     }
@@ -125,7 +125,7 @@ export class UsersController {
     @ApiBearerAuth()
     @UseGuards(JwtAuthGuard, PermissionsGuard)
     @Permissions('users.status')
-    @ApiOperation({ summary: 'Mo khoa nhieu tai khoan' })
+    @ApiOperation({ summary: 'Mở khóa nhiều tài khoản' })
     bulkUnlock(@CurrentUser() actor: JwtPayload, @Body() dto: BulkUserActionDto, @Req() request: Request) {
         return this.usersService.bulkUpdateStatus(dto.userIds, UserStatus.ACTIVE, actor.sub, dto, request);
     }
@@ -134,7 +134,7 @@ export class UsersController {
     @ApiBearerAuth()
     @UseGuards(JwtAuthGuard, PermissionsGuard)
     @Permissions('users.update')
-    @ApiOperation({ summary: 'Gan vai tro nhieu nguoi dung' })
+    @ApiOperation({ summary: 'Gán vai trò nhiều người dùng' })
     bulkAssignRole(@CurrentUser() actor: JwtPayload, @Body() dto: BulkAssignRoleDto, @Req() request: Request) {
         return this.usersService.bulkAssignRole(dto, actor.sub, request);
     }
@@ -175,7 +175,7 @@ export class UsersController {
     @ApiBearerAuth()
     @UseGuards(JwtAuthGuard, PermissionsGuard)
     @Permissions('users.update')
-    @ApiOperation({ summary: 'Cap nhat vai tro nguoi dung' })
+    @ApiOperation({ summary: 'Cập nhật vai trò người dùng' })
     updateRole(
         @Param('publicId') publicId: string,
         @CurrentUser() actor: JwtPayload,
@@ -189,7 +189,7 @@ export class UsersController {
     @ApiBearerAuth()
     @UseGuards(JwtAuthGuard, PermissionsGuard)
     @Permissions('users.update')
-    @ApiOperation({ summary: 'Admin dat lai mat khau nguoi dung' })
+    @ApiOperation({ summary: 'Admin đặt lại mật khẩu người dùng' })
     resetPassword(
         @Param('publicId') publicId: string,
         @CurrentUser() actor: JwtPayload,
@@ -203,7 +203,7 @@ export class UsersController {
     @ApiBearerAuth()
     @UseGuards(JwtAuthGuard, PermissionsGuard)
     @Permissions('users.update')
-    @ApiOperation({ summary: 'Gui lai email kich hoat tai khoan' })
+    @ApiOperation({ summary: 'Gửi lại email kích hoạt tài khoản' })
     resendActivation(@Param('publicId') publicId: string, @CurrentUser() actor: JwtPayload, @Req() request: Request) {
         return this.usersService.resendActivation(publicId, actor.sub, request);
     }
@@ -212,7 +212,7 @@ export class UsersController {
     @ApiBearerAuth()
     @UseGuards(JwtAuthGuard, PermissionsGuard)
     @Permissions('users.read')
-    @ApiOperation({ summary: 'Nhat ky hoat dong cua nguoi dung' })
+    @ApiOperation({ summary: 'Nhật ký hoạt động của người dùng' })
     activities(@Param('publicId') publicId: string, @Query() query: QueryUserDto) {
         return this.usersService.activities(publicId, query);
     }
@@ -221,7 +221,7 @@ export class UsersController {
     @ApiBearerAuth()
     @UseGuards(JwtAuthGuard, PermissionsGuard)
     @Permissions('users.read')
-    @ApiOperation({ summary: 'Lich su dang nhap cua nguoi dung' })
+    @ApiOperation({ summary: 'Lịch sử đăng nhập của người dùng' })
     loginHistory(@Param('publicId') publicId: string, @Query() query: QueryUserDto) {
         return this.usersService.loginHistory(publicId, query);
     }

@@ -38,7 +38,7 @@ export class ClassesController {
 
     @Get('summary')
     @Permissions('classes.read')
-    @ApiOperation({ summary: 'Thong ke lop hoc' })
+    @ApiOperation({ summary: 'Thống kê lớp học' })
     summary(@Query() query: QueryClassDto) {
         return this.classesService.summary(query);
     }
@@ -59,14 +59,14 @@ export class ClassesController {
 
     @Delete(':publicId')
     @Permissions('classes.create')
-    @ApiOperation({ summary: 'Xoa lop hoc chua phat sinh du lieu' })
+    @ApiOperation({ summary: 'Xóa lớp học chưa phát sinh dữ liệu' })
     remove(@Param('publicId') publicId: string, @CurrentUser() user: JwtPayload) {
         return this.classesService.remove(publicId, user.sub);
     }
 
     @Patch(':publicId/department-head')
     @Permissions('classes.create')
-    @ApiOperation({ summary: 'Gan truong bo mon quan ly lop' })
+    @ApiOperation({ summary: 'Gán trưởng bộ môn quản lý lớp' })
     assignDepartmentHead(
         @Param('publicId') publicId: string,
         @Body() dto: AssignClassHeadDto,
@@ -95,5 +95,23 @@ export class ClassesController {
         @CurrentUser() user: JwtPayload
     ) {
         return this.classesService.updateStatus(publicId, dto.status, user.sub);
+    }
+
+    @Post(':targetPublicId/copy-content-from/:sourcePublicId')
+    @Permissions('lessons.create')
+    @ApiOperation({ summary: 'Copy section va bai hoc tu lop cung mon' })
+    copyContentFrom(
+        @Param('targetPublicId') targetPublicId: string,
+        @Param('sourcePublicId') sourcePublicId: string,
+        @CurrentUser() user: JwtPayload
+    ) {
+        return this.classesService.copyContentFrom(targetPublicId, sourcePublicId, user.sub);
+    }
+
+    @Patch(':publicId/complete')
+    @Permissions('classes.registration.toggle')
+    @ApiOperation({ summary: 'Hoan thanh lop hoc' })
+    complete(@Param('publicId') publicId: string, @CurrentUser() user: JwtPayload) {
+        return this.classesService.complete(publicId, user.sub);
     }
 }
