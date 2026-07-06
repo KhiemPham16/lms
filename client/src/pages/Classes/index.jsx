@@ -301,6 +301,9 @@ export default function ClassesPage({ workspaceKey = 'training' }) {
     const canAssignLecturer = userHasBackendPermission(currentUser, 'classes.assign_lecturer');
     const canToggleRegistration = userHasBackendPermission(currentUser, 'classes.registration.toggle');
     const canEnroll = userHasBackendPermission(currentUser, 'enrollments.create');
+    const canReadCourses = userHasBackendPermission(currentUser, 'courses.read');
+    const canReadDepartments = userHasBackendPermission(currentUser, 'departments.read');
+    const canReadUsers = userHasBackendPermission(currentUser, 'users.read');
 
     const [summary, setSummary] = useState({});
     const [classes, setClasses] = useState([]);
@@ -375,10 +378,10 @@ export default function ClassesPage({ workspaceKey = 'training' }) {
         const loadLookups = async () => {
             try {
                 const [coursePayload, departmentPayload, headsPayload, lecturersPayload] = await Promise.all([
-                    courseService.getCourses({ status: 'ACTIVE', page: 1, limit: 200 }),
-                    departmentService.getDepartments(),
-                    userService.getUsers({ role: 'DEPARTMENT_HEAD', status: 'ACTIVE', page: 1, limit: 200 }),
-                    userService.getUsers({ role: 'LECTURER', status: 'ACTIVE', page: 1, limit: 200 })
+                    canReadCourses ? courseService.getCourses({ status: 'ACTIVE', page: 1, limit: 200 }) : Promise.resolve([]),
+                    canReadDepartments ? departmentService.getDepartments() : Promise.resolve([]),
+                    canReadUsers ? userService.getUsers({ role: 'DEPARTMENT_HEAD', status: 'ACTIVE', page: 1, limit: 200 }) : Promise.resolve([]),
+                    canReadUsers ? userService.getUsers({ role: 'LECTURER', status: 'ACTIVE', page: 1, limit: 200 }) : Promise.resolve([])
                 ]);
                 setActiveCourses(normalizeItems(coursePayload));
                 setDepartments(normalizeItems(departmentPayload));
@@ -389,7 +392,7 @@ export default function ClassesPage({ workspaceKey = 'training' }) {
             }
         };
         loadLookups();
-    }, []);
+    }, [canReadCourses, canReadDepartments, canReadUsers]);
 
     const setFilter = (key, value) => setFilters((current) => ({ ...current, [key]: value, page: key === 'page' ? value : 1 }));
     const clearFilters = () => {

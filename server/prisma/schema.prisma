@@ -67,6 +67,30 @@ enum EnrollmentStatus {
   DROPPED
 }
 
+enum LessonStatus {
+  DRAFT
+  PUBLISHED
+  HIDDEN
+  ARCHIVED
+}
+
+enum LessonContentType {
+  TEXT
+  VIDEO
+  FILE
+  IMAGE
+  LINK
+  CODE
+  ASSIGNMENT
+  EXAM
+}
+
+enum LessonProgressStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  COMPLETED
+}
+
 enum AuditAction {
   CREATE
   UPDATE
@@ -125,6 +149,10 @@ model User {
   assistingClasses   Class[]          @relation("AssistingClasses")
   managedClasses     Class[]          @relation("ManagedClasses")
   studentEnrollments Enrollment[]     @relation("StudentEnrollments")
+  createdLessons     Lesson[]         @relation("CreatedLessons")
+  publishedLessons   Lesson[]         @relation("PublishedLessons")
+  hiddenLessons      Lesson[]         @relation("HiddenLessons")
+  lessonProgresses   LessonProgress[] @relation("LessonProgressStudent")
   courseApprovals    CourseApproval[] @relation("CourseApprovals")
   auditLogs          AuditLog[]       @relation("AuditLogs")
 
@@ -355,6 +383,7 @@ model Class {
   status ClassStatus @default(DRAFT)
 
   enrollments Enrollment[]
+  lessons     Lesson[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -384,5 +413,128 @@ model Enrollment {
   @@unique([studentId, classId])
   @@index([studentId])
   @@index([classId])
+  @@index([status])
+}
+
+model Lesson {
+  id       Int    @id @default(autoincrement())
+  publicId String @unique @default(uuid())
+
+  classId Int
+  class   Class @relation(fields: [classId], references: [id], onDelete: Cascade)
+
+  title       String
+  description String? @db.Text
+  chapter     String?
+  orderIndex  Int
+  durationMinutes Int?
+
+  status LessonStatus @default(DRAFT)
+  primaryContentType LessonContentType @default(TEXT)
+
+  allowStudentView Boolean @default(true)
+  allowDownload Boolean @default(true)
+  requirePreviousCompletion Boolean @default(false)
+  availableFrom DateTime?
+  availableUntil DateTime?
+  trackProgress Boolean @default(true)
+
+  hasVideo Boolean @default(false)
+  hasAttachment Boolean @default(false)
+  hasLinkedExam Boolean @default(false)
+
+  publishedAt DateTime?
+  publishedById Int?
+  publishedBy   User? @relation("PublishedLessons", fields: [publishedById], references: [id])
+
+  hiddenAt DateTime?
+  hiddenById Int?
+  hiddenBy   User? @relation("HiddenLessons", fields: [hiddenById], references: [id])
+  hiddenReason String? @db.Text
+
+  createdById Int
+  createdBy   User @relation("CreatedLessons", fields: [createdById], references: [id])
+
+  blocks      LessonContentBlock[]
+  attachments LessonAttachment[]
+  progresses  LessonProgress[]
+
+  deletedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([classId, orderIndex])
+  @@index([classId])
+  @@index([createdById])
+  @@index([publishedById])
+  @@index([hiddenById])
+  @@index([status])
+  @@index([primaryContentType])
+  @@index([deletedAt])
+}
+
+model LessonContentBlock {
+  id       Int    @id @default(autoincrement())
+  publicId String @unique @default(uuid())
+
+  lessonId Int
+  lesson   Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  type LessonContentType
+  title String?
+  content String? @db.Text
+  fileUrl String?
+  fileName String?
+  fileSize Int?
+  mimeType String?
+  orderIndex Int
+  metadata Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([lessonId])
+  @@index([type])
+}
+
+model LessonAttachment {
+  id       Int    @id @default(autoincrement())
+  publicId String @unique @default(uuid())
+
+  lessonId Int
+  lesson   Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  fileName String
+  fileUrl String
+  fileSize Int?
+  mimeType String?
+  uploadedById Int?
+  uploadedAt DateTime @default(now())
+
+  @@index([lessonId])
+  @@index([uploadedById])
+}
+
+model LessonProgress {
+  id       Int    @id @default(autoincrement())
+  publicId String @unique @default(uuid())
+
+  lessonId Int
+  lesson   Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  studentId Int
+  student   User @relation("LessonProgressStudent", fields: [studentId], references: [id])
+
+  status LessonProgressStatus @default(NOT_STARTED)
+  progressPercent Int @default(0)
+  lastViewedAt DateTime?
+  completedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([lessonId, studentId])
+  @@index([lessonId])
+  @@index([studentId])
   @@index([status])
 }

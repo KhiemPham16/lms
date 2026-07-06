@@ -119,6 +119,9 @@ const dependencyMap = {
     'course_proposals.create': ['courses.read'],
     'course_proposals.approve': ['courses.read'],
     'lessons.create': ['lessons.read'],
+    'lessons.update': ['lessons.read'],
+    'lessons.publish': ['lessons.read'],
+    'lessons.delete': ['lessons.read'],
     'exams.grade': ['exams.read'],
     'grades.export': ['grades.read'],
     'system.permissions.manage': ['roles.read']
@@ -166,7 +169,7 @@ const fallbackRolePermissions = {
     PRINCIPAL: ['courses.read', 'course_proposals.approve', 'system.audit.read'],
     TRAINING_OFFICER: ['curriculum.read', 'courses.read', 'courses.update', 'classes.read', 'classes.create', 'classes.registration.toggle', 'grades.read'],
     DEPARTMENT_HEAD: ['courses.read', 'course_proposals.create', 'classes.read', 'classes.assign_lecturer'],
-    LECTURER: ['classes.read', 'lessons.read', 'lessons.create', 'exams.read', 'exams.grade', 'grades.read'],
+    LECTURER: ['classes.read', 'lessons.read', 'lessons.create', 'lessons.update', 'lessons.publish', 'lessons.delete', 'exams.read', 'exams.grade', 'grades.read'],
     STUDENT: ['classes.read', 'lessons.read', 'exams.read', 'grades.read']
 };
 

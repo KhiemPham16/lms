@@ -30,6 +30,9 @@ const roles = [
 ];
 
 const permissions = [
+    { code: 'lessons.update', name: 'Chinh sua bai hoc', module: 'lessons' },
+    { code: 'lessons.publish', name: 'Xuat ban bai hoc', module: 'lessons' },
+    { code: 'lessons.delete', name: 'Xoa bai hoc', module: 'lessons' },
     { code: 'users.read', name: 'Xem danh sách', module: 'users' },
     { code: 'users.create', name: 'Tạo mới', module: 'users' },
     { code: 'users.update', name: 'Chỉnh sửa', module: 'users' },
@@ -93,6 +96,7 @@ const rolePermissionDefaults: Record<string, string[]> = {
         'classes.assign_lecturer',
         'classes.registration.toggle',
         'enrollments.read',
+        'lessons.read',
         'grades.read',
         'grades.calculate',
         'grades.export'
@@ -108,6 +112,7 @@ const rolePermissionDefaults: Record<string, string[]> = {
         'classes.registration.toggle',
         'enrollments.read',
         'lessons.read',
+        'lessons.update',
         'exams.read',
         'grades.read'
     ],
@@ -117,6 +122,9 @@ const rolePermissionDefaults: Record<string, string[]> = {
         'enrollments.read',
         'lessons.read',
         'lessons.create',
+        'lessons.update',
+        'lessons.publish',
+        'lessons.delete',
         'exams.read',
         'exams.create',
         'exams.grade',

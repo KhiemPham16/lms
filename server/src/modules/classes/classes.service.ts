@@ -172,8 +172,9 @@ export class ClassesService {
         return this.formatClass(createdClass);
     }
 
-    async summary(query: QueryClassDto) {
-        const where = await this.buildClassWhere({ ...query, page: undefined, limit: undefined });
+    async summary(query: QueryClassDto, actorPublicId?: string) {
+        const actor = actorPublicId ? await this.findUserByPublicIdOrThrow(actorPublicId) : null;
+        const where = await this.buildClassWhere({ ...query, page: undefined, limit: undefined }, actor);
         const total = await this.prisma.class.count({ where });
         const approvedEnrollmentWhere = { ...where, enrollments: { some: { status: EnrollmentStatus.APPROVED } } };
 
@@ -237,11 +238,12 @@ export class ClassesService {
         };
     }
 
-    async findAll(query: QueryClassDto) {
+    async findAll(query: QueryClassDto, actorPublicId?: string) {
+        const actor = actorPublicId ? await this.findUserByPublicIdOrThrow(actorPublicId) : null;
         const page = query.page ?? 1;
         const limit = query.limit ?? 10;
         const skip = (page - 1) * limit;
-        const where = await this.buildClassWhere(query);
+        const where = await this.buildClassWhere(query, actor);
 
         const [items, total] = await Promise.all([
             this.prisma.class.findMany({
@@ -272,7 +274,8 @@ export class ClassesService {
         };
     }
 
-    async findByPublicIdOrThrow(publicId: string) {
+    async findByPublicIdOrThrow(publicId: string, actorPublicId?: string) {
+        const actor = actorPublicId ? await this.findUserByPublicIdOrThrow(actorPublicId) : null;
         const classItem = await this.prisma.class.findUnique({
             where: { publicId },
             select: this.classSelect(true)
@@ -281,6 +284,7 @@ export class ClassesService {
         if (!classItem) {
             throw new NotFoundException('Khong tim thay lop hoc');
         }
+        this.ensureCanReadClass(actor, classItem);
 
         return this.formatClass(classItem);
     }
@@ -472,8 +476,9 @@ export class ClassesService {
         return this.formatClass(updatedClass);
     }
 
-    private async buildClassWhere(query: QueryClassDto): Promise<Prisma.ClassWhereInput> {
-        return {
+    private async buildClassWhere(query: QueryClassDto, actor?: { id: number; role: { code: string } } | null): Promise<Prisma.ClassWhereInput> {
+        const accessWhere = this.classAccessWhere(actor);
+        const filterWhere: Prisma.ClassWhereInput = {
             ...(query.keyword
                 ? {
                       OR: [
@@ -498,6 +503,34 @@ export class ClassesService {
             ...(query.startFrom ? { startDate: { gte: new Date(query.startFrom) } } : {}),
             ...(query.endTo ? { endDate: { lte: new Date(query.endTo) } } : {})
         };
+
+        return Object.keys(accessWhere).length ? { AND: [accessWhere, filterWhere] } : filterWhere;
+    }
+
+    private classAccessWhere(actor?: { id: number; role: { code: string } } | null): Prisma.ClassWhereInput {
+        if (!actor) return {};
+        if (['ADMIN', 'PRINCIPAL', 'TRAINING_OFFICER'].includes(actor.role.code)) return {};
+        if (actor.role.code === 'DEPARTMENT_HEAD') return { departmentHeadId: actor.id };
+        if (actor.role.code === 'LECTURER') return { OR: [{ lecturerId: actor.id }, { assistantId: actor.id }] };
+        if (actor.role.code === 'STUDENT') {
+            return {
+                status: { not: ClassStatus.DRAFT },
+                enrollments: { some: { studentId: actor.id, status: EnrollmentStatus.APPROVED } }
+            };
+        }
+        return { id: -1 };
+    }
+
+    private ensureCanReadClass(actor: { id: number; role: { code: string } } | null, classItem: any) {
+        if (!actor || ['ADMIN', 'PRINCIPAL', 'TRAINING_OFFICER'].includes(actor.role.code)) return;
+        if (actor.role.code === 'DEPARTMENT_HEAD' && classItem.departmentHeadId === actor.id) return;
+        if (actor.role.code === 'LECTURER' && [classItem.lecturerId, classItem.assistantId].includes(actor.id)) return;
+        if (
+            actor.role.code === 'STUDENT' &&
+            classItem.status !== ClassStatus.DRAFT &&
+            classItem.enrollments?.some((enrollment: any) => enrollment.studentId === actor.id || enrollment.student?.id === actor.id || enrollment.student?.publicId === (actor as any).publicId)
+        ) return;
+        throw new ForbiddenException('Ban khong co quyen xem lop hoc nay');
     }
 
     private toClassData(dto: CreateClassDto, courseId: number, departmentHeadId: number): Prisma.ClassUncheckedCreateInput {

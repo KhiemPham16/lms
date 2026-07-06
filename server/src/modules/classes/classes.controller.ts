@@ -32,22 +32,22 @@ export class ClassesController {
     @Get()
     @Permissions('classes.read')
     @ApiOperation({ summary: 'Danh sách lớp học' })
-    findAll(@Query() query: QueryClassDto) {
-        return this.classesService.findAll(query);
+    findAll(@Query() query: QueryClassDto, @CurrentUser() user: JwtPayload) {
+        return this.classesService.findAll(query, user.sub);
     }
 
     @Get('summary')
     @Permissions('classes.read')
     @ApiOperation({ summary: 'Thong ke lop hoc' })
-    summary(@Query() query: QueryClassDto) {
-        return this.classesService.summary(query);
+    summary(@Query() query: QueryClassDto, @CurrentUser() user: JwtPayload) {
+        return this.classesService.summary(query, user.sub);
     }
 
     @Get(':publicId')
     @Permissions('classes.read')
     @ApiOperation({ summary: 'Chi tiết lớp học' })
-    findOne(@Param('publicId') publicId: string) {
-        return this.classesService.findByPublicIdOrThrow(publicId);
+    findOne(@Param('publicId') publicId: string, @CurrentUser() user: JwtPayload) {
+        return this.classesService.findByPublicIdOrThrow(publicId, user.sub);
     }
 
     @Patch(':publicId')

@@ -7,6 +7,7 @@ import AdminUsers from '~/pages/Admin/Users';
 import ClassesPage from '~/pages/Classes';
 import CoursesPage from '~/pages/Courses';
 import FlowWorkbench from '~/pages/FlowWorkbench';
+import LessonsPage from '~/pages/Lessons';
 
 const moduleKeyBySegment = {
     users: 'users',
@@ -58,6 +59,10 @@ export default function WorkspaceModuleRoute() {
 
     if (moduleKey === 'classes' || moduleKey === 'registration') {
         return <ClassesPage workspaceKey={workspaceKey} />;
+    }
+
+    if (moduleKey === 'lessons') {
+        return <LessonsPage workspaceKey={workspaceKey} />;
     }
 
     return <FlowWorkbench workspaceKey={workspaceKey} moduleKey={moduleKey} />;

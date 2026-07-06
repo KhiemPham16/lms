@@ -13,6 +13,7 @@ import { CoursesModule } from './modules/courses/courses.module';
 import { AuditLogsModule } from './modules/audit-logs/audit-logs.module';
 import { ClassesModule } from './modules/classes/classes.module';
 import { EnrollmentsModule } from './modules/enrollments/enrollments.module';
+import { LessonsModule } from './modules/lessons/lessons.module';
 import { AppHealthService } from './app-health.service';
 
 @Module({
@@ -31,7 +32,8 @@ import { AppHealthService } from './app-health.service';
         AuditLogsModule,
         CoursesModule,
         ClassesModule,
-        EnrollmentsModule
+        EnrollmentsModule,
+        LessonsModule
     ],
     controllers: [AppController],
     providers: [AppHealthService]

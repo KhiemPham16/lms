@@ -25,6 +25,7 @@ export const routes = {
     principalPermissions: '/principal/permissions',
     principalProposals: '/principal/proposals',
     principalProposalHistory: '/principal/proposals/history',
+    principalLessons: '/principal/lessons',
     training: '/training',
     trainingUsers: '/training/users',
     trainingDepartments: '/training/departments',
@@ -32,6 +33,7 @@ export const routes = {
     trainingCurriculums: '/training/curriculums',
     trainingSubjects: '/training/subjects',
     trainingClasses: '/training/classes',
+    trainingLessons: '/training/lessons',
     trainingGrades: '/training/grades',
     department: '/department',
     departmentUsers: '/department/users',
@@ -39,6 +41,7 @@ export const routes = {
     departmentPermissions: '/department/permissions',
     departmentProposals: '/department/proposals',
     departmentClasses: '/department/classes',
+    departmentLessons: '/department/lessons',
     teacher: '/teacher',
     teacherUsers: '/teacher/users',
     teacherDepartments: '/teacher/departments',
@@ -53,6 +56,7 @@ export const routes = {
     studentPermissions: '/student/permissions',
     studentRegistration: '/student/registration',
     studentClasses: '/student/classes',
+    studentLessons: '/student/lessons',
     studentExams: '/student/exams',
     studentGrades: '/student/grades'
 };
