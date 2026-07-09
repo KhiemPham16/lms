@@ -61,6 +61,60 @@ export class EnrollmentsService {
         });
     }
 
+    async summary() {
+        const [totalStudents, enrolledStudents, totalEnrollments, pendingEnrollments, droppedEnrollments] = await Promise.all([
+            this.prisma.user.count({
+                where: {
+                    deletedAt: null,
+                    role: {
+                        code: 'STUDENT'
+                    }
+                }
+            }),
+            this.prisma.enrollment.findMany({
+                where: {
+                    status: EnrollmentStatus.APPROVED,
+                    student: {
+                        deletedAt: null,
+                        role: {
+                            code: 'STUDENT'
+                        }
+                    }
+                },
+                distinct: ['studentId'],
+                select: {
+                    studentId: true
+                }
+            }),
+            this.prisma.enrollment.count({
+                where: {
+                    status: EnrollmentStatus.APPROVED
+                }
+            }),
+            this.prisma.enrollment.count({
+                where: {
+                    status: EnrollmentStatus.PENDING
+                }
+            }),
+            this.prisma.enrollment.count({
+                where: {
+                    status: EnrollmentStatus.DROPPED
+                }
+            })
+        ]);
+        const enrolledStudentCount = enrolledStudents.length;
+        const notEnrolledStudents = Math.max(totalStudents - enrolledStudentCount, 0);
+
+        return {
+            totalStudents,
+            enrolledStudents: enrolledStudentCount,
+            notEnrolledStudents,
+            totalEnrollments,
+            pendingEnrollments,
+            droppedEnrollments
+        };
+    }
+
     async enroll(classPublicId: string, studentPublicId: string) {
         const [classItem, student] = await Promise.all([
             this.findClassRecordOrThrow(classPublicId),

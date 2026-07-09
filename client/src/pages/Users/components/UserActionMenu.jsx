@@ -9,8 +9,9 @@ import {
     DropdownMenuTrigger
 } from '~/components/ui/dropdown-menu';
 
-export default function UserActionMenu({ user, onAction, canManage = true }) {
+export default function UserActionMenu({ user, onAction, canManage = true, canResetPassword = false }) {
     const canResendActivation = user.status === 'PENDING' && user.emailVerified !== true;
+    const showResetOnly = !canManage && canResetPassword;
 
     return (
         <DropdownMenu>
@@ -22,6 +23,13 @@ export default function UserActionMenu({ user, onAction, canManage = true }) {
 
             <DropdownMenuContent align="end" className="w-52">
                 <DropdownMenuItem onClick={() => onAction('view', user)}>Xem chi tiết</DropdownMenuItem>
+
+                {showResetOnly ? (
+                    <>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={() => onAction('reset-password', user)}>Đặt lại mật khẩu</DropdownMenuItem>
+                    </>
+                ) : null}
 
                 {canManage ? (
                     <>

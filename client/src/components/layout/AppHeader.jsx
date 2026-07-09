@@ -96,7 +96,9 @@ export default function AppHeader() {
                     </DropdownMenuContent>
                 </DropdownMenu>
 
-                <span>{user?.fullName || user?.email}</span>
+                <Link to="/profile" className="font-medium hover:text-primary hover:underline">
+                    {user?.fullName || user?.email}
+                </Link>
                 <Button variant="outline" size="sm" onClick={handleLogout}>
                     Đăng xuất
                 </Button>

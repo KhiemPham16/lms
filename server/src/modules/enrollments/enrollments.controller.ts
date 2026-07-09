@@ -21,6 +21,13 @@ export class EnrollmentsController {
         return this.enrollmentsService.findMyEnrollments(user.sub);
     }
 
+    @Get('summary')
+    @Permissions('enrollments.read')
+    @ApiOperation({ summary: 'Thống kê ghi danh' })
+    summary() {
+        return this.enrollmentsService.summary();
+    }
+
     @Post('classes/:classPublicId')
     @Permissions('enrollments.create')
     @ApiOperation({ summary: 'Sinh viên đăng ký vào lớp' })

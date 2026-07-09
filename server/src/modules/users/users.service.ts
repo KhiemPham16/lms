@@ -403,6 +403,59 @@ export class UsersService {
         return this.formatUser(user);
     }
 
+    async updateMyProfile(actorPublicId: string, dto: UpdateUserDto) {
+        const currentUser = await this.findByPublicIdRawOrThrow(actorPublicId);
+        const roleCode = currentUser.role?.code;
+        const canEditAllProfile = ['ADMIN', 'PRINCIPAL'].includes(roleCode ?? '');
+        const allowedFields = canEditAllProfile
+            ? ['fullName', 'email', 'phone', 'gender', 'avatarUrl', 'dateOfBirth', 'address', 'departmentId']
+            : roleCode === 'HR'
+              ? ['gender', 'avatarUrl', 'dateOfBirth', 'address']
+              : ['avatarUrl', 'address'];
+        const payload = Object.fromEntries(
+            Object.entries(dto).filter(([key, value]) => allowedFields.includes(key) && value !== undefined)
+        ) as UpdateUserDto;
+
+        const duplicateFilters = [
+            ...(payload.email ? [{ email: payload.email }] : []),
+            ...(payload.phone ? [{ phone: payload.phone }] : [])
+        ];
+        const duplicateUser =
+            duplicateFilters.length > 0
+                ? await this.prisma.user.findFirst({
+                      where: {
+                          publicId: {
+                              not: actorPublicId
+                          },
+                          OR: duplicateFilters
+                      }
+                  })
+                : null;
+
+        if (duplicateUser) {
+            throw new ConflictException('Mã người dùng, email hoặc số điện thoại đã tồn tại');
+        }
+
+        const user = await this.prisma.user.update({
+            where: {
+                publicId: actorPublicId
+            },
+            data: {
+                fullName: payload.fullName,
+                email: payload.email,
+                phone: payload.phone,
+                gender: payload.gender,
+                avatarUrl: payload.avatarUrl,
+                dateOfBirth: payload.dateOfBirth ? new Date(payload.dateOfBirth) : undefined,
+                address: payload.address,
+                departmentId: payload.departmentId
+            },
+            select: this.defaultSelect()
+        });
+
+        return this.formatUser(user);
+    }
+
     async softDelete(publicId: string) {
         const user = await this.findByPublicIdRawOrThrow(publicId);
         this.assertTargetIsNotAdmin(user);
@@ -1007,22 +1060,6 @@ export class UsersService {
                     ? creatorPublicIds.filter((publicId) => query.publicIds?.includes(publicId))
                     : creatorPublicIds
             };
-        }
-
-        const actor = await this.findActor(actorPublicId);
-
-        if (actor?.role?.code === 'HR') {
-            const visibleRoleCodes = roleCodes?.filter((role) => !this.hrBlockedRoles.includes(role));
-
-            if (roleCodes?.length && visibleRoleCodes?.length === 0) {
-                where.id = { in: [] };
-            } else {
-                where.role = visibleRoleCodes?.length
-                    ? visibleRoleCodes.length === 1
-                        ? { code: visibleRoleCodes[0] }
-                        : { code: { in: visibleRoleCodes } }
-                    : { code: { notIn: this.hrBlockedRoles } };
-            }
         }
 
         return where;

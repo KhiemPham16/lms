@@ -10,7 +10,9 @@ export default function UserTable({
     selectedIds = [],
     onToggleUser,
     onTogglePage,
-    canManageUser
+    canManageUser,
+    canResetPasswordUser,
+    getProtectedReason
 }) {
     const selectableUsers = users.filter((user) => canManageUser?.(user) ?? true);
     const allSelected =
@@ -45,13 +47,13 @@ export default function UserTable({
                         {loading ? (
                             <TableRow>
                                 <TableCell colSpan={8} className="h-24 text-center">
-                                    Dang tai...
+                                    Đang tải...
                                 </TableCell>
                             </TableRow>
                         ) : users.length === 0 ? (
                             <TableRow>
                                 <TableCell colSpan={8} className="h-24 text-center">
-                                    Khong co du lieu
+                                    Không có dữ liệu
                                 </TableCell>
                             </TableRow>
                         ) : (
@@ -65,7 +67,7 @@ export default function UserTable({
                                                 checked={selectedIds.includes(user.publicId)}
                                                 disabled={!canManage}
                                                 onCheckedChange={() => onToggleUser?.(user.publicId)}
-                                                aria-label={`Ch?n ${user.fullName}`}
+                                                aria-label={`Chọn ${user.fullName}`}
                                             />
                                         </TableCell>
                                         <TableCell>{user.code}</TableCell>
@@ -73,7 +75,7 @@ export default function UserTable({
                                             <div className="font-medium">{user.fullName}</div>
                                             {!canManage ? (
                                                 <div className="text-xs text-muted-foreground">
-                                                    Tài khoản được bảo vệ
+                                                    {getProtectedReason?.(user) ?? 'Tài khoản được bảo vệ'}
                                                 </div>
                                             ) : null}
                                         </TableCell>
@@ -82,7 +84,12 @@ export default function UserTable({
                                         <TableCell>{user.department?.name}</TableCell>
                                         <TableCell>{user.status}</TableCell>
                                         <TableCell className="text-right">
-                                            <UserActionMenu user={user} onAction={onAction} canManage={canManage} />
+                                            <UserActionMenu
+                                                user={user}
+                                                onAction={onAction}
+                                                canManage={canManage}
+                                                canResetPassword={canResetPasswordUser?.(user) ?? canManage}
+                                            />
                                         </TableCell>
                                     </TableRow>
                                 );

@@ -4,6 +4,7 @@ import LoginPage from '~/pages/Auth/LoginPage';
 import ActivateAccountPage from '~/pages/Auth/ActivateAccountPage';
 import DashboardLayout from '~/layouts/DashboardLayout';
 import DashboardPage from '~/pages/Dashboard';
+import ProfilePage from '~/pages/Profile';
 import UsersPage from '~/pages/Users';
 import AuditLogsPage from '~/pages/Lms/AuditLogsPage';
 import ClassContentPage from '~/pages/Lms/ClassContentPage';
@@ -62,6 +63,10 @@ const router = createBrowserRouter([
                             {
                                 path: '/dashboard',
                                 element: <DashboardPage />
+                            },
+                            {
+                                path: '/profile',
+                                element: <ProfilePage />
                             },
                             {
                                 path: '/users',

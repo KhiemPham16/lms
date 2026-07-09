@@ -155,9 +155,16 @@ export default function UsersPage() {
         }
     });
 
-    const isAdminUser = (user) => user?.role?.code === 'ADMIN';
+    const viewOnlyRoles = ['ADMIN', 'PRINCIPAL'];
+    const isViewOnlyRole = (user) => viewOnlyRoles.includes(user?.role?.code);
     const isCurrentUser = (user) => user?.publicId === currentUser?.publicId || user?.email === currentUser?.email;
-    const canManageUser = (user) => !isAdminUser(user) && !isCurrentUser(user);
+    const canManageUser = (user) => !isViewOnlyRole(user) && !isCurrentUser(user);
+    const canResetPasswordUser = (user) => canManageUser(user) || isCurrentUser(user);
+    const getProtectedReason = (user) => {
+        if (isCurrentUser(user)) return 'Tài khoản hiện tại - chỉ đặt lại mật khẩu';
+        if (isViewOnlyRole(user)) return 'Chỉ được xem chi tiết';
+        return 'Tài khoản được bảo vệ';
+    };
     const users = data?.items ?? [];
     const selectedUsers = users.filter((user) => selectedIds.includes(user.publicId));
     const manageableSelectedIds = selectedUsers.filter(canManageUser).map((user) => user.publicId);
@@ -177,9 +184,13 @@ export default function UsersPage() {
         });
     };
 
-    const guardManageUser = (user) => {
+    const guardManageUser = (user, type) => {
+        if (type === 'reset-password' && canResetPasswordUser(user)) {
+            return true;
+        }
+
         if (!canManageUser(user)) {
-            toast.error('Không được thao tác lên tài khoản Admin.');
+            toast.error(getProtectedReason(user));
             return false;
         }
         return true;
@@ -193,7 +204,7 @@ export default function UsersPage() {
             return;
         }
 
-        if (!guardManageUser(user)) return;
+        if (!guardManageUser(user, type)) return;
 
         if (type === 'edit') {
             setEditUser(user);
@@ -336,6 +347,8 @@ export default function UsersPage() {
                 onToggleUser={toggleUserSelection}
                 onTogglePage={togglePageSelection}
                 canManageUser={canManageUser}
+                canResetPasswordUser={canResetPasswordUser}
+                getProtectedReason={getProtectedReason}
             />
 
             <Pagination

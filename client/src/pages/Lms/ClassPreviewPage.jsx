@@ -1,7 +1,7 @@
-import { useMemo, useState } from 'react';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useParams } from 'react-router-dom';
-import { ArrowLeft, CheckCircle2, PlayCircle, Plus, XCircle } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, ChevronDown, PlayCircle, XCircle } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { Badge } from '~/components/ui/badge';
@@ -14,6 +14,51 @@ import { normalizeList } from './utils';
 const looksLikeHtml = (value = '') => /<\/?[a-z][\s\S]*>/i.test(value);
 const languageLabel = { html: 'HTML', css: 'CSS', javascript: 'JavaScript', jsx: 'JSX', typescript: 'TypeScript', python: 'Python', java: 'Java', csharp: 'C#', json: 'JSON' };
 const languageIcon = { html: '5', css: '#', javascript: 'JS', jsx: 'JSX', typescript: 'TS', python: 'PY', java: 'J', csharp: 'C#', json: '{}' };
+
+const getYoutubeVideoId = (value = '') => {
+    const directId = value.match(/^[A-Za-z0-9_-]{11}$/)?.[0];
+    if (directId) return directId;
+
+    try {
+        const url = new URL(value);
+        if (url.hostname.includes('youtu.be')) return url.pathname.split('/').filter(Boolean)[0] || null;
+        if (url.hostname.includes('youtube.com')) {
+            return url.searchParams.get('v') || url.pathname.match(/\/(?:embed|shorts)\/([A-Za-z0-9_-]{11})/)?.[1] || null;
+        }
+    } catch {
+        return null;
+    }
+
+    return null;
+};
+
+const getYoutubeEmbedUrl = (value = '') => {
+    const videoId = getYoutubeVideoId(value);
+    return videoId ? `https://www.youtube.com/embed/${videoId}` : '';
+};
+
+let youtubeApiPromise;
+
+const loadYoutubeApi = () => {
+    if (window.YT?.Player) return Promise.resolve(window.YT);
+    if (youtubeApiPromise) return youtubeApiPromise;
+
+    youtubeApiPromise = new Promise((resolve) => {
+        const previousReady = window.onYouTubeIframeAPIReady;
+        window.onYouTubeIframeAPIReady = () => {
+            previousReady?.();
+            resolve(window.YT);
+        };
+
+        if (!document.querySelector('script[src="https://www.youtube.com/iframe_api"]')) {
+            const script = document.createElement('script');
+            script.src = 'https://www.youtube.com/iframe_api';
+            document.body.appendChild(script);
+        }
+    });
+
+    return youtubeApiPromise;
+};
 
 function ArticleContent({ content }) {
     if (!content) return <p className="text-muted-foreground">Nội dung bài học sẽ hiển thị ở đây.</p>;
@@ -81,7 +126,14 @@ export default function ClassPreviewPage({ mode = 'preview' }) {
     const [selectedCodeFilePath, setSelectedCodeFilePath] = useState('');
     const [editedFilesByLesson, setEditedFilesByLesson] = useState({});
     const [codeResult, setCodeResult] = useState(null);
+    const [collapsedSectionIds, setCollapsedSectionIds] = useState(() => new Set());
+    const [codeGuideTab, setCodeGuideTab] = useState('guide');
+    const completedVideoIdsRef = useRef(new Set());
+    const youtubeFrameRef = useRef(null);
+    const youtubePlayerRef = useRef(null);
+    const queryClient = useQueryClient();
     const currentUser = useAuthStore((state) => state.user);
+    const isStudent = currentUser?.role?.code === 'STUDENT' || currentUser?.role === 'STUDENT';
     const isLearnMode = mode === 'learn';
     const canBackToEditor = mode === 'preview' && currentUser?.role?.code && currentUser.role.code !== 'STUDENT';
 
@@ -132,7 +184,14 @@ export default function ClassPreviewPage({ mode = 'preview' }) {
         ...(lessonsBySection.get(section.publicId) || []).map((item, itemIndex) => ({ ...item, kind: 'lesson', section, sectionIndex, itemIndex })),
         ...(examsBySection.get(section.publicId) || []).map((item, itemIndex) => ({ ...item, kind: 'exam', section, sectionIndex, itemIndex }))
     ]);
+    const completedItemCount = previewItems.filter((item) => item.progress?.isCompleted).length;
+    const progressPercent = previewItems.length > 0 ? Math.round((completedItemCount / previewItems.length) * 100) : 0;
     const selectedItem = previewItems.find((item) => item.publicId === selectedItemId) || previewItems[0] || null;
+    const selectedYoutubeEmbedUrl =
+        selectedItem?.type === 'VIDEO' ? getYoutubeEmbedUrl(selectedItem.resourceUrl) : '';
+    const headerTitle = [classInfo?.name || (isLearnMode ? 'Lớp học' : 'Xem trước lớp học'), classInfo?.lecturer?.fullName]
+        .filter(Boolean)
+        .join(' - ');
     const codeConfig = useMemo(
         () => (selectedItem?.type === 'CODE' ? parseCodeConfig(selectedItem) : { instructions: '', files: [] }),
         [selectedItem]
@@ -143,6 +202,18 @@ export default function ClassPreviewPage({ mode = 'preview' }) {
     );
     const codeFiles = isLearnMode && selectedItem?.publicId ? editedFilesByLesson[selectedItem.publicId] || templateCodeFiles : templateCodeFiles;
     const selectedCodeFile = codeFiles.find((file) => file.path === selectedCodeFilePath) || codeFiles[0] || null;
+    const browserPreviewHtml = useMemo(() => {
+        const htmlFile = codeFiles.find((file) => file.language === 'html' || file.path.endsWith('.html'));
+        const cssFiles = codeFiles.filter((file) => file.language === 'css' || file.path.endsWith('.css'));
+        const jsFiles = codeFiles.filter((file) => ['javascript', 'js'].includes(file.language) || file.path.endsWith('.js'));
+        const html = htmlFile?.content || '<!DOCTYPE html><html><head></head><body></body></html>';
+        const styles = cssFiles.map((file) => `<style data-file="${file.path}">\n${file.content || ''}\n</style>`).join('\n');
+        const scripts = jsFiles.map((file) => `<script data-file="${file.path}">\n${file.content || ''}\n</script>`).join('\n');
+
+        return html.includes('</head>')
+            ? html.replace('</head>', `${styles}\n</head>`).replace('</body>', `${scripts}\n</body>`)
+            : `<!DOCTYPE html><html><head>${styles}</head><body>${html}${scripts}</body></html>`;
+    }, [codeFiles]);
 
     const checkCode = useMutation({
         mutationFn: () => lmsService.checkCodeLesson(selectedItem.publicId, { files: codeFiles }),
@@ -155,12 +226,72 @@ export default function ClassPreviewPage({ mode = 'preview' }) {
 
     const submitCode = useMutation({
         mutationFn: () => lmsService.submitCodeLesson(selectedItem.publicId, { files: codeFiles }),
-        onSuccess: (result) => {
+        onSuccess: async (result) => {
             setCodeResult({ lessonPublicId: selectedItem.publicId, ...result });
             toast.success(result.passed ? 'Nộp bài thành công' : 'Đã nộp, nhưng bài chưa đạt yêu cầu');
+            await queryClient.invalidateQueries({ queryKey: ['lessons', publicId] });
         },
         onError: (error) => toast.error(error?.response?.data?.message || 'Không thể nộp bài code')
     });
+
+    const completeLesson = useMutation({
+        mutationFn: (lesson) => lmsService.completeLesson(lesson.publicId),
+        onSuccess: async () => {
+            await queryClient.invalidateQueries({ queryKey: ['lessons', publicId] });
+        },
+        onError: (error) => {
+            toast.error(error?.response?.data?.message || 'Không thể cập nhật tiến độ bài học');
+        }
+    });
+
+    const completeVideoIfEnough = useCallback((lesson, currentTime, duration) => {
+        if (!isLearnMode || !lesson || lesson.type !== 'VIDEO') return;
+        if (lesson.progress?.isCompleted || completedVideoIdsRef.current.has(lesson.publicId)) return;
+        if (!duration || duration <= 0 || currentTime / duration < 0.6) return;
+
+        completedVideoIdsRef.current.add(lesson.publicId);
+        completeLesson.mutate(lesson);
+    }, [completeLesson, isLearnMode]);
+
+    useEffect(() => {
+        const frame = youtubeFrameRef.current;
+        if (!isLearnMode || !selectedItem || selectedItem.type !== 'VIDEO' || !selectedYoutubeEmbedUrl || !frame) {
+            youtubePlayerRef.current?.destroy?.();
+            youtubePlayerRef.current = null;
+            return undefined;
+        }
+
+        let intervalId;
+        let cancelled = false;
+
+        loadYoutubeApi().then((YT) => {
+            if (cancelled || !youtubeFrameRef.current) return;
+
+            youtubePlayerRef.current?.destroy?.();
+            youtubePlayerRef.current = new YT.Player(youtubeFrameRef.current, {
+                events: {
+                    onStateChange: (event) => {
+                        if (event.data === YT.PlayerState.PLAYING) {
+                            window.clearInterval(intervalId);
+                            intervalId = window.setInterval(() => {
+                                const player = youtubePlayerRef.current;
+                                completeVideoIfEnough(selectedItem, player?.getCurrentTime?.(), player?.getDuration?.());
+                            }, 1000);
+                        } else {
+                            window.clearInterval(intervalId);
+                        }
+                    }
+                }
+            });
+        });
+
+        return () => {
+            cancelled = true;
+            window.clearInterval(intervalId);
+            youtubePlayerRef.current?.destroy?.();
+            youtubePlayerRef.current = null;
+        };
+    }, [completeVideoIfEnough, isLearnMode, selectedItem, selectedYoutubeEmbedUrl]);
 
     const updateSelectedCode = (content) => {
         if (!selectedItem?.publicId || !selectedCodeFile) return;
@@ -170,6 +301,15 @@ export default function ClassPreviewPage({ mode = 'preview' }) {
                 file.path === selectedCodeFile.path ? { ...file, content } : file
             )
         }));
+    };
+
+    const toggleSection = (sectionPublicId) => {
+        setCollapsedSectionIds((current) => {
+            const next = new Set(current);
+            if (next.has(sectionPublicId)) next.delete(sectionPublicId);
+            else next.add(sectionPublicId);
+            return next;
+        });
     };
 
     const renderMainContent = () => {
@@ -190,12 +330,37 @@ export default function ClassPreviewPage({ mode = 'preview' }) {
         }
 
         if (selectedItem.type === 'VIDEO') {
+            const videoUrl = resolveMediaUrl(selectedItem.resourceUrl);
+            const youtubeUrl = selectedYoutubeEmbedUrl
+                ? `${selectedYoutubeEmbedUrl}?enablejsapi=1&origin=${encodeURIComponent(window.location.origin)}`
+                : '';
+
             return (
                 <div>
-                    <div className="bg-black px-4 py-6">
-                        <div className="mx-auto flex aspect-video max-h-[70vh] max-w-6xl items-center justify-center overflow-hidden bg-black">
-                            {selectedItem.resourceUrl ? (
-                                <video src={resolveMediaUrl(selectedItem.resourceUrl)} className="h-full w-full object-contain" controls />
+                    <div className="bg-black">
+                        <div className="mx-auto flex aspect-video max-h-[calc(100vh-16rem)] w-full items-center justify-center overflow-hidden bg-black">
+                            {selectedYoutubeEmbedUrl ? (
+                                <iframe
+                                    ref={youtubeFrameRef}
+                                    src={youtubeUrl}
+                                    title={selectedItem.title}
+                                    className="h-full w-full"
+                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                                    allowFullScreen
+                                />
+                            ) : selectedItem.resourceUrl ? (
+                                <video
+                                    src={videoUrl}
+                                    className="h-full w-full object-contain"
+                                    controls
+                                    onTimeUpdate={(event) => {
+                                        completeVideoIfEnough(
+                                            selectedItem,
+                                            event.currentTarget.currentTime,
+                                            event.currentTarget.duration
+                                        );
+                                    }}
+                                />
                             ) : (
                                 <div className="flex h-full w-full flex-col items-center justify-center bg-slate-900 text-white">
                                     <div className="flex size-20 items-center justify-center rounded-full bg-white/20"><PlayCircle className="size-12" /></div>
@@ -210,7 +375,6 @@ export default function ClassPreviewPage({ mode = 'preview' }) {
                                 <h2 className="text-3xl font-semibold">{selectedItem.title}</h2>
                                 {selectedItem.durationMinutes ? <p className="mt-2 text-sm text-muted-foreground">Thời lượng {selectedItem.durationMinutes} phút</p> : null}
                             </div>
-                            <Button type="button" variant="secondary"><Plus className="size-4" />Thêm ghi chú tại 00:00</Button>
                         </div>
                         {selectedItem.description ? <p className="text-sm text-muted-foreground">{selectedItem.description}</p> : null}
                         {selectedItem.content ? <ArticleContent content={selectedItem.content} /> : null}
@@ -224,17 +388,45 @@ export default function ClassPreviewPage({ mode = 'preview' }) {
                 <div className="grid min-h-[calc(100vh-48px)] lg:grid-cols-[45%_55%]">
                     <section className="border-b p-8 lg:border-b-0 lg:border-r">
                         <div className="mb-6 grid grid-cols-2 border-b text-center text-sm font-semibold">
-                            <div className="border-b-2 border-primary px-4 py-3 text-primary">Nội dung</div>
-                            <div className="px-4 py-3 text-muted-foreground">Trình duyệt</div>
+                            <button
+                                type="button"
+                                className={`px-4 py-3 ${codeGuideTab === 'guide' ? 'border-b-2 border-primary text-primary' : 'text-muted-foreground hover:text-foreground'}`}
+                                onClick={() => setCodeGuideTab('guide')}
+                            >
+                                Nội dung
+                            </button>
+                            <button
+                                type="button"
+                                className={`px-4 py-3 ${codeGuideTab === 'browser' ? 'border-b-2 border-primary text-primary' : 'text-muted-foreground hover:text-foreground'}`}
+                                onClick={() => setCodeGuideTab('browser')}
+                            >
+                                Trình duyệt
+                            </button>
                         </div>
-                        <article className="prose prose-slate max-w-none text-[15px] leading-8">
-                            <h2>{selectedItem.title}</h2>
-                            {selectedItem.description ? <p className="text-muted-foreground">{selectedItem.description}</p> : null}
-                            <ArticleContent content={codeConfig.instructions || selectedItem.content} />
-                            <Button asChild type="button" className="mt-4">
-                                <Link to={`/lessons/${selectedItem.publicId}/code-lab`}>Mở trang lab coding</Link>
-                            </Button>
-                        </article>
+                        {codeGuideTab === 'guide' ? (
+                            <article className="prose prose-slate max-w-none text-[15px] leading-8">
+                                <h2>{selectedItem.title}</h2>
+                                {selectedItem.description ? <p className="text-muted-foreground">{selectedItem.description}</p> : null}
+                                <ArticleContent content={codeConfig.instructions || selectedItem.content} />
+                                {!isStudent ? (
+                                    <Button asChild type="button" className="mt-4">
+                                        <Link to={`/lessons/${selectedItem.publicId}/code-lab`}>Mở trang lab coding</Link>
+                                    </Button>
+                                ) : null}
+                            </article>
+                        ) : (
+                            <div className="overflow-hidden rounded-lg border bg-white">
+                                <div className="border-b bg-muted/40 px-3 py-2 text-xs font-medium text-muted-foreground">
+                                    Xem trước kết quả HTML/CSS/JS
+                                </div>
+                                <iframe
+                                    title="Xem trước bài code"
+                                    className="h-[calc(100vh-13rem)] min-h-96 w-full bg-white"
+                                    sandbox="allow-scripts"
+                                    srcDoc={browserPreviewHtml}
+                                />
+                            </div>
+                        )}
                     </section>
                     <section className="flex min-w-0 flex-col bg-[#1e1e1e] text-slate-100">
                         <div className="flex min-h-11 items-center overflow-x-auto border-b border-white/10 bg-[#252526]">
@@ -306,12 +498,22 @@ export default function ClassPreviewPage({ mode = 'preview' }) {
                             </Link>
                         </Button>
                     ) : null}
-                    <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-orange-500 font-semibold">LMS</div>
-                    <h1 className="truncate font-semibold">{classInfo?.name || (isLearnMode ? 'Lớp học' : 'Xem trước lớp học')}</h1>
+                    <Button asChild variant="ghost" className="h-9 shrink-0 px-2 text-white hover:bg-white/10 hover:text-white">
+                        <Link to="/dashboard" aria-label="Quay lại dashboard">
+                            <ArrowLeft className="size-5" />
+                        </Link>
+                    </Button>
+                    <h1 className="truncate font-semibold">{headerTitle}</h1>
                 </div>
                 <div className="flex shrink-0 items-center gap-3 text-sm font-semibold">
-                    <span className="text-orange-500">0%</span>
-                    <span>{previewItems.length} bài học</span>
+                    <div className="hidden w-32 items-center gap-2 sm:flex">
+                        <div className="h-2 flex-1 overflow-hidden rounded-full bg-white/20">
+                            <div className="h-full rounded-full bg-orange-500 transition-all" style={{ width: `${progressPercent}%` }} />
+                        </div>
+                        <span className="min-w-9 text-right text-orange-500">{progressPercent}%</span>
+                    </div>
+                    <span className="sm:hidden text-orange-500">{progressPercent}%</span>
+                    <span>{completedItemCount}/{previewItems.length} bài học</span>
                 </div>
             </header>
 
@@ -329,19 +531,28 @@ export default function ClassPreviewPage({ mode = 'preview' }) {
                                 ...(lessonsBySection.get(section.publicId) || []).map((item) => ({ ...item, kind: 'lesson' })),
                                 ...(examsBySection.get(section.publicId) || []).map((item) => ({ ...item, kind: 'exam' }))
                             ];
+                            const isCollapsed = collapsedSectionIds.has(section.publicId);
                             return (
                                 <div key={section.publicId} className="border-b">
-                                    <div className="px-4 py-3 font-semibold">{sectionIndex + 1}. {section.title}</div>
-                                    {items.length === 0 ? <p className="px-4 pb-3 text-sm text-muted-foreground">Chưa có mục nào.</p> : items.map((item, itemIndex) => (
+                                    <button
+                                        type="button"
+                                        className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left font-semibold transition hover:bg-muted"
+                                        onClick={() => toggleSection(section.publicId)}
+                                        aria-expanded={!isCollapsed}
+                                    >
+                                        <span>{sectionIndex + 1}. {section.title}</span>
+                                        <ChevronDown className={`size-4 shrink-0 text-muted-foreground transition-transform ${isCollapsed ? '-rotate-90' : ''}`} />
+                                    </button>
+                                    {!isCollapsed && (items.length === 0 ? <p className="px-4 pb-3 text-sm text-muted-foreground">Chưa có mục nào.</p> : items.map((item, itemIndex) => (
                                         <button key={item.publicId} type="button" onClick={() => setSelectedItemId(item.publicId)} className={`flex w-full items-start gap-2 px-4 py-3 text-left text-sm transition ${selectedItem?.publicId === item.publicId ? 'bg-primary/10 text-primary' : 'hover:bg-muted'}`}>
                                             <span className="font-medium">{sectionIndex + 1}.{itemIndex + 1}</span>
                                             <span className="min-w-0 flex-1">
                                                 <span className="block truncate">{item.title}</span>
                                                 <span className="text-xs text-muted-foreground">{item.kind === 'exam' ? 'Quiz' : item.type}</span>
                                             </span>
-                                            {item.isPublished ? <Badge variant="secondary">OK</Badge> : null}
+                                            {item.progress?.isCompleted ? <Badge variant="secondary">OK</Badge> : null}
                                         </button>
-                                    ))}
+                                    )))}
                                 </div>
                             );
                         })}

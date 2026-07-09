@@ -1,7 +1,7 @@
 ﻿import { useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { DragDropContext, Draggable, Droppable } from '@hello-pangea/dnd';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
     BookOpen,
     CheckCircle2,
@@ -108,7 +108,7 @@ const curriculumItemTypes = [
             {
                 label: 'Bài tập coding',
                 description: 'Bài tập lập trình có file và test',
-                dialog: 'lesson',
+                quickCreate: 'code',
                 initialValues: { type: 'CODE', codeConfig: defaultCodeConfig }
             },
             {
@@ -243,6 +243,7 @@ export default function ClassContentPage() {
     const [expandedLessonIds, setExpandedLessonIds] = useState(() => new Set());
     const autoSectionRequested = useRef(false);
     const queryClient = useQueryClient();
+    const navigate = useNavigate();
     const currentUser = useAuthStore((state) => state.user);
 
     const classQuery = useQuery({ queryKey: ['class', publicId], queryFn: () => lmsService.getClass(publicId) });
@@ -294,16 +295,6 @@ export default function ClassContentPage() {
                 label: 'Link tài nguyên',
                 optional: true,
                 visibleWhen: (values) => ['DOCUMENT', 'FILE', 'LINK'].includes(values.type)
-            },
-            {
-                name: 'codeConfig',
-                label: 'Cấu hình bài code JSON',
-                type: 'json',
-                optional: true,
-                fullWidth: true,
-                defaultValue: JSON.stringify(defaultCodeConfig, null, 2),
-                placeholder: 'Dùng cho bài CODE: files có thể gồm html, css, javascript, python, java...',
-                visibleWhen: (values) => values.type === 'CODE'
             },
             { name: 'durationMinutes', label: 'Thời lượng phút', type: 'number', optional: true },
             { name: 'isPublished', label: 'Công bố ngay', type: 'checkbox', optional: true }
@@ -467,6 +458,31 @@ export default function ClassContentPage() {
         }
     });
 
+    const quickCreateCodeLesson = useMutation({
+        mutationFn: async (sectionPublicId) => {
+            if (!canEdit) throw new Error('Chỉ giảng viên được chỉ định mới được chỉnh sửa nội dung lớp');
+
+            const sectionLessons = lessonsBySection.get(sectionPublicId) || [];
+            const title = `Bài tập coding ${sectionLessons.filter((lesson) => lesson.type === 'CODE').length + 1}`;
+            return lmsService.createLesson(publicId, {
+                sectionPublicId: sectionPublicId === 'standalone' ? undefined : sectionPublicId,
+                title,
+                type: 'CODE',
+                content: 'Mô tả yêu cầu bài tập coding tại đây.',
+                codeConfig: defaultCodeConfig,
+                isPublished: false
+            });
+        },
+        onSuccess: async (lesson) => {
+            toast.success('Đã tạo bài tập coding');
+            setExpandedLessonIds((current) => new Set(current).add(lesson.publicId));
+            await refresh();
+        },
+        onError: (error) => {
+            toast.error(error?.response?.data?.message || error?.message || 'Không thể tạo bài tập coding');
+        }
+    });
+
     const reorderSections = useMutation({
         mutationFn: (items) => lmsService.reorderLessonSections(publicId, items),
         onError: (error) => {
@@ -510,6 +526,20 @@ export default function ClassContentPage() {
         },
         onError: (error) => {
             toast.error(error?.response?.data?.message || 'Không thể xóa bài học');
+        }
+    });
+
+    const publishLesson = useMutation({
+        mutationFn: (lesson) => {
+            if (!canEdit) throw new Error('Chỉ giảng viên được chỉ định mới được chỉnh sửa nội dung lớp');
+            return lmsService.publishLesson(lesson.publicId, !lesson.isPublished);
+        },
+        onSuccess: async (_data, lesson) => {
+            toast.success(lesson.isPublished ? 'Đã ẩn bài giảng' : 'Đã công bố bài giảng');
+            await refresh();
+        },
+        onError: (error) => {
+            toast.error(error?.response?.data?.message || 'Không thể cập nhật trạng thái bài giảng');
         }
     });
 
@@ -597,6 +627,11 @@ export default function ClassContentPage() {
     };
 
     const openCurriculumItem = (sectionPublicId, item) => {
+        if (item.quickCreate === 'code') {
+            quickCreateCodeLesson.mutate(sectionPublicId);
+            return;
+        }
+
         setSelectedSectionPublicId(sectionPublicId === 'standalone' ? null : sectionPublicId);
         setContentPreset(item.initialValues);
         setDialog(item.dialog);
@@ -648,8 +683,14 @@ export default function ClassContentPage() {
                                     <button
                                         type="button"
                                         className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
-                                        aria-label="Sửa tiêu đề bài học"
-                                        onClick={() => setEditingLesson(lesson)}
+                                        aria-label={lesson.type === 'CODE' ? 'Thiết lập bài code' : 'Sửa tiêu đề bài học'}
+                                        onClick={() => {
+                                            if (lesson.type === 'CODE') {
+                                                navigate(`/lessons/${lesson.publicId}/code-lab`);
+                                                return;
+                                            }
+                                            setEditingLesson(lesson);
+                                        }}
                                     >
                                         <Pencil className="size-3.5" />
                                     </button>
@@ -679,28 +720,38 @@ export default function ClassContentPage() {
                     </button>
                 </div>
                 {canEdit && isExpanded ? (
-                    <div className="space-y-2 border-t px-3 py-3">
+                    <div className="flex flex-wrap items-center gap-2 border-t px-3 py-3">
                         <Button type="button" size="sm" variant="outline">
                             <Plus className="size-4" />
                             Mô tả
                         </Button>
-                        <Button type="button" size="sm" variant="outline" className="ml-2">
+                        <Button type="button" size="sm" variant="outline">
                             <Plus className="size-4" />
                             Tài nguyên
                         </Button>
                         {lesson.type === 'CODE' ? (
-                            <Button type="button" size="sm" variant="outline" className="ml-2" asChild>
+                            <Button type="button" size="sm" variant="outline" asChild>
                                 <Link to={`/lessons/${lesson.publicId}/code-lab`}>
                                     <Plus className="size-4" />
                                     Lab
                                 </Link>
                             </Button>
                         ) : (
-                            <Button type="button" size="sm" variant="outline" className="ml-2" disabled>
+                            <Button type="button" size="sm" variant="outline" disabled>
                                 <Plus className="size-4" />
                                 Lab
                             </Button>
                         )}
+                        <Button
+                            type="button"
+                            size="sm"
+                            variant={lesson.isPublished ? 'secondary' : 'default'}
+                            onClick={() => publishLesson.mutate(lesson)}
+                            disabled={publishLesson.isPending}
+                        >
+                            <Eye className="size-4" />
+                            {lesson.isPublished ? 'Ẩn' : 'Công bố'}
+                        </Button>
                     </div>
                 ) : null}
             </div>

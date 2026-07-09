@@ -112,6 +112,14 @@ export class UsersController {
         return this.usersService.exportCsv(query, actor.sub);
     }
 
+    @Patch('me/profile')
+    @ApiBearerAuth()
+    @UseGuards(JwtAuthGuard)
+    @ApiOperation({ summary: 'Cập nhật hồ sơ cá nhân' })
+    updateMyProfile(@CurrentUser() actor: JwtPayload, @Body() dto: UpdateUserDto) {
+        return this.usersService.updateMyProfile(actor.sub, dto);
+    }
+
     @Post('bulk/lock')
     @ApiBearerAuth()
     @UseGuards(JwtAuthGuard, PermissionsGuard)

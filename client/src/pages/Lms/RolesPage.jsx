@@ -272,8 +272,8 @@ export default function RolesPage() {
     };
 
     return (
-        <div className="space-y-5">
-            <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+        <div className="flex h-[calc(100vh-7rem)] min-h-0 flex-col gap-5 overflow-hidden">
+            <div className="shrink-0 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
                 <div>
                     <h1 className="text-2xl font-semibold tracking-normal">Vai trò và phân quyền</h1>
                     <p className="mt-1 text-sm text-muted-foreground">
@@ -285,7 +285,7 @@ export default function RolesPage() {
                 </Button>
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-3">
+            <div className="grid shrink-0 gap-3 sm:grid-cols-3">
                 <div className="rounded-lg border bg-card p-4 shadow-sm">
                     <p className="text-sm text-muted-foreground">Vai trò</p>
                     <p className="mt-1 text-2xl font-semibold">{roles.length}</p>
@@ -300,15 +300,15 @@ export default function RolesPage() {
                 </div>
             </div>
 
-            <Tabs defaultValue="editor">
-                <TabsList>
+            <Tabs defaultValue="editor" className="flex min-h-0 flex-1 flex-col">
+                <TabsList className="shrink-0 self-start">
                     <TabsTrigger value="editor">Cấu hình quyền</TabsTrigger>
                     <TabsTrigger value="matrix">Ma trận quyền</TabsTrigger>
                 </TabsList>
 
-                <TabsContent value="editor" className="mt-3">
-                    <div className="grid min-h-[70vh] overflow-hidden rounded-lg border bg-card shadow-sm lg:grid-cols-[300px_1fr]">
-                        <aside className="border-b bg-muted/30 p-3 lg:border-r lg:border-b-0">
+                <TabsContent value="editor" className="mt-3 min-h-0 flex-1 overflow-hidden data-[state=inactive]:hidden">
+                    <div className="grid h-full min-h-0 overflow-hidden rounded-lg border bg-card shadow-sm lg:grid-cols-[300px_1fr]">
+                        <aside className="flex min-h-0 flex-col border-b bg-muted/30 p-3 lg:border-r lg:border-b-0">
                             <div className="mb-3 flex items-center justify-between px-1">
                                 <span className="text-xs font-medium uppercase text-muted-foreground">
                                     Danh sách vai trò
@@ -317,7 +317,7 @@ export default function RolesPage() {
                                     <span className="text-xs text-muted-foreground">Đang tải...</span>
                                 ) : null}
                             </div>
-                            <div className="space-y-2">
+                            <div className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
                                 {roles.map((role) => {
                                     const active = selectedRole?.publicId === role.publicId;
                                     return (
@@ -355,10 +355,10 @@ export default function RolesPage() {
                             </div>
                         </aside>
 
-                        <main className="min-w-0">
+                        <main className="flex min-h-0 min-w-0 flex-col">
                             {selectedRole ? (
                                 <>
-                                    <div className="flex flex-col gap-3 border-b p-4 xl:flex-row xl:items-start xl:justify-between">
+                                    <div className="shrink-0 flex flex-col gap-3 border-b p-4 xl:flex-row xl:items-start xl:justify-between">
                                         <div>
                                             <div className="flex flex-wrap items-center gap-2">
                                                 <ShieldCheck className="size-5 text-primary" />
@@ -395,7 +395,7 @@ export default function RolesPage() {
                                         </div>
                                     </div>
 
-                                    <div className="grid gap-3 border-b p-4 xl:grid-cols-[1fr_220px_280px]">
+                                    <div className="grid shrink-0 gap-3 border-b p-4 xl:grid-cols-[1fr_220px_280px]">
                                         <div className="relative">
                                             <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                                             <Input
@@ -443,7 +443,7 @@ export default function RolesPage() {
                                         </div>
                                     </div>
 
-                                    <div className="max-h-[54vh] space-y-3 overflow-y-auto p-4">
+                                    <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
                                         {permissionsQuery.isPending ? (
                                             <div className="flex h-40 items-center justify-center text-sm text-muted-foreground">
                                                 Đang tải danh mục quyền...
@@ -534,7 +534,7 @@ export default function RolesPage() {
                                         )}
                                     </div>
 
-                                    <div className="grid gap-3 border-t bg-muted/30 p-4 lg:grid-cols-[1fr_auto]">
+                                    <div className="grid shrink-0 gap-3 border-t bg-muted/30 p-4 lg:grid-cols-[1fr_auto]">
                                         <Textarea
                                             value={reason}
                                             onChange={(event) => setReason(event.target.value)}
@@ -572,9 +572,9 @@ export default function RolesPage() {
                     </div>
                 </TabsContent>
 
-                <TabsContent value="matrix" className="mt-3">
-                    <div className="overflow-hidden rounded-lg border bg-card shadow-sm">
-                        <div className="max-h-[72vh] overflow-auto">
+                <TabsContent value="matrix" className="mt-3 min-h-0 flex-1 overflow-hidden data-[state=inactive]:hidden">
+                    <div className="h-full min-h-0 overflow-hidden rounded-lg border bg-card shadow-sm">
+                        <div className="h-full min-h-0 overflow-auto">
                             <table className="w-full min-w-[900px] text-sm">
                                 <thead className="sticky top-0 bg-slate-50 text-slate-700">
                                     <tr className="border-b">

@@ -21,12 +21,22 @@ const usersService = {
 
         return response.data;
     },
+    async summary(params = {}) {
+        const response = await axiosClient.get('/users/summary', {
+            params
+        });
+        return response.data;
+    },
     async create(data) {
         const response = await axiosClient.post('/users', data);
         return response.data;
     },
     async update(publicId, data) {
         const response = await axiosClient.patch(`/users/${publicId}`, data);
+        return response.data;
+    },
+    async updateMyProfile(data) {
+        const response = await axiosClient.patch('/users/me/profile', data);
         return response.data;
     },
     async updateStatus(publicId, status) {

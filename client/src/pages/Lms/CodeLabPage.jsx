@@ -1,6 +1,6 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, CheckCircle2, FileCode2, Plus, PlayCircle, Save, Trash2, XCircle } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -94,6 +94,7 @@ function CodeResult({ result }) {
 
 export default function CodeLabPage() {
     const { publicId } = useParams();
+    const navigate = useNavigate();
     const currentUser = useAuthStore((state) => state.user);
     const isStudent = currentUser?.role?.code === 'STUDENT' || currentUser?.role === 'STUDENT';
     const [instructions, setInstructions] = useState(null);
@@ -112,6 +113,12 @@ export default function CodeLabPage() {
             ? `/classes/${lesson.class.publicId}/learn`
             : `/classes/${lesson.class.publicId}/content`
         : '/courses';
+
+    useEffect(() => {
+        if (isStudent && lesson?.class?.publicId) {
+            navigate(`/classes/${lesson.class.publicId}/learn`, { replace: true });
+        }
+    }, [isStudent, lesson?.class?.publicId, navigate]);
 
     const initialConfig = useMemo(() => parseCodeConfig(lesson), [lesson]);
     const draftInstructions = instructions ?? initialConfig.instructions;

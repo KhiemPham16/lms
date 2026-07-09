@@ -92,6 +92,12 @@ const lmsService = {
     async listMyEnrollments() {
         return unwrap(await axiosClient.get('/enrollments/my'));
     },
+    async myCourseProgress() {
+        return unwrap(await axiosClient.get('/students/me/course-progress'));
+    },
+    async enrollmentSummary() {
+        return unwrap(await axiosClient.get('/enrollments/summary'));
+    },
     async enrollClass(classPublicId) {
         return unwrap(await axiosClient.post(`/enrollments/classes/${classPublicId}`));
     },
@@ -116,6 +122,12 @@ const lmsService = {
     },
     async publishLesson(publicId, isPublished) {
         return unwrap(await axiosClient.patch(`/lessons/${publicId}/publish`, { isPublished }));
+    },
+    async completeLesson(publicId) {
+        return unwrap(await axiosClient.patch(`/lessons/${publicId}/complete`));
+    },
+    async uncompleteLesson(publicId) {
+        return unwrap(await axiosClient.patch(`/lessons/${publicId}/uncomplete`));
     },
     async checkCodeLesson(publicId, data) {
         return unwrap(await axiosClient.post(`/lessons/${publicId}/code-submissions/check`, data));

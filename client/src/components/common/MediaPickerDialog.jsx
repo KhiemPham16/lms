@@ -4,7 +4,7 @@ import { ImageIcon, Upload } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { Button } from '~/components/ui/button';
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '~/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '~/components/ui/dialog';
 import { Input } from '~/components/ui/input';
 import { Label } from '~/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '~/components/ui/tabs';
@@ -180,14 +180,14 @@ export default function MediaPickerDialog({ open, onOpenChange, value, onSelect,
                     </TabsContent>
                 </Tabs>
 
-                <DialogFooter className="border-t px-5 py-4">
+                <div className="flex justify-end gap-2 border-t bg-muted/30 px-5 py-4">
                     <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
                         Hủy
                     </Button>
                     <Button type="button" disabled={!selected} onClick={handleUseSelected}>
                         Dùng ảnh này
                     </Button>
-                </DialogFooter>
+                </div>
             </DialogContent>
         </Dialog>
     );

@@ -17,6 +17,7 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger
 } from '~/components/ui/dropdown-menu';
+import { userHasAnyPermission } from '~/config/navigation';
 import lmsService from '~/services/lms.service';
 import useAuthStore from '~/stores/auth.store';
 import { displayDate, normalizeList } from './utils';
@@ -54,6 +55,7 @@ const classFields = [
     { name: 'onlineUrl', label: 'Link học online', optional: true }
 ];
 
+const classCreatorRoles = ['ADMIN', 'TRAINING_OFFICER'];
 const canDeleteClassRole = (roleCode) => ['ADMIN', 'TRAINING_OFFICER', 'PRINCIPAL'].includes(roleCode);
 const canOpenRegistration = (row) => ['DRAFT', 'CLOSED_REGISTRATION'].includes(row.status);
 const hasNoStudents = (row) => (row.enrolledCount ?? 0) === 0;
@@ -67,7 +69,8 @@ export default function ClassesPage() {
     const currentUser = useAuthStore((state) => state.user);
     const roleCode = currentUser?.role?.code;
     const isStudent = roleCode === 'STUDENT';
-    const canCreateClass = !isStudent;
+    const canCreateClass =
+        classCreatorRoles.includes(roleCode) && userHasAnyPermission(currentUser, ['classes.create']);
 
     const courseQuery = useQuery({
         queryKey: ['course', publicId],

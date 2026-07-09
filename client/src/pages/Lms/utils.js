@@ -23,5 +23,5 @@ export function displayDate(value) {
 }
 
 export function getItemName(item) {
-    return item?.name || item?.title || item?.fullName || item?.code || item?.publicId || 'B?n ghi';
+    return item?.name || item?.title || item?.fullName || item?.code || item?.publicId || 'bản ghi';
 }
