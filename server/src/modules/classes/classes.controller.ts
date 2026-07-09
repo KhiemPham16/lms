@@ -58,7 +58,7 @@ export class ClassesController {
     }
 
     @Delete(':publicId')
-    @Permissions('classes.create')
+    @Permissions('classes.delete')
     @ApiOperation({ summary: 'Xóa lớp học chưa phát sinh dữ liệu' })
     remove(@Param('publicId') publicId: string, @CurrentUser() user: JwtPayload) {
         return this.classesService.remove(publicId, user.sub);
@@ -99,7 +99,7 @@ export class ClassesController {
 
     @Post(':targetPublicId/copy-content-from/:sourcePublicId')
     @Permissions('lessons.create')
-    @ApiOperation({ summary: 'Copy section va bai hoc tu lop cung mon' })
+    @ApiOperation({ summary: 'Copy chương và bài học từ lớp cùng môn' })
     copyContentFrom(
         @Param('targetPublicId') targetPublicId: string,
         @Param('sourcePublicId') sourcePublicId: string,

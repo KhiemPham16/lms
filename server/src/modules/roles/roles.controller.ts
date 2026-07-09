@@ -15,42 +15,47 @@ import { RolesService } from './roles.service';
 @ApiTags('Roles & Permissions')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, PermissionsGuard)
-@Permissions('system.permissions.manage')
 @Controller('roles')
 export class RolesController {
     constructor(private readonly rolesService: RolesService) {}
 
     @Post()
+    @Permissions('system.permissions.manage')
     @ApiOperation({ summary: 'Tạo vai trò' })
     create(@Body() dto: CreateRoleDto) {
         return this.rolesService.create(dto);
     }
 
     @Get()
+    @Permissions('users.read')
     @ApiOperation({ summary: 'Danh sách vai trò' })
     findAll() {
         return this.rolesService.findAll();
     }
 
     @Get('permissions')
+    @Permissions('system.permissions.manage')
     @ApiOperation({ summary: 'Danh mục quyền' })
     findPermissions() {
         return this.rolesService.findPermissions();
     }
 
     @Get(':publicId')
+    @Permissions('system.permissions.manage')
     @ApiOperation({ summary: 'Chi tiết vai trò' })
     findOne(@Param('publicId') publicId: string) {
         return this.rolesService.findByPublicIdOrThrow(publicId);
     }
 
     @Patch(':publicId')
+    @Permissions('system.permissions.manage')
     @ApiOperation({ summary: 'Cập nhật vai trò' })
     update(@Param('publicId') publicId: string, @Body() dto: UpdateRoleDto) {
         return this.rolesService.update(publicId, dto);
     }
 
     @Put(':publicId/permissions')
+    @Permissions('system.permissions.manage')
     @ApiOperation({ summary: 'Cập nhật quyền của vai trò' })
     updatePermissions(
         @Param('publicId') publicId: string,
@@ -62,6 +67,7 @@ export class RolesController {
     }
 
     @Delete(':publicId')
+    @Permissions('system.permissions.manage')
     @ApiOperation({ summary: 'Xóa vai trò' })
     remove(@Param('publicId') publicId: string) {
         return this.rolesService.remove(publicId);

@@ -131,8 +131,8 @@ export class CoursesService {
                     departmentId: dto.departmentId,
                     departmentHeadId: dto.departmentHeadId,
                     proposedById: actor.id,
-                    status: CourseStatus.ACTIVE,
-                    requiresPrincipalApproval: false
+                    status: CourseStatus.PENDING_PRINCIPAL,
+                    requiresPrincipalApproval: true
                 },
                 select: this.courseSelect()
             });
@@ -147,6 +147,7 @@ export class CoursesService {
                     targetPublicId: createdCourse.publicId,
                     newValue: {
                         source: 'official_curriculum',
+                        flow: 'pdt_submit_to_principal',
                         code: createdCourse.code,
                         name: createdCourse.name,
                         credits: createdCourse.credits,
@@ -159,6 +160,8 @@ export class CoursesService {
                 },
                 tx
             );
+
+            await this.notifyCoursePendingPrincipal(createdCourse, actor.id, tx);
 
             return createdCourse;
         });
@@ -370,7 +373,7 @@ export class CoursesService {
             approverPublicId,
             level: ApprovalLevel.PRINCIPAL,
             expectedStatus: CourseStatus.PENDING_PRINCIPAL,
-            approvedStatus: CourseStatus.PRINCIPAL_APPROVED,
+            approvedStatus: CourseStatus.ACTIVE,
             rejectedStatus: CourseStatus.PRINCIPAL_REJECTED,
             approverRoleCodes: ['ADMIN', 'PRINCIPAL']
         });
@@ -785,6 +788,28 @@ export class CoursesService {
                 type: 'COURSE_PROPOSAL_SUBMITTED',
                 title: `Đề xuất môn học mới: ${course.code}`,
                 message: `${course.name} Đang chờ Phòng đào tạo xử lý.`,
+                data: {
+                    coursePublicId: course.publicId,
+                    status: course.status
+                }
+            },
+            tx
+        );
+    }
+
+    private async notifyCoursePendingPrincipal(
+        course: CourseWithDetails,
+        actorId: number,
+        tx: Prisma.TransactionClient
+    ) {
+        const principals = await this.findActiveUserIdsByRoles(['PRINCIPAL'], tx);
+        await this.notificationsService.createMany(
+            {
+                recipientIds: principals,
+                actorId,
+                type: 'COURSE_PENDING_PRINCIPAL',
+                title: `Mon ${course.code} can Hieu truong duyet`,
+                message: `${course.name} da duoc Phong Dao tao submit va dang cho Hieu truong duyet.`,
                 data: {
                     coursePublicId: course.publicId,
                     status: course.status

@@ -11,7 +11,7 @@ import { ReorderLessonSectionsDto } from './dto/reorder-lesson-sections.dto';
 import { UpdateLessonSectionDto } from './dto/update-lesson-section.dto';
 import { LessonSectionsService } from './lesson-sections.service';
 
-@ApiTags('Lesson Sections')
+@ApiTags('Chương bài học')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 @Controller()
@@ -20,7 +20,7 @@ export class LessonSectionsController {
 
     @Post('classes/:classPublicId/lesson-sections')
     @Permissions('lessons.create')
-    @ApiOperation({ summary: 'Tạo section bài học cho lớp' })
+    @ApiOperation({ summary: 'Tạo chương bài học cho lớp' })
     create(
         @Param('classPublicId') classPublicId: string,
         @Body() dto: CreateLessonSectionDto,
@@ -31,7 +31,7 @@ export class LessonSectionsController {
 
     @Get('classes/:classPublicId/lesson-sections')
     @Permissions('lessons.read')
-    @ApiOperation({ summary: 'Danh sách section bài học của lớp' })
+    @ApiOperation({ summary: 'Danh sách chương bài học của lớp' })
     findByClass(
         @Param('classPublicId') classPublicId: string,
         @Query() query: QueryLessonSectionDto,
@@ -42,7 +42,7 @@ export class LessonSectionsController {
 
     @Patch('classes/:classPublicId/lesson-sections/reorder')
     @Permissions('lessons.create')
-    @ApiOperation({ summary: 'Sắp xếp section bài học' })
+    @ApiOperation({ summary: 'Sắp xếp chương bài học' })
     reorder(
         @Param('classPublicId') classPublicId: string,
         @Body() dto: ReorderLessonSectionsDto,
@@ -53,21 +53,21 @@ export class LessonSectionsController {
 
     @Get('lesson-sections/:publicId')
     @Permissions('lessons.read')
-    @ApiOperation({ summary: 'Chi tiết section bài học' })
+    @ApiOperation({ summary: 'Chi tiết chương bài học' })
     findOne(@Param('publicId') publicId: string, @CurrentUser() user: JwtPayload) {
         return this.lessonSectionsService.findOne(publicId, user.sub);
     }
 
     @Patch('lesson-sections/:publicId')
     @Permissions('lessons.create')
-    @ApiOperation({ summary: 'Cập nhật section bài học' })
+    @ApiOperation({ summary: 'Cập nhật chương bài học' })
     update(@Param('publicId') publicId: string, @Body() dto: UpdateLessonSectionDto, @CurrentUser() user: JwtPayload) {
         return this.lessonSectionsService.update(publicId, dto, user.sub);
     }
 
     @Delete('lesson-sections/:publicId')
     @Permissions('lessons.create')
-    @ApiOperation({ summary: 'Xóa section bài học' })
+    @ApiOperation({ summary: 'Xóa chương bài học' })
     remove(@Param('publicId') publicId: string, @CurrentUser() user: JwtPayload) {
         return this.lessonSectionsService.remove(publicId, user.sub);
     }

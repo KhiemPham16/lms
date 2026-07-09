@@ -1,7 +1,14 @@
-import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+    BadRequestException,
+    ConflictException,
+    ForbiddenException,
+    Injectable,
+    NotFoundException
+} from '@nestjs/common';
 import { AuditAction, Prisma, UserStatus } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import type { Request } from 'express';
+import { randomUUID } from 'node:crypto';
 
 import { PrismaService } from '~/prisma/prisma.service';
 import { AuditLogsService } from '../audit-logs/audit-logs.service';
@@ -47,6 +54,14 @@ const defaultUserSelect = () =>
         dateOfBirth: true,
         address: true,
         departmentId: true,
+
+        department: {
+            select: {
+                publicId: true,
+                code: true,
+                name: true
+            }
+        },
         lastLoginAt: true,
         createdAt: true,
         updatedAt: true
@@ -55,14 +70,14 @@ const defaultUserSelect = () =>
 type UserWithDetails = Prisma.UserGetPayload<{ select: ReturnType<typeof defaultUserSelect> }>;
 type UserPermission = NonNullable<UserWithDetails['role']>['permissions'][number]['permission'];
 type FormattedUser = Omit<UserWithDetails, 'role'> & {
-    role: string | undefined;
-    roleDetail: {
+    role: {
         publicId: string;
         code: string;
         name: string;
         permissions: UserPermission[];
         permissionCodes: string[];
     } | null;
+
     permissions: UserPermission[];
     permissionCodes: string[];
 };
@@ -96,6 +111,8 @@ export class UsersService {
         }
 
         const password = await bcrypt.hash(dto.password ?? this.defaultPassword, 10);
+        const status = dto.status ?? UserStatus.ACTIVE;
+        const activation = status === UserStatus.PENDING ? this.createActivationToken() : undefined;
 
         const user = await this.prisma.$transaction(async (tx) => {
             const createdUser = await tx.user.create({
@@ -106,12 +123,14 @@ export class UsersService {
                     phone: dto.phone,
                     password,
                     roleId: role.id,
-                    status: dto.status ?? UserStatus.ACTIVE,
+                    status,
                     gender: dto.gender,
                     avatarUrl: dto.avatarUrl,
                     dateOfBirth: dto.dateOfBirth ? new Date(dto.dateOfBirth) : undefined,
                     address: dto.address,
-                    departmentId: dto.departmentId
+                    departmentId: dto.departmentId,
+                    activationToken: activation?.token,
+                    activationTokenExpiresAt: activation?.expiresAt
                 },
                 select: {
                     ...this.defaultSelect()
@@ -140,6 +159,12 @@ export class UsersService {
 
             return createdUser;
         });
+
+        if (activation) {
+            this.queueActivationMail(user, activation).catch((error) => {
+                console.error('[USER_CREATE_ACTIVATION_MAIL_QUEUE_ERROR]', error);
+            });
+        }
 
         return this.formatUser(user);
     }
@@ -176,12 +201,15 @@ export class UsersService {
     }
 
     async summary(query: QueryUserDto, actorPublicId?: string) {
-        const where = await this.buildUserWhere({
-            ...query,
-            status: undefined,
-            page: undefined,
-            limit: undefined
-        }, actorPublicId);
+        const where = await this.buildUserWhere(
+            {
+                ...query,
+                status: undefined,
+                page: undefined,
+                limit: undefined
+            },
+            actorPublicId
+        );
 
         const startOfMonth = new Date();
         startOfMonth.setDate(1);
@@ -317,6 +345,7 @@ export class UsersService {
 
     async update(publicId: string, dto: UpdateUserDto, actorPublicId?: string) {
         const currentUser = await this.findByPublicIdRawOrThrow(publicId);
+        this.assertTargetIsNotAdmin(currentUser);
         const role = dto.roleId || dto.role ? await this.resolveRole(dto.roleId, dto.role) : undefined;
         const roleId = role?.id;
 
@@ -375,7 +404,8 @@ export class UsersService {
     }
 
     async softDelete(publicId: string) {
-        const user = await this.findByPublicIdOrThrow(publicId);
+        const user = await this.findByPublicIdRawOrThrow(publicId);
+        this.assertTargetIsNotAdmin(user);
 
         if (user.status === UserStatus.LOCKED) {
             throw new BadRequestException('Tài khoản đã bị khóa');
@@ -395,15 +425,21 @@ export class UsersService {
         return this.formatUser(updatedUser);
     }
 
-    async updateStatus(publicId: string, status: UserStatus, actorPublicId?: string, dto: UserStatusActionDto = {}, request?: Request) {
+    async updateStatus(
+        publicId: string,
+        status: UserStatus,
+        actorPublicId?: string,
+        dto: UserStatusActionDto = {},
+        request?: Request
+    ) {
         const currentUser = await this.findByPublicIdRawOrThrow(publicId);
         await this.assertCanUpdateStatus(actorPublicId, currentUser, status);
         const auditAction =
             status === UserStatus.INACTIVE
                 ? AuditAction.USER_DEACTIVATED
                 : status === UserStatus.ACTIVE && currentUser.status === UserStatus.INACTIVE
-                    ? AuditAction.USER_REACTIVATED
-                    : AuditAction.STATUS_CHANGE;
+                  ? AuditAction.USER_REACTIVATED
+                  : AuditAction.STATUS_CHANGE;
 
         const user = await this.prisma.$transaction(async (tx) => {
             const updatedUser = await tx.user.update({
@@ -439,7 +475,10 @@ export class UsersService {
                         status,
                         reason: dto.reason,
                         expiresAt: dto.expiresAt,
-                        revokeSessions: status === UserStatus.LOCKED || status === UserStatus.INACTIVE ? dto.revokeSessions !== false : undefined
+                        revokeSessions:
+                            status === UserStatus.LOCKED || status === UserStatus.INACTIVE
+                                ? dto.revokeSessions !== false
+                                : undefined
                     },
                     ipAddress: this.getIpAddress(request),
                     userAgent: request?.headers['user-agent']
@@ -504,6 +543,7 @@ export class UsersService {
 
     async adminResetPassword(publicId: string, dto: ResetUserPasswordDto, actorPublicId?: string, request?: Request) {
         const user = await this.findByPublicIdRawOrThrow(publicId);
+        this.assertTargetIsNotAdmin(user);
         const mode = dto.mode ?? 'link';
 
         if (mode === 'temporary') {
@@ -615,6 +655,22 @@ export class UsersService {
 
     async resendActivation(publicId: string, actorPublicId?: string, request?: Request) {
         const user = await this.findByPublicIdRawOrThrow(publicId);
+        this.assertTargetIsNotAdmin(user);
+
+        if (user.status === UserStatus.ACTIVE) {
+            throw new BadRequestException('Tài khoản đã được kích hoạt');
+        }
+
+        const activation = this.createActivationToken();
+        const updatedUser = await this.prisma.user.update({
+            where: { publicId },
+            data: {
+                status: UserStatus.PENDING,
+                activationToken: activation.token,
+                activationTokenExpiresAt: activation.expiresAt
+            },
+            select: this.defaultSelect()
+        });
 
         await this.auditLogsService.create({
             actorId: await this.resolveActorId(actorPublicId),
@@ -625,24 +681,62 @@ export class UsersService {
             targetPublicId: user.publicId,
             newValue: {
                 activationEmailResent: true,
-                status: user.status
+                status: UserStatus.PENDING,
+                expiresAt: activation.expiresAt
             },
             ipAddress: this.getIpAddress(request),
             userAgent: request?.headers['user-agent']
         });
 
-        this.mailQueueService
-            .sendActivation({
-                email: user.email,
-                fullName: user.fullName,
-                status: user.status
-            })
-            .catch((error) => {
-                console.error('[USER_ACTIVATION_MAIL_QUEUE_ERROR]', error);
-            });
+        this.queueActivationMail(updatedUser, activation).catch((error) => {
+            console.error('[USER_ACTIVATION_MAIL_QUEUE_ERROR]', error);
+        });
 
         return {
-            message: 'Da gui lai email kich hoat'
+            message: 'Đã gửi lại email kích hoạt'
+        };
+    }
+
+    async activateByToken(token: string) {
+        const user = await this.prisma.user.findFirst({
+            where: {
+                activationToken: token,
+                deletedAt: null
+            },
+            include: {
+                role: true
+            }
+        });
+
+        if (!user || !user.activationTokenExpiresAt || user.activationTokenExpiresAt < new Date()) {
+            throw new BadRequestException('Liên kết kích hoạt không hợp lệ hoặc đã hết hạn');
+        }
+
+        await this.prisma.user.update({
+            where: {
+                id: user.id
+            },
+            data: {
+                status: UserStatus.ACTIVE,
+                activationToken: null,
+                activationTokenExpiresAt: null
+            }
+        });
+
+        await this.auditLogsService.create({
+            actorId: user.id,
+            action: AuditAction.USER_REACTIVATED,
+            module: 'auth',
+            targetType: 'User',
+            targetId: user.id,
+            targetPublicId: user.publicId,
+            newValue: {
+                activatedByEmail: true
+            }
+        });
+
+        return {
+            message: 'Kích hoạt tài khoản thành công'
         };
     }
 
@@ -753,6 +847,7 @@ export class UsersService {
         dto: UserStatusActionDto = {},
         request?: Request
     ) {
+        await this.assertBulkTargetsDoNotContainAdmin(publicIds);
         const results: FormattedUser[] = [];
 
         for (const publicId of publicIds) {
@@ -772,6 +867,7 @@ export class UsersService {
             throw new BadRequestException('Vui long chon vai tro');
         }
 
+        await this.assertBulkTargetsDoNotContainAdmin(dto.userIds);
         const results: FormattedUser[] = [];
 
         for (const publicId of dto.userIds) {
@@ -862,6 +958,9 @@ export class UsersService {
                   }
                 : undefined;
 
+        const roleCodes = query.roles?.length ? query.roles : query.role ? [query.role] : undefined;
+        const roleWhere = roleCodes?.length === 1 ? { code: roleCodes[0] } : roleCodes?.length ? { code: { in: roleCodes } } : undefined;
+
         const where: Prisma.UserWhereInput = {
             deletedAt: null,
             ...(query.keyword
@@ -885,13 +984,17 @@ export class UsersService {
                       ]
                   }
                 : {}),
-            ...(query.role ? { role: { code: query.role } } : {}),
+            ...(roleWhere ? { role: roleWhere } : {}),
             ...(query.roleId ? { roleId: query.roleId } : {}),
             ...(query.status ? { status: query.status } : {}),
             ...(!query.status && query.emailVerified !== undefined
                 ? { status: query.emailVerified ? { not: UserStatus.PENDING } : UserStatus.PENDING }
                 : {}),
-            ...(query.roleAssigned !== undefined ? (query.roleAssigned ? { roleId: { not: null } } : { roleId: null }) : {}),
+            ...(query.roleAssigned !== undefined
+                ? query.roleAssigned
+                    ? { roleId: { not: null } }
+                    : { roleId: null }
+                : {}),
             ...(query.publicIds?.length ? { publicId: { in: query.publicIds } } : {}),
             ...(query.departmentId ? { departmentId: query.departmentId } : {}),
             ...(createdAt ? { createdAt } : {})
@@ -909,10 +1012,16 @@ export class UsersService {
         const actor = await this.findActor(actorPublicId);
 
         if (actor?.role?.code === 'HR') {
-            if (query.role && this.hrBlockedRoles.includes(query.role)) {
+            const visibleRoleCodes = roleCodes?.filter((role) => !this.hrBlockedRoles.includes(role));
+
+            if (roleCodes?.length && visibleRoleCodes?.length === 0) {
                 where.id = { in: [] };
             } else {
-                where.role = query.role ? { code: query.role } : { code: { notIn: this.hrBlockedRoles } };
+                where.role = visibleRoleCodes?.length
+                    ? visibleRoleCodes.length === 1
+                        ? { code: visibleRoleCodes[0] }
+                        : { code: { in: visibleRoleCodes } }
+                    : { code: { notIn: this.hrBlockedRoles } };
             }
         }
 
@@ -937,7 +1046,10 @@ export class UsersService {
         return user;
     }
 
-    private async resolveActorId(actorPublicId?: string, client: Pick<PrismaService, 'user'> | Prisma.TransactionClient = this.prisma) {
+    private async resolveActorId(
+        actorPublicId?: string,
+        client: Pick<PrismaService, 'user'> | Prisma.TransactionClient = this.prisma
+    ) {
         if (!actorPublicId) {
             return undefined;
         }
@@ -1011,6 +1123,10 @@ export class UsersService {
             throw new ForbiddenException('Khong duoc tu thay doi vai tro cua chinh minh');
         }
 
+        if (currentRoleCode === 'ADMIN') {
+            throw new ForbiddenException('Không được thao tác lên tài khoản Admin');
+        }
+
         const actor = await this.findActor(actorPublicId);
 
         if (!actor) {
@@ -1021,13 +1137,22 @@ export class UsersService {
             throw new ForbiddenException('Nguoi thuc hien chua duoc gan vai tro');
         }
 
-        if (actor.role.code === 'HR' && (this.hrBlockedRoles.includes(currentRoleCode) || this.hrBlockedRoles.includes(nextRoleCode))) {
+        if (
+            actor.role.code === 'HR' &&
+            (this.hrBlockedRoles.includes(currentRoleCode) || this.hrBlockedRoles.includes(nextRoleCode))
+        ) {
             throw new ForbiddenException('HR khong duoc quan ly Admin, HR hoac Hieu truong');
         }
     }
 
-    private async assertCanUpdateStatus(actorPublicId: string | undefined, targetUser: Awaited<ReturnType<UsersService['findByPublicIdRawOrThrow']>>, status: UserStatus) {
+    private async assertCanUpdateStatus(
+        actorPublicId: string | undefined,
+        targetUser: Awaited<ReturnType<UsersService['findByPublicIdRawOrThrow']>>,
+        status: UserStatus
+    ) {
         const actor = await this.findActor(actorPublicId);
+
+        this.assertTargetIsNotAdmin(targetUser);
 
         if (actor?.role?.code === 'HR' && targetUser.role && this.hrBlockedRoles.includes(targetUser.role.code)) {
             throw new ForbiddenException('HR khong duoc quan ly Admin, HR hoac Hieu truong');
@@ -1038,7 +1163,11 @@ export class UsersService {
         }
 
         if (actorPublicId === targetUser.publicId) {
-            throw new ForbiddenException(status === UserStatus.INACTIVE ? 'Không đươc vô hiệu hóa tài khoản của chính mình' : 'Không được khóa tài khoản của chính mình');
+            throw new ForbiddenException(
+                status === UserStatus.INACTIVE
+                    ? 'Không đươc vô hiệu hóa tài khoản của chính mình'
+                    : 'Không được khóa tài khoản của chính mình'
+            );
         }
 
         if (targetUser.role?.code === 'ADMIN') {
@@ -1123,6 +1252,53 @@ export class UsersService {
         }
 
         return request?.ip;
+    }
+
+    private assertTargetIsNotAdmin(targetUser: { role?: { code: string } | null }) {
+        if (targetUser.role?.code === 'ADMIN') {
+            throw new ForbiddenException('Không được thao tác lên tài khoản Admin');
+        }
+    }
+
+    private async assertBulkTargetsDoNotContainAdmin(publicIds: string[]) {
+        const adminCount = await this.prisma.user.count({
+            where: {
+                publicId: { in: publicIds },
+                deletedAt: null,
+                role: {
+                    code: 'ADMIN'
+                }
+            }
+        });
+
+        if (adminCount > 0) {
+            throw new ForbiddenException('Danh sách thao tác có tài khoản Admin, vui lòng bỏ chọn Admin');
+        }
+    }
+
+    private createActivationToken() {
+        return {
+            token: randomUUID(),
+            expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000)
+        };
+    }
+
+    private buildActivationUrl(token: string) {
+        const frontendUrl = (process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/$/, '');
+        return `${frontendUrl}/auth/activate?token=${encodeURIComponent(token)}`;
+    }
+
+    private async queueActivationMail(
+        user: { email: string; fullName: string; status: UserStatus },
+        activation: { token: string; expiresAt: Date }
+    ) {
+        await this.mailQueueService.sendActivation({
+            email: user.email,
+            fullName: user.fullName,
+            status: user.status,
+            activationUrl: this.buildActivationUrl(activation.token),
+            expiresAt: activation.expiresAt.toLocaleString('vi-VN')
+        });
     }
 
     private endOfDay(value: string) {
@@ -1249,24 +1425,25 @@ export class UsersService {
 
     private formatUser(user: UserWithDetails): FormattedUser {
         const { id, role, ...rest } = user;
-        const permissions = role?.permissions?.map((item) => item.permission) ?? [];
-        const roleDetail = role
-            ? {
-                  publicId: role.publicId,
-                  code: role.code,
-                  name: role.name,
-                  permissions,
-                  permissionCodes: permissions.map((permission) => permission.code)
-              }
-            : null;
+
+        const permissions = role?.permissions.map((item) => item.permission) ?? [];
 
         return {
             id,
             ...rest,
-            role: role?.code,
-            roleDetail,
+
+            role: role
+                ? {
+                      publicId: role.publicId,
+                      code: role.code,
+                      name: role.name,
+                      permissions,
+                      permissionCodes: permissions.map((p) => p.code)
+                  }
+                : null,
+
             permissions,
-            permissionCodes: permissions.map((permission) => permission.code)
+            permissionCodes: permissions.map((p) => p.code)
         };
     }
 }

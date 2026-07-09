@@ -4,12 +4,15 @@ import { ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
 import cookieParser from 'cookie-parser';
+import express from 'express';
 import helmet from 'helmet';
 import type { RequestHandler } from 'express';
+import { join } from 'node:path';
 import { AppHealthService } from './app-health.service';
 
-const helmetMiddleware = helmet as () => RequestHandler;
+const helmetMiddleware = helmet as typeof helmet;
 const cookieParserMiddleware = cookieParser as () => RequestHandler;
+const staticMiddleware = express.static as unknown as (root: string) => RequestHandler;
 
 async function bootstrap() {
     const app = await NestFactory.create(AppModule);
@@ -31,9 +34,15 @@ async function bootstrap() {
         })
     );
 
-    app.use(helmetMiddleware());
+    app.use(
+        helmetMiddleware({
+            crossOriginResourcePolicy: { policy: 'cross-origin' }
+        })
+    );
 
     app.use(cookieParserMiddleware());
+
+    app.use('/uploads', staticMiddleware(join(process.cwd(), 'uploads')));
 
     app.enableCors({
         origin: corsOrigin,

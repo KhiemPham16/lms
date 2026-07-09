@@ -19,6 +19,7 @@ import { ExamsModule } from './modules/exams/exams.module';
 import { GradebookModule } from './modules/gradebook/gradebook.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { CourseProgressModule } from './modules/course-progress/course-progress.module';
+import { MediaModule } from './modules/media/media.module';
 import { AppHealthService } from './app-health.service';
 
 @Module({
@@ -43,7 +44,8 @@ import { AppHealthService } from './app-health.service';
         ExamsModule,
         GradebookModule,
         NotificationsModule,
-        CourseProgressModule
+        CourseProgressModule,
+        MediaModule
     ],
     controllers: [AppController],
     providers: [AppHealthService]

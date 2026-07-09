@@ -143,7 +143,7 @@ export class ExamsService {
             this.findUserByPublicIdOrThrow(actorPublicId),
             this.findClassRecordOrThrow(classPublicId)
         ]);
-        this.ensureCanManageClass(actor, classItem);
+        this.ensureCanEditClassContent(actor, classItem);
         this.ensureClassContentEditable(actor, classItem);
         const section = dto.sectionPublicId
             ? await this.findSectionInClassByPublicIdOrThrow(dto.sectionPublicId, classItem.id)
@@ -152,7 +152,7 @@ export class ExamsService {
             ? await this.findLessonInClassByPublicIdOrThrow(dto.lessonPublicId, classItem.id)
             : null;
         if (section && lesson?.sectionId && lesson.sectionId !== section.id) {
-            throw new BadRequestException('Bài học không thuộc section đã chọn');
+            throw new BadRequestException('Bài học không thuộc chương đã chọn');
         }
 
         const exam = await this.prisma.$transaction(async (tx) => {
@@ -235,7 +235,7 @@ export class ExamsService {
             this.findUserByPublicIdOrThrow(actorPublicId),
             this.findExamRecordOrThrow(publicId)
         ]);
-        this.ensureCanManageClass(actor, exam.class);
+        this.ensureCanEditClassContent(actor, exam.class);
         this.ensureClassContentEditable(actor, exam.class);
         const section =
             dto.sectionPublicId === undefined
@@ -287,7 +287,7 @@ export class ExamsService {
             this.findUserByPublicIdOrThrow(actorPublicId),
             this.findExamRecordOrThrow(publicId)
         ]);
-        this.ensureCanManageClass(actor, exam.class);
+        this.ensureCanEditClassContent(actor, exam.class);
         this.ensureClassContentEditable(actor, exam.class);
 
         if ((exam._count.attempts ?? 0) > 0) {
@@ -319,7 +319,7 @@ export class ExamsService {
             this.findUserByPublicIdOrThrow(actorPublicId),
             this.findExamRecordOrThrow(publicId)
         ]);
-        this.ensureCanManageClass(actor, exam.class);
+        this.ensureCanEditClassContent(actor, exam.class);
         this.ensureClassContentEditable(actor, exam.class);
 
         if (isPublished && exam.questions.length === 0) {
@@ -362,7 +362,7 @@ export class ExamsService {
             this.findUserByPublicIdOrThrow(actorPublicId),
             this.findExamRecordOrThrow(examPublicId)
         ]);
-        this.ensureCanManageClass(actor, exam.class);
+        this.ensureCanEditClassContent(actor, exam.class);
         this.ensureClassContentEditable(actor, exam.class);
         this.ensureQuestionOptions(dto);
         const sortOrder = dto.sortOrder ?? (await this.nextQuestionSortOrder(exam.id));
@@ -374,13 +374,17 @@ export class ExamsService {
                 content: dto.content,
                 points: dto.points ?? 1,
                 sortOrder,
-                options: {
-                    create: dto.options.map((option, index) => ({
-                        content: option.content,
-                        isCorrect: option.isCorrect,
-                        sortOrder: option.sortOrder ?? index + 1
-                    }))
-                }
+                ...(dto.options?.length
+                    ? {
+                          options: {
+                              create: dto.options.map((option, index) => ({
+                                  content: option.content,
+                                  isCorrect: option.isCorrect,
+                                  sortOrder: option.sortOrder ?? index + 1
+                              }))
+                          }
+                      }
+                    : {})
             },
             select: {
                 publicId: true,
@@ -421,9 +425,12 @@ export class ExamsService {
             this.findUserByPublicIdOrThrow(actorPublicId),
             this.findQuestionRecordOrThrow(publicId)
         ]);
-        this.ensureCanManageClass(actor, question.exam.class);
+        this.ensureCanEditClassContent(actor, question.exam.class);
         this.ensureClassContentEditable(actor, question.exam.class);
-        if (dto.options) this.ensureQuestionOptions({ ...question, ...dto, options: dto.options });
+        const nextType = dto.type ?? question.type;
+        if (dto.options || this.isChoiceQuestion(nextType)) {
+            this.ensureQuestionOptions({ type: nextType, options: dto.options ?? question.options });
+        }
 
         const updated = await this.prisma.$transaction(async (tx) => {
             const item = await tx.examQuestion.update({
@@ -444,7 +451,7 @@ export class ExamsService {
                 }
             });
 
-            if (dto.options) {
+            if (this.isChoiceQuestion(nextType) && dto.options) {
                 await tx.examOption.deleteMany({ where: { questionId: item.id } });
                 await tx.examOption.createMany({
                     data: dto.options.map((option, index) => ({
@@ -454,6 +461,8 @@ export class ExamsService {
                         sortOrder: option.sortOrder ?? index + 1
                     }))
                 });
+            } else if (!this.isChoiceQuestion(nextType)) {
+                await tx.examOption.deleteMany({ where: { questionId: item.id } });
             }
 
             return tx.examQuestion.findUniqueOrThrow({
@@ -497,7 +506,7 @@ export class ExamsService {
             this.findUserByPublicIdOrThrow(actorPublicId),
             this.findQuestionRecordOrThrow(publicId)
         ]);
-        this.ensureCanManageClass(actor, question.exam.class);
+        this.ensureCanEditClassContent(actor, question.exam.class);
         this.ensureClassContentEditable(actor, question.exam.class);
 
         await this.prisma.examQuestion.delete({ where: { publicId } });
@@ -523,7 +532,7 @@ export class ExamsService {
             this.findUserByPublicIdOrThrow(actorPublicId),
             this.findExamRecordOrThrow(examPublicId)
         ]);
-        if (!exam.isPublished) throw new ForbiddenException('bài kiểm tra chưa được công bố');
+        if (!exam.isPublished) throw new ForbiddenException('Bài kiểm tra chưa được công bố');
         await this.ensureCanStudyClass(actor, exam.classId);
 
         const attemptCount = await this.prisma.examAttempt.count({
@@ -651,6 +660,7 @@ export class ExamsService {
         }
 
         return attempt.exam.questions.reduce((total, question) => {
+            if (!this.isChoiceQuestion(question.type)) return total;
             const selected = answersByQuestionPublicId.get(question.publicId) ?? new Set<string>();
             const correct = new Set(
                 question.options.filter((option) => option.isCorrect).map((option) => option.publicId)
@@ -689,6 +699,9 @@ export class ExamsService {
         for (const answer of answers) {
             const question = questionByPublicId.get(answer.questionPublicId);
             if (!question) throw new BadRequestException('Câu trả lời không hợp lệ với bài kiểm tra');
+            if (!this.isChoiceQuestion(question.type)) {
+                throw new BadRequestException('Câu hỏi tự luận hoặc code chưa hỗ trợ chấm tự động');
+            }
             if (question.type === ExamQuestionType.SINGLE_CHOICE && answer.optionPublicIds.length !== 1) {
                 throw new BadRequestException('Câu hỏi một đáp án chỉ được chọn một option');
             }
@@ -704,9 +717,16 @@ export class ExamsService {
     }
 
     private ensureQuestionOptions(dto: Pick<CreateExamQuestionDto, 'type' | 'options'>) {
+        const type = dto.type ?? ExamQuestionType.SINGLE_CHOICE;
+        if (!this.isChoiceQuestion(type)) return;
+
+        if (!dto.options || dto.options.length < 2) {
+            throw new BadRequestException('Câu hỏi trắc nghiệm phải có ít nhất 2 đáp án');
+        }
+
         const correctCount = dto.options.filter((option) => option.isCorrect).length;
         if (correctCount === 0) throw new BadRequestException('Câu hỏi phải có ít nhất một đáp án đúng');
-        if ((dto.type ?? ExamQuestionType.SINGLE_CHOICE) === ExamQuestionType.SINGLE_CHOICE && correctCount !== 1) {
+        if (type === ExamQuestionType.SINGLE_CHOICE && correctCount !== 1) {
             throw new BadRequestException('Câu hỏi một đáp án chỉ được chọn một option');
         }
         const sortOrders = dto.options.map((option, index) => option.sortOrder ?? index + 1);
@@ -759,9 +779,23 @@ export class ExamsService {
         }
     }
 
+    private canEditClassContent(actor: Actor, classItem: ClassAccessRecord) {
+        return ['LECTURER', 'DEPARTMENT_HEAD'].includes(actor.role.code) && actor.id === classItem.lecturerId;
+    }
+
+    private ensureCanEditClassContent(actor: Actor, classItem: ClassAccessRecord) {
+        if (!this.canEditClassContent(actor, classItem)) {
+            throw new ForbiddenException('Chỉ giảng viên được chỉ định của lớp mới được chỉnh sửa nội dung');
+        }
+    }
+
+    private isChoiceQuestion(type: ExamQuestionType) {
+        return type === ExamQuestionType.SINGLE_CHOICE || type === ExamQuestionType.MULTIPLE_CHOICE;
+    }
+
     private ensureClassContentEditable(actor: Actor, classItem: Pick<ClassAccessRecord, 'status'>) {
-        if (classItem.status === ClassStatus.COMPLETED && !['ADMIN', 'TRAINING_OFFICER'].includes(actor.role.code)) {
-            throw new BadRequestException('Lớp đã hoàn thành, chỉ Admin hoặc PDT được sửa nội dung');
+        if (classItem.status === ClassStatus.COMPLETED) {
+            throw new BadRequestException('Lớp đã hoàn thành, không thể chỉnh sửa nội dung');
         }
     }
 
@@ -829,7 +863,7 @@ export class ExamsService {
             where: { publicId, classId },
             select: { id: true }
         });
-        if (!section) throw new BadRequestException('Section không hợp lệ với lớp này');
+        if (!section) throw new BadRequestException('Chương không hợp lệ với lớp này');
         return section;
     }
 
@@ -861,6 +895,13 @@ export class ExamsService {
                 content: true,
                 points: true,
                 sortOrder: true,
+                options: {
+                    select: {
+                        content: true,
+                        isCorrect: true,
+                        sortOrder: true
+                    }
+                },
                 exam: {
                     select: this.examSelect()
                 }
@@ -935,3 +976,4 @@ export class ExamsService {
         };
     }
 }
+

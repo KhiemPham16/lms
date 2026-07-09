@@ -1,12 +1,25 @@
 <!doctype html>
 <html lang="vi">
-    <body>
-        <h2>Xin chao <%= fullName %>,</h2>
+    <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #111827;">
+        <h2>Xin chào <%= fullName %>,</h2>
 
-        <p>Yeu cau kich hoat tai khoan LMS cua ban da duoc gui lai.</p>
+        <p>Tài khoản LMS của bạn đang chờ kích hoạt.</p>
 
-        <p>Trang thai hien tai cua tai khoan: <strong><%= status %></strong>.</p>
+        <p>
+            Vui lòng bấm vào liên kết bên dưới để kích hoạt tài khoản:
+        </p>
 
-        <p>Neu ban can ho tro them, vui long lien he bo phan quan tri LMS.</p>
+        <p>
+            <a
+                href="<%= activationUrl %>"
+                style="display: inline-block; padding: 10px 16px; border-radius: 6px; background: #111827; color: #ffffff; text-decoration: none;"
+            >
+                Kích hoạt tài khoản
+            </a>
+        </p>
+
+        <p>Liên kết hết hạn lúc: <strong><%= expiresAt %></strong>.</p>
+
+        <p>Nếu bạn không yêu cầu tài khoản này, vui lòng bỏ qua email.</p>
     </body>
 </html>

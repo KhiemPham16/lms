@@ -5,6 +5,7 @@ import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
+import { ActivateAccountDto } from './dto/activate-account.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -53,6 +54,11 @@ export class AuthController {
     @Post('reset-password')
     resetPassword(@Body() dto: ResetPasswordDto) {
         return this.authService.resetPassword(dto);
+    }
+
+    @Post('activate')
+    activate(@Body() dto: ActivateAccountDto) {
+        return this.authService.activate(dto.token);
     }
 
     private getCookie(request: Request, name: string) {

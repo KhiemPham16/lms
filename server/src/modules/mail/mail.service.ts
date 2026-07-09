@@ -49,16 +49,23 @@ export class MailService {
     async sendActivation(data: ActivationMailData): Promise<void> {
         await this.sendMail({
             to: data.email,
-            subject: '[LMS] Kich hoat tai khoan',
+            subject: '[LMS] Kích hoạt tài khoản',
             template: 'activation',
             data: {
                 fullName: data.fullName,
-                status: data.status
+                status: data.status,
+                activationUrl: data.activationUrl,
+                expiresAt: data.expiresAt
             }
         });
     }
 
-    private async sendMail(options: { to: string; subject: string; template: string; data: Record<string, unknown> }): Promise<void> {
+    private async sendMail(options: {
+        to: string;
+        subject: string;
+        template: string;
+        data: Record<string, unknown>;
+    }): Promise<void> {
         const html = await this.renderTemplate(options.template, options.data);
 
         await this.transporter.sendMail({

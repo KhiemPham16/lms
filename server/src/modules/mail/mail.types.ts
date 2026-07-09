@@ -8,6 +8,8 @@ export type ActivationMailData = {
     email: string;
     fullName: string;
     status: string;
+    activationUrl: string;
+    expiresAt: string;
 };
 
 export type MailJob =

@@ -15,7 +15,7 @@ export class EnrollmentsController {
     constructor(private readonly enrollmentsService: EnrollmentsService) {}
 
     @Get('my')
-    @Permissions('enrollments.read')
+    @Permissions('classes.read')
     @ApiOperation({ summary: 'Danh sách lớp học sinh viên đã đăng ký' })
     findMyEnrollments(@CurrentUser() user: JwtPayload) {
         return this.enrollmentsService.findMyEnrollments(user.sub);

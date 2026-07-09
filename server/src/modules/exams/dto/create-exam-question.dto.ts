@@ -55,10 +55,11 @@ export class CreateExamQuestionDto {
     @Min(1)
     sortOrder?: number;
 
-    @ApiProperty({ type: [CreateExamOptionDto] })
+    @ApiPropertyOptional({ type: [CreateExamOptionDto] })
+    @IsOptional()
     @IsArray()
     @ArrayMinSize(2)
     @ValidateNested({ each: true })
     @Type(() => CreateExamOptionDto)
-    options: CreateExamOptionDto[];
+    options?: CreateExamOptionDto[];
 }

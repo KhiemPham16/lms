@@ -363,14 +363,21 @@ export class ClassesService {
 
     async remove(publicId: string, actorPublicId: string) {
         const actor = await this.findUserByPublicIdOrThrow(actorPublicId);
-        this.ensureTrainingOffice(actor);
+        this.ensureCanDeleteClass(actor);
         const classItem = await this.findClassRecordOrThrow(publicId);
 
-        if (classItem._count.enrollments > 0) {
-            throw new BadRequestException('Lớp đã có sinh viên nên không được xóa');
-        }
-
         await this.prisma.$transaction(async (tx) => {
+            const deleted = await tx.class.deleteMany({
+                where: {
+                    id: classItem.id,
+                    enrollments: { none: {} }
+                }
+            });
+
+            if (deleted.count === 0) {
+                throw new BadRequestException('Lớp đã có sinh viên nên không được xóa');
+            }
+
             await this.auditLogsService.create(
                 {
                     actorId: actor.id,
@@ -383,8 +390,6 @@ export class ClassesService {
                 },
                 tx
             );
-
-            await tx.class.delete({ where: { publicId } });
         });
 
         return { publicId, deleted: true };
@@ -780,6 +785,12 @@ export class ClassesService {
     private ensureTrainingOffice(actor: { role: { code: string } }) {
         if (!['ADMIN', 'TRAINING_OFFICER'].includes(actor.role.code)) {
             throw new ForbiddenException('Chỉ Phòng đào tạo mới được thao tác');
+        }
+    }
+
+    private ensureCanDeleteClass(actor: { role: { code: string } }) {
+        if (!['ADMIN', 'TRAINING_OFFICER', 'PRINCIPAL'].includes(actor.role.code)) {
+            throw new ForbiddenException('Chỉ Admin, Phòng đào tạo hoặc Hiệu trưởng mới được xóa lớp');
         }
     }
 

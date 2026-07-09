@@ -32,6 +32,13 @@ export class QueryUserDto {
     @IsString()
     role?: string;
 
+    @ApiPropertyOptional({ example: ['LECTURER', 'DEPARTMENT_HEAD'] })
+    @IsOptional()
+    @Transform(({ value }) => toStringArray(value))
+    @IsArray()
+    @IsString({ each: true })
+    roles?: string[];
+
     @ApiPropertyOptional({ example: 1 })
     @IsOptional()
     @IsInt()

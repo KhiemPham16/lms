@@ -76,9 +76,17 @@ enum LessonType {
   CODE
 }
 
+enum MediaType {
+  IMAGE
+  VIDEO
+  DOCUMENT
+}
+
 enum ExamQuestionType {
   SINGLE_CHOICE
   MULTIPLE_CHOICE
+  ESSAY
+  CODE
 }
 
 enum ExamAttemptStatus {
@@ -133,6 +141,8 @@ model User {
 
   resetPasswordOtp          String?
   resetPasswordOtpExpiresAt DateTime?
+  activationToken           String?   @unique
+  activationTokenExpiresAt  DateTime?
 
   sessions Session[]
 
@@ -157,6 +167,7 @@ model User {
   sentNotifications  Notification[]   @relation("NotificationActors")
   courseApprovals    CourseApproval[] @relation("CourseApprovals")
   auditLogs          AuditLog[]       @relation("AuditLogs")
+  uploadedMedia      Media[]          @relation("UploadedMedia")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -164,6 +175,7 @@ model User {
   @@index([roleId])
   @@index([status])
   @@index([departmentId])
+  @@index([activationToken])
 }
 
 model Role {
@@ -653,6 +665,33 @@ model LessonProgress {
   @@unique([lessonId, studentId])
   @@index([studentId])
   @@index([lessonId])
+}
+
+model Media {
+  id       Int    @id @default(autoincrement())
+  publicId String @unique @default(uuid())
+
+  fileName     String
+  originalName String
+
+  mimeType String
+  size     Int
+
+  url  String    @db.VarChar(2048)
+  type MediaType @default(IMAGE)
+
+  alt    String?
+  folder String?
+
+  uploadedById Int?
+  uploadedBy   User? @relation("UploadedMedia", fields: [uploadedById], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([uploadedById])
+  @@index([type])
+  @@index([folder])
 }
 
 model Notification {

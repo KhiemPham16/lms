@@ -82,6 +82,35 @@ export class EnrollmentsService {
             throw new BadRequestException('Lớp học đã đủ số lượng sinh viên');
         }
 
+        const existingCourseEnrollment = await this.prisma.enrollment.findFirst({
+            where: {
+                studentId: student.id,
+                status: {
+                    in: [EnrollmentStatus.APPROVED, EnrollmentStatus.PENDING]
+                },
+                class: {
+                    courseId: classItem.courseId
+                },
+                NOT: {
+                    classId: classItem.id
+                }
+            },
+            select: {
+                class: {
+                    select: {
+                        code: true,
+                        name: true
+                    }
+                }
+            }
+        });
+
+        if (existingCourseEnrollment) {
+            throw new BadRequestException(
+                `Sinh vien da dang ky lop ${existingCourseEnrollment.class.code} - ${existingCourseEnrollment.class.name} cua mon nay`
+            );
+        }
+
         return this.prisma.$transaction(async (tx) => {
             const enrollment = await tx.enrollment.upsert({
                 where: {
@@ -284,6 +313,7 @@ export class EnrollmentsService {
                 name: true,
                 status: true,
                 maxStudents: true,
+                courseId: true,
                 autoCloseWhenFull: true,
                 allowStudentDrop: true,
                 lecturerId: true,

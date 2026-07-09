@@ -33,7 +33,7 @@ export class LessonsController {
 
     @Post('lesson-sections/:sectionPublicId/lessons')
     @Permissions('lessons.create')
-    @ApiOperation({ summary: 'Tạo bài học trong section' })
+    @ApiOperation({ summary: 'Tạo bài học trong chương' })
     createInSection(
         @Param('sectionPublicId') sectionPublicId: string,
         @Body() dto: CreateLessonDto,

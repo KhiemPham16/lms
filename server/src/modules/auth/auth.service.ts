@@ -143,6 +143,10 @@ export class AuthService {
         };
     }
 
+    activate(token: string) {
+        return this.usersService.activateByToken(token);
+    }
+
     async refresh(refreshToken?: string) {
         if (!refreshToken) {
             throw new UnauthorizedException('Refresh token không tồn tại');

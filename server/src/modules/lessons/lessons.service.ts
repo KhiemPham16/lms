@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+﻿import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { AuditAction, EnrollmentStatus, LessonType, Prisma } from '@prisma/client';
 
 import { AuditLogsService } from '~/modules/audit-logs/audit-logs.service';
@@ -90,12 +90,13 @@ export class LessonsService {
             this.findUserByPublicIdOrThrow(actorPublicId),
             this.findClassRecordOrThrow(classPublicId)
         ]);
-        this.ensureCanManageClass(actor, classItem);
+        this.ensureCanEditClassContent(actor, classItem);
         this.ensureClassContentEditable(actor, classItem);
         const section = dto.sectionPublicId
             ? await this.findSectionInClassByPublicIdOrThrow(dto.sectionPublicId, classItem.id)
             : null;
         await this.ensureLessonOrderAvailable(classItem.id, section?.id ?? null, dto.sortOrder);
+        const resourceUrl = this.normalizeLessonResourceUrl(dto);
 
         const sortOrder = dto.sortOrder ?? (await this.nextSortOrder(classItem.id, section?.id ?? null));
         const lesson = await this.prisma.$transaction(async (tx) => {
@@ -107,7 +108,7 @@ export class LessonsService {
                     description: dto.description,
                     type: dto.type ?? LessonType.TEXT,
                     content: dto.content,
-                    resourceUrl: dto.resourceUrl,
+                    resourceUrl,
                     codeConfig: dto.codeConfig === undefined ? undefined : this.toJsonInput(dto.codeConfig),
                     durationMinutes: dto.durationMinutes,
                     sortOrder,
@@ -149,7 +150,7 @@ export class LessonsService {
         });
 
         if (!section) {
-            throw new NotFoundException('Không tìm thấy section');
+            throw new NotFoundException('Kh?ng t?m th?y ch??ng');
         }
 
         return this.create(section.class.publicId, { ...dto, sectionPublicId: section.publicId }, actorPublicId);
@@ -173,8 +174,7 @@ export class LessonsService {
                           OR: [{ title: { contains: query.keyword } }, { description: { contains: query.keyword } }]
                       }
                   ]
-                : []),
-            ...(!canManage ? [{ OR: [{ sectionId: null }, { section: { isPublished: true } }] }] : [])
+                : [])
         ];
         const where: Prisma.LessonWhereInput = {
             classId: classItem.id,
@@ -228,7 +228,7 @@ export class LessonsService {
         ]);
         const canManage = this.canManageClass(actor, lesson.class);
         if (!canManage) {
-            if (!lesson.isPublished) throw new ForbiddenException('Bài học chưa công bố');
+            if (!lesson.isPublished) throw new ForbiddenException('B?i h?c ch?a c?ng b?');
             await this.ensureCanStudyClass(actor, lesson.classId);
         }
 
@@ -253,7 +253,7 @@ export class LessonsService {
             this.findUserByPublicIdOrThrow(actorPublicId),
             this.findLessonRecordOrThrow(publicId)
         ]);
-        this.ensureCanManageClass(actor, lesson.class);
+        this.ensureCanEditClassContent(actor, lesson.class);
         this.ensureClassContentEditable(actor, lesson.class);
         const section =
             dto.sectionPublicId === undefined
@@ -265,6 +265,7 @@ export class LessonsService {
             dto.sortOrder,
             lesson.id
         );
+        const resourceUrl = this.normalizeLessonResourceUrl(dto, lesson.resourceUrl, lesson.type);
 
         const updated = await this.prisma.$transaction(async (tx) => {
             const item = await tx.lesson.update({
@@ -275,7 +276,7 @@ export class LessonsService {
                     description: dto.description,
                     type: dto.type,
                     content: dto.content,
-                    resourceUrl: dto.resourceUrl,
+                    resourceUrl,
                     codeConfig: dto.codeConfig === undefined ? undefined : this.toJsonInput(dto.codeConfig),
                     durationMinutes: dto.durationMinutes,
                     sortOrder: dto.sortOrder,
@@ -309,7 +310,7 @@ export class LessonsService {
             this.findUserByPublicIdOrThrow(actorPublicId),
             this.findLessonRecordOrThrow(publicId)
         ]);
-        this.ensureCanManageClass(actor, lesson.class);
+        this.ensureCanEditClassContent(actor, lesson.class);
         this.ensureClassContentEditable(actor, lesson.class);
 
         await this.prisma.$transaction(async (tx) => {
@@ -337,7 +338,7 @@ export class LessonsService {
             this.findUserByPublicIdOrThrow(actorPublicId),
             this.findLessonRecordOrThrow(publicId)
         ]);
-        this.ensureCanManageClass(actor, lesson.class);
+        this.ensureCanEditClassContent(actor, lesson.class);
         this.ensureClassContentEditable(actor, lesson.class);
 
         const updated = await this.prisma.$transaction(async (tx) => {
@@ -376,7 +377,7 @@ export class LessonsService {
             this.findUserByPublicIdOrThrow(actorPublicId),
             this.findClassRecordOrThrow(classPublicId)
         ]);
-        this.ensureCanManageClass(actor, classItem);
+        this.ensureCanEditClassContent(actor, classItem);
         this.ensureClassContentEditable(actor, classItem);
         this.ensureUniqueOrderPayload(dto);
 
@@ -391,7 +392,7 @@ export class LessonsService {
         });
 
         if (lessons.length !== dto.items.length) {
-            throw new BadRequestException('Danh sách bài học không hợp lệ với lớp này');
+            throw new BadRequestException('Danh s?ch b?i h?c kh?ng h?p l? v?i l?p n?y');
         }
 
         const orderByPublicId = new Map(dto.items.map((item) => [item.publicId, item.sortOrder]));
@@ -527,7 +528,7 @@ export class LessonsService {
             this.findLessonRecordOrThrow(publicId)
         ]);
         this.ensureCanManageClass(actor, lesson.class);
-        if (lesson.type !== LessonType.CODE) throw new BadRequestException('Bài học nay không phải CODE');
+        if (lesson.type !== LessonType.CODE) throw new BadRequestException('B?i h?c n?y kh?ng ph?i CODE');
 
         return this.prisma.codeSubmission.findMany({
             where: { lessonId: lesson.id },
@@ -609,7 +610,7 @@ export class LessonsService {
             this.findUserByPublicIdOrThrow(actorPublicId),
             this.findLessonRecordOrThrow(publicId)
         ]);
-        if (!lesson.isPublished) throw new ForbiddenException('Bài học chưa được công bố');
+        if (!lesson.isPublished) throw new ForbiddenException('B?i h?c ch?a ???c c?ng b?');
         await this.ensureCanStudyClass(actor, lesson.classId);
         if (completed && lesson.type === LessonType.CODE) {
             const passedSubmission = await this.prisma.codeSubmission.findFirst({
@@ -622,7 +623,7 @@ export class LessonsService {
             });
 
             if (!passedSubmission) {
-                throw new BadRequestException('Cần nộp code và đạt bài kiểm tra trước khi hoàn thành bài CODE');
+                throw new BadRequestException('C?n n?p code v? ??t b?i ki?m tra tr??c khi ho?n th?nh b?i CODE');
             }
         }
 
@@ -655,18 +656,18 @@ export class LessonsService {
     }
 
     private ensureCodeLessonCanSubmit(actor: Actor, lesson: LessonWithDetails) {
-        if (lesson.type !== LessonType.CODE) throw new BadRequestException('Bài học nay không phải CODE');
-        if (!lesson.isPublished) throw new ForbiddenException('Bài học chưa được công bố');
+        if (lesson.type !== LessonType.CODE) throw new BadRequestException('B?i h?c n?y kh?ng ph?i CODE');
+        if (!lesson.isPublished) throw new ForbiddenException('B?i h?c ch?a ???c c?ng b?');
         return this.ensureCanStudyClass(actor, lesson.classId);
     }
 
     private normalizeCodeFiles(files: CodeFileDto[]) {
-        if (files.length === 0) throw new BadRequestException('Cần có ít nhất một file code');
+        if (files.length === 0) throw new BadRequestException('C?n c? ?t nh?t m?t file code');
         const seenPaths = new Set<string>();
         return files.map((file) => {
             const path = file.path.trim();
-            if (!path) throw new BadRequestException('Đường dẫn file không hợp lệ');
-            if (seenPaths.has(path)) throw new BadRequestException(`File ${path} bị trùng`);
+            if (!path) throw new BadRequestException('???ng d?n file kh?ng h?p l?');
+            if (seenPaths.has(path)) throw new BadRequestException(`File ${path} b? tr?ng`);
             seenPaths.add(path);
 
             return {
@@ -702,7 +703,7 @@ export class LessonsService {
                 name: test.name,
                 type: test.type,
                 passed: Boolean(targetFile),
-                message: targetFile ? 'File tồn tại' : `Không tìm thấy file ${test.file ?? ''}`
+                message: targetFile ? 'File t?n t?i' : `Kh?ng t?m th?y file ${test.file ?? ''}`
             };
         }
 
@@ -711,7 +712,7 @@ export class LessonsService {
                 name: test.name,
                 type: test.type,
                 passed: false,
-                message: `Không tìm thấy file ${test.file ?? ''}`
+                message: `Kh?ng t?m th?y file ${test.file ?? ''}`
             };
         }
 
@@ -723,7 +724,7 @@ export class LessonsService {
                 name: test.name,
                 type: test.type,
                 passed,
-                message: passed ? 'Đạt' : `File không chứa: ${expected}`
+                message: passed ? '??t' : `File kh?ng ch?a: ${expected}`
             };
         }
 
@@ -733,7 +734,7 @@ export class LessonsService {
                 name: test.name,
                 type: test.type,
                 passed,
-                message: passed ? 'Đạt' : `File đang chứa nội dung cấm: ${expected}`
+                message: passed ? '??t' : `File ?ang ch?a n?i dung c?m: ${expected}`
             };
         }
 
@@ -744,14 +745,14 @@ export class LessonsService {
                 name: test.name,
                 type: test.type,
                 passed,
-                message: passed ? 'Dat' : `Không khớp regex: ${expected}`
+                message: passed ? '??t' : `Kh?ng kh?p regex: ${expected}`
             };
         } catch {
             return {
                 name: test.name,
                 type: test.type,
                 passed: false,
-                message: `Regex không hợp lệ: ${expected}`
+                message: `Regex kh?ng h?p l?: ${expected}`
             };
         }
     }
@@ -784,6 +785,46 @@ export class LessonsService {
             value === 'REGEX_MATCH' ||
             value === 'FILE_EXISTS'
         );
+    }
+
+    private normalizeLessonResourceUrl(
+        dto: CreateLessonDto | UpdateLessonDto,
+        currentValue?: string | null,
+        currentType?: LessonType
+    ) {
+        if (dto.resourceUrl === undefined) return currentValue === undefined ? undefined : currentValue;
+        if ((dto.type ?? currentType ?? LessonType.TEXT) !== LessonType.VIDEO) return dto.resourceUrl;
+
+        const rawValue = dto.resourceUrl.trim();
+        if (!rawValue) return undefined;
+
+        const videoId = this.extractYoutubeVideoId(rawValue);
+        if (!videoId) {
+            throw new BadRequestException('Video YouTube không hợp lệ. Hãy nhập ID dạng Wd90eW5sASE hoặc link YouTube.');
+        }
+
+        return `https://www.youtube.com/watch?v=${videoId}`;
+    }
+
+    private extractYoutubeVideoId(value: string) {
+        const directId = value.match(/^[A-Za-z0-9_-]{11}$/)?.[0];
+        if (directId) return directId;
+
+        try {
+            const url = new URL(value);
+            if (url.hostname.includes('youtu.be')) return url.pathname.split('/').filter(Boolean)[0] || null;
+            if (url.hostname.includes('youtube.com')) {
+                return (
+                    url.searchParams.get('v') ||
+                    url.pathname.match(/\/(?:embed|shorts)\/([A-Za-z0-9_-]{11})/)?.[1] ||
+                    null
+                );
+            }
+        } catch {
+            return null;
+        }
+
+        return null;
     }
 
     private toJsonInput(value: unknown): Prisma.InputJsonValue {
@@ -899,8 +940,8 @@ export class LessonsService {
                 recipientIds: enrollments.map((enrollment) => enrollment.studentId),
                 actorId,
                 type: 'LESSON_PUBLISHED',
-                title: `Bài học mới: ${lesson.title}`,
-                message: `${lesson.class.name} vừa có bài học mới.`,
+                title: `B?i h?c m?i: ${lesson.title}`,
+                message: `${lesson.class.name} v?a c? b?i h?c m?i.`,
                 data: {
                     classPublicId: lesson.class.publicId,
                     coursePublicId: lesson.class.course.publicId,
@@ -920,21 +961,29 @@ export class LessonsService {
 
     private ensureCanManageClass(actor: Actor, classItem: ClassAccessRecord | LessonWithDetails['class']) {
         if (!this.canManageClass(actor, classItem)) {
-            throw new ForbiddenException('Bạn không có quyền quản lý bài học của lớp này');
+            throw new ForbiddenException('B?n kh?ng c? quy?n qu?n l? b?i h?c c?a l?p n?y');
+        }
+    }
+
+    private canEditClassContent(actor: Actor, classItem: ClassAccessRecord | LessonWithDetails['class']) {
+        return ['LECTURER', 'DEPARTMENT_HEAD'].includes(actor.role.code) && actor.id === classItem.lecturerId;
+    }
+
+    private ensureCanEditClassContent(actor: Actor, classItem: ClassAccessRecord | LessonWithDetails['class']) {
+        if (!this.canEditClassContent(actor, classItem)) {
+            throw new ForbiddenException('Ch? gi?ng vi?n ???c ch? ??nh c?a l?p m?i ???c ch?nh s?a n?i dung');
         }
     }
 
     private ensureClassContentEditable(actor: Actor, classItem: { status?: string | null }) {
-        if (classItem.status === 'COMPLETED' && !['ADMIN', 'TRAINING_OFFICER'].includes(actor.role.code)) {
-            throw new BadRequestException(
-                'Lớp đã hoàn thành, chỉ Admin và Phòng Đào Tạo mới có thể chỉnh sửa nội dung'
-            );
+        if (classItem.status === 'COMPLETED') {
+            throw new BadRequestException('Lớp đã hoàn thành, không thể chỉnh sửa nội dung');
         }
     }
 
     private async ensureCanStudyClass(actor: Actor, classId: number) {
         if (actor.role.code !== 'STUDENT') {
-            throw new ForbiddenException('Bạn không có quyền học lớp này');
+            throw new ForbiddenException('B?n kh?ng c? quy?n h?c l?p n?y');
         }
 
         const enrollment = await this.prisma.enrollment.findFirst({
@@ -947,7 +996,7 @@ export class LessonsService {
         });
 
         if (!enrollment) {
-            throw new ForbiddenException('Sinh viên chưa được ghi danh vào lớp này');
+            throw new ForbiddenException('Sinh vi?n ch?a ???c ghi danh v?o l?p n?y');
         }
     }
 
@@ -969,17 +1018,17 @@ export class LessonsService {
             select: { id: true }
         });
 
-        if (duplicate) throw new BadRequestException('Thu tu bai hoc da ton tai trong lop nay');
+        if (duplicate) throw new BadRequestException('Th? t? b?i h?c ?? t?n t?i trong l?p n?y');
     }
 
     private ensureUniqueOrderPayload(dto: ReorderLessonsDto) {
         const publicIds = new Set(dto.items.map((item) => item.publicId));
         const sortOrders = new Set(dto.items.map((item) => item.sortOrder));
         if (publicIds.size !== dto.items.length || sortOrders.size !== dto.items.length) {
-            throw new BadRequestException('Danh sách sắp xếp bị trung bài học hoặc thứ tự');
+            throw new BadRequestException('Danh s?ch s?p x?p b? tr?ng b?i h?c ho?c th? t?');
         }
         if (dto.items.some((item) => item.sortOrder < 1)) {
-            throw new BadRequestException('Thứ tự bài học phải lớn hơn 0');
+            throw new BadRequestException('Th? t? b?i h?c ph?i l?n h?n 0');
         }
     }
 
@@ -1007,7 +1056,7 @@ export class LessonsService {
         });
 
         if (!section) {
-            throw new BadRequestException('Section không hợp lệ với lớp này');
+            throw new BadRequestException('Ch??ng kh?ng h?p l? v?i l?p n?y');
         }
 
         return section;
@@ -1027,8 +1076,8 @@ export class LessonsService {
                 }
             }
         });
-        if (!user) throw new NotFoundException('Không tìm thấy người dùng');
-        if (!user.role) throw new ForbiddenException('Người dùng chưa được gán vai trò');
+        if (!user) throw new NotFoundException('Kh?ng t?m th?y ng??i d?ng');
+        if (!user.role) throw new ForbiddenException('Ng??i d?ng ch?a ???c g?n vai tr?');
         return { ...user, role: user.role };
     }
 
@@ -1050,7 +1099,7 @@ export class LessonsService {
                 }
             }
         });
-        if (!classItem) throw new NotFoundException('Không tìm thấy lớp học');
+        if (!classItem) throw new NotFoundException('Kh?ng t?m th?y l?p h?c');
         return classItem;
     }
 
@@ -1059,7 +1108,7 @@ export class LessonsService {
             where: { publicId },
             select: this.lessonSelect()
         });
-        if (!lesson) throw new NotFoundException('Không tìm thấy bài học');
+        if (!lesson) throw new NotFoundException('Kh?ng t?m th?y b?i h?c');
         return lesson;
     }
 
@@ -1097,3 +1146,4 @@ export class LessonsService {
         };
     }
 }
+

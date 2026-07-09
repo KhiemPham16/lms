@@ -64,7 +64,7 @@ export class LessonSectionsService {
             this.findUserByPublicIdOrThrow(actorPublicId),
             this.findClassRecordOrThrow(classPublicId)
         ]);
-        this.ensureCanManageClass(actor, classItem);
+        this.ensureCanEditClassContent(actor, classItem);
         this.ensureClassContentEditable(actor, classItem);
         await this.ensureSectionOrderAvailable(classItem.id, dto.sortOrder);
 
@@ -135,7 +135,7 @@ export class LessonSectionsService {
         ]);
         const canManage = this.canManageClass(actor, section.class);
         if (!canManage) {
-            if (!section.isPublished) throw new ForbiddenException('Section chưa được công bố');
+            if (!section.isPublished) throw new ForbiddenException('Chương chưa được công bố');
             await this.ensureCanStudyClass(actor, section.classId);
         }
 
@@ -147,7 +147,7 @@ export class LessonSectionsService {
             this.findUserByPublicIdOrThrow(actorPublicId),
             this.findSectionRecordOrThrow(publicId)
         ]);
-        this.ensureCanManageClass(actor, section.class);
+        this.ensureCanEditClassContent(actor, section.class);
         this.ensureClassContentEditable(actor, section.class);
         await this.ensureSectionOrderAvailable(section.classId, dto.sortOrder, section.id);
 
@@ -188,7 +188,7 @@ export class LessonSectionsService {
             this.findUserByPublicIdOrThrow(actorPublicId),
             this.findSectionRecordOrThrow(publicId)
         ]);
-        this.ensureCanManageClass(actor, section.class);
+        this.ensureCanEditClassContent(actor, section.class);
         this.ensureClassContentEditable(actor, section.class);
 
         await this.prisma.$transaction(async (tx) => {
@@ -216,7 +216,7 @@ export class LessonSectionsService {
             this.findUserByPublicIdOrThrow(actorPublicId),
             this.findClassRecordOrThrow(classPublicId)
         ]);
-        this.ensureCanManageClass(actor, classItem);
+        this.ensureCanEditClassContent(actor, classItem);
         this.ensureClassContentEditable(actor, classItem);
         this.ensureUniqueOrderPayload(dto);
 
@@ -231,7 +231,7 @@ export class LessonSectionsService {
         });
 
         if (sections.length !== dto.items.length) {
-            throw new BadRequestException('Danh sách section không hợp lệ với lớp này');
+            throw new BadRequestException('Danh sách chương không hợp lệ với lớp này');
         }
 
         const orderByPublicId = new Map(dto.items.map((item) => [item.publicId, item.sortOrder]));
@@ -281,13 +281,23 @@ export class LessonSectionsService {
 
     private ensureCanManageClass(actor: Actor, classItem: ClassAccessRecord | LessonSectionWithDetails['class']) {
         if (!this.canManageClass(actor, classItem)) {
-            throw new ForbiddenException('Bạn không có quyền quản lý section của lớp học này');
+            throw new ForbiddenException('Bạn không có quyền quản lý chương của lớp học này');
+        }
+    }
+
+    private canEditClassContent(actor: Actor, classItem: ClassAccessRecord | LessonSectionWithDetails['class']) {
+        return ['LECTURER', 'DEPARTMENT_HEAD'].includes(actor.role.code) && actor.id === classItem.lecturerId;
+    }
+
+    private ensureCanEditClassContent(actor: Actor, classItem: ClassAccessRecord | LessonSectionWithDetails['class']) {
+        if (!this.canEditClassContent(actor, classItem)) {
+            throw new ForbiddenException('Chỉ giảng viên được chỉ định của lớp mới được chỉnh sửa nội dung');
         }
     }
 
     private ensureClassContentEditable(actor: Actor, classItem: { status?: string | null }) {
-        if (classItem.status === 'COMPLETED' && !['ADMIN', 'TRAINING_OFFICER'].includes(actor.role.code)) {
-            throw new BadRequestException('Lop da hoan thanh, chi Admin hoac PDT duoc sua noi dung');
+        if (classItem.status === 'COMPLETED') {
+            throw new BadRequestException('Lớp đã hoàn thành, không thể chỉnh sửa nội dung');
         }
     }
 
@@ -322,14 +332,14 @@ export class LessonSectionsService {
             select: { id: true }
         });
 
-        if (duplicate) throw new BadRequestException('Thứ tự section đã tồn tại trong lớp này');
+        if (duplicate) throw new BadRequestException('Thứ tự chương đã tồn tại trong lớp này');
     }
 
     private ensureUniqueOrderPayload(dto: ReorderLessonSectionsDto) {
         const publicIds = new Set(dto.items.map((item) => item.publicId));
         const sortOrders = new Set(dto.items.map((item) => item.sortOrder));
         if (publicIds.size !== dto.items.length || sortOrders.size !== dto.items.length) {
-            throw new BadRequestException('Danh sách sắp xếp bị trùng section hoặc thứ tự');
+            throw new BadRequestException('Danh sách sắp xếp bị trùng chương hoặc thứ tự');
         }
     }
 
@@ -384,7 +394,7 @@ export class LessonSectionsService {
             where: { publicId },
             select: this.lessonSectionSelect()
         });
-        if (!section) throw new NotFoundException('Không tìm thấy section');
+        if (!section) throw new NotFoundException('Không tìm thấy chương');
         return section;
     }
 
