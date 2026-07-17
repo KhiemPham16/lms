@@ -1,0 +1,26 @@
+.page,
+.loader {
+    min-height: 100vh;
+    display: grid;
+    place-items: center;
+    align-content: center;
+    gap: 14px;
+    padding: 24px;
+    text-align: center;
+    background: #f5f7fb;
+}
+
+.page h1 {
+    margin: 0;
+    letter-spacing: 0;
+}
+
+.page > svg {
+    color: #2563eb;
+    font-size: 26px;
+}
+
+.page p {
+    margin: 0;
+    color: #667085;
+}

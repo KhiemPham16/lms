@@ -1,0 +1,123 @@
+.classWorkspace { display: grid; gap: 16px; }
+
+.classHeader,
+.progressBand,
+.curriculum,
+.learningContent {
+    border: 1px solid #dce3ee;
+    border-radius: 8px;
+    background: #ffffff;
+}
+
+.classHeader {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 24px;
+    padding: 22px;
+}
+
+.classHeader a { display: flex; align-items: center; gap: 6px; margin-bottom: 14px; color: #1d4ed8; font-weight: 800; }
+.classHeader > div:first-child > span { color: #667085; font-size: 12px; font-weight: 900; }
+.classHeader h2 { margin: 4px 0 0; font-size: 26px; letter-spacing: 0; }
+.classHeaderMeta { max-width: 54%; display: flex; align-items: center; justify-content: flex-end; gap: 14px; flex-wrap: wrap; color: #667085; font-size: 13px; }
+.classHeaderMeta span { display: inline-flex; align-items: center; gap: 6px; }
+.classHeaderMeta strong { min-height: 30px; display: inline-flex; align-items: center; padding: 0 10px; border-radius: 999px; color: #047857; background: #dff8ee; font-size: 12px; }
+
+.progressBand { display: grid; grid-template-columns: 150px minmax(180px, 1fr) auto; align-items: center; gap: 18px; padding: 14px 20px; }
+.progressBand > div:first-child { display: flex; align-items: baseline; gap: 8px; }
+.progressBand strong { color: #0f766e; font-size: 22px; }
+.progressBand span,
+.progressBand small { color: #667085; }
+.progressBand > div:first-child span { font-size: 12px; font-weight: 800; }
+.progressTrack { height: 8px; overflow: hidden; border-radius: 999px; background: #e9edf3; }
+.progressTrack span { display: block; height: 100%; border-radius: inherit; background: #2da883; }
+
+.workspaceBody { display: grid; grid-template-columns: minmax(300px, 340px) minmax(0, 1fr); gap: 16px; align-items: start; }
+.curriculum { position: sticky; top: 96px; max-height: calc(100vh - 120px); overflow-y: auto; }
+.curriculumTitle { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px; border-bottom: 1px solid #e4e9f2; }
+.curriculumTitle h3 { margin: 0; font-size: 17px; }
+.curriculumTitle span { color: #667085; font-size: 12px; font-weight: 800; }
+
+.chapter { border-bottom: 1px solid #e4e9f2; }
+.chapter:last-child { border-bottom: 0; }
+.chapter > button { width: 100%; min-height: 62px; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 14px; border: 0; color: #172033; background: #f8fafc; text-align: left; }
+.chapter > button > span { min-width: 0; display: grid; gap: 3px; }
+.chapter > button small { color: #667085; font-size: 11px; text-transform: uppercase; }
+.chapter > button strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chapter > button svg { flex: 0 0 auto; transition: transform .16s ease; }
+.rotate { transform: rotate(180deg); }
+.chapterItems { display: grid; padding: 6px; }
+.chapterItems > button { width: 100%; min-height: 57px; display: grid; grid-template-columns: 34px minmax(0, 1fr); align-items: center; gap: 9px; padding: 8px; border: 0; border-radius: 6px; color: #344054; background: transparent; text-align: left; }
+.chapterItems > button:hover { background: #f4f7fb; }
+.chapterItems .itemActive { color: #174bb8; background: #eaf1ff; }
+.chapterItems .itemLocked { cursor: not-allowed; opacity: .62; }
+.chapterItems .itemLocked:hover { background: transparent; }
+.chapterItems > button > span:last-child { min-width: 0; display: grid; gap: 4px; }
+.chapterItems strong,
+.chapterItems small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chapterItems strong { font-size: 13px; }
+.chapterItems small { color: #667085; font-size: 11px; }
+.itemIcon { width: 32px; height: 32px; display: grid; place-items: center; border-radius: 7px; color: #475467; background: #eef1f5; }
+.itemDone { color: #047857; background: #dff8ee; }
+.assessmentItem { margin-top: 3px; border-top: 1px dashed #d0d7e2 !important; }
+.assessmentItem .itemIcon { color: #a15c08; background: #fff1c7; }
+
+.learningContent { min-height: 650px; overflow: hidden; }
+.contentHeader { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 18px 20px; border-bottom: 1px solid #e4e9f2; }
+.contentHeader span { color: #667085; font-size: 12px; font-weight: 900; text-transform: uppercase; }
+.contentHeader h2 { margin: 4px 0 0; font-size: 23px; }
+.richText { padding: 26px; color: #253044; font-size: 16px; line-height: 1.75; }
+.richText img { max-width: 100%; height: auto; }
+.richText pre { padding: 14px; overflow-x: auto; border-radius: 8px; background: #111827; color: #e5e7eb; }
+.richText table { width: 100%; border-collapse: collapse; }
+.richText td,
+.richText th { padding: 8px; border: 1px solid #d0d7e2; }
+
+.videoFrame { width: 100%; aspect-ratio: 16 / 9; background: #111827; }
+.videoFrame iframe { width: 100%; height: 100%; border: 0; }
+.pdfFrame { display: grid; grid-template-rows: auto minmax(520px, calc(100vh - 310px)); padding: 14px; }
+.pdfFrame > div { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 0 4px 12px; }
+.pdfFrame a { display: inline-flex; align-items: center; gap: 6px; color: #1d4ed8; font-weight: 800; }
+.pdfFrame iframe { width: 100%; height: 100%; border: 1px solid #d0d7e2; border-radius: 8px; background: #eef1f5; }
+
+.contentState { min-height: 420px; display: flex; align-items: center; justify-content: center; gap: 10px; padding: 30px; color: #667085; }
+.contentState svg { font-size: 23px; }
+.accessState { flex-direction: column; text-align: center; }
+.accessState h2,
+.accessState p { margin: 0; }
+.accessState h2 { color: #172033; font-size: 24px; }
+.accessState p { max-width: 520px; line-height: 1.6; }
+.accessState a { margin-top: 8px; }
+
+.assessmentOverview { max-width: 780px; display: grid; justify-items: start; gap: 18px; padding: 32px; }
+.assessmentBadge { display: inline-flex; min-height: 30px; align-items: center; padding: 0 10px; border-radius: 999px; color: #8a5508; background: #fff1c7; font-size: 12px; font-weight: 900; }
+.assessmentOverview h2 { margin: 0; font-size: 28px; }
+.assessmentOverview > p { margin: 0; color: #475467; line-height: 1.65; }
+.assessmentOverview dl { width: 100%; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 0; }
+.assessmentOverview dl div { display: grid; gap: 6px; padding: 14px; border: 1px solid #e4e9f2; border-radius: 8px; }
+.assessmentOverview dt { color: #667085; font-size: 12px; font-weight: 800; }
+.assessmentOverview dd { margin: 0; font-weight: 850; }
+
+.instructionDialog { width: min(100%, 620px); }
+.rules { display: grid; gap: 10px; }
+.rules > div { display: grid; grid-template-columns: 38px minmax(0, 1fr); align-items: center; gap: 12px; padding: 12px; border: 1px solid #e4e9f2; border-radius: 8px; }
+.rules > div > svg { width: 38px; height: 38px; padding: 9px; border-radius: 8px; color: #1d4ed8; background: #eaf1ff; }
+.rules span { display: grid; gap: 3px; }
+.rules small { color: #667085; }
+.identityCheck { display: flex; align-items: flex-start; gap: 10px; padding: 13px; border: 1px solid #b9c9ed; border-radius: 8px; color: #344054; background: #f7f9ff; font-weight: 750; }
+.identityCheck input { width: 17px; height: 17px; margin-top: 1px; accent-color: #2563eb; }
+
+@media (max-width: 1000px) {
+    .classHeader { align-items: flex-start; flex-direction: column; }
+    .classHeaderMeta { max-width: none; justify-content: flex-start; }
+    .workspaceBody { grid-template-columns: 290px minmax(0, 1fr); }
+}
+
+@media (max-width: 760px) {
+    .progressBand { grid-template-columns: 1fr; }
+    .workspaceBody { grid-template-columns: 1fr; }
+    .curriculum { position: static; max-height: none; }
+    .contentHeader { align-items: flex-start; flex-direction: column; }
+    .assessmentOverview dl { grid-template-columns: 1fr; }
+}

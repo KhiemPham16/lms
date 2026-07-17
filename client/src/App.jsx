@@ -1,12 +1,13 @@
-import { RouterProvider } from 'react-router-dom';
+import { AppRouter } from '~/app/router/AppRouter.jsx';
+import { Toaster } from 'sonner';
 
-import Providers from '~/app/providers';
-import router from '~/app/router';
-
-export default function App() {
+function App() {
     return (
-        <Providers>
-            <RouterProvider router={router} />
-        </Providers>
+        <>
+            <AppRouter />
+            <Toaster richColors position="top-right" />
+        </>
     );
 }
+
+export default App;

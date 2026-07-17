@@ -3,11 +3,11 @@ import { JwtModule } from '@nestjs/jwt';
 
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
-import { UsersModule } from '../users/users.module';
-import { MailModule } from '~/modules/mail/mail.module';
-
+import { MailModule } from '../mail/mail.module';
+import { MediaModule } from '../media/media.module';
+import { AvatarModule } from '../avatar/avatar.module';
 @Module({
-    imports: [UsersModule, JwtModule.register({}), MailModule],
+    imports: [JwtModule.register({ global: true }), MailModule, MediaModule, AvatarModule],
     controllers: [AuthController],
     providers: [AuthService]
 })

@@ -1,0 +1,470 @@
+.heroBand {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+    padding: 28px;
+    border: 1px solid #dce3ee;
+    border-radius: 8px;
+    background:
+        linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(235, 247, 255, 0.95)),
+        linear-gradient(90deg, #ffffff, #d7f4ff);
+}
+
+.heroBand h2 {
+    margin: 6px 0 0;
+    font-size: 30px;
+    letter-spacing: 0;
+}
+
+.heroDescription {
+    max-width: 760px;
+    margin: 8px 0 0;
+    color: #667085;
+    line-height: 1.5;
+}
+
+.heroActions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+.metricGrid,
+.moduleGrid {
+    display: grid;
+    gap: 16px;
+}
+
+.metricGrid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.metricCard,
+.moduleCard {
+    border: 1px solid #dce3ee;
+    border-radius: 8px;
+    background: #ffffff;
+}
+
+.metricCard {
+    display: grid;
+    gap: 10px;
+    padding: 18px;
+}
+
+.metricCard span {
+    color: #667085;
+    font-weight: 750;
+}
+
+.metricCard strong {
+    font-size: 30px;
+}
+
+.metricCard small {
+    color: #667085;
+    line-height: 1.4;
+}
+
+.percentageMetricCard {
+    align-items: center;
+    text-align: center;
+}
+
+.percentageRing {
+    position: relative;
+    width: 104px;
+    height: 104px;
+    margin: 2px auto;
+}
+
+.percentageRing svg,
+.donutChart svg {
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+}
+
+.percentageRing circle,
+.donutChart circle {
+    fill: none;
+    transform: rotate(-90deg);
+    transform-origin: center;
+}
+
+.percentageRingTrack {
+    stroke: #e7edf5;
+    stroke-width: 5;
+}
+
+.percentageRingValue {
+    stroke: #2563eb;
+    stroke-width: 5;
+    stroke-linecap: round;
+}
+
+.percentageRing > strong {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    font-size: 22px;
+}
+
+.metricCardBlue {
+    border-top: 4px solid #2563eb;
+}
+
+.metricCardAmber {
+    border-top: 4px solid #d97706;
+}
+
+.metricCardGreen {
+    border-top: 4px solid #059669;
+}
+
+.metricCardSlate {
+    border-top: 4px solid #475569;
+}
+
+.moduleGrid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.moduleCard {
+    min-height: 164px;
+    display: grid;
+    align-content: start;
+    gap: 12px;
+    padding: 18px;
+}
+
+.moduleCard svg {
+    color: #2563eb;
+    font-size: 26px;
+}
+
+.moduleCard strong {
+    font-size: 17px;
+}
+
+.moduleCard span {
+    color: #667085;
+    line-height: 1.55;
+}
+
+.analyticsGrid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+}
+
+.analyticsCard,
+.activityCard,
+.loadingPanel,
+.errorPanel,
+.warningPanel {
+    padding: 22px;
+    border: 1px solid #dce3ee;
+    border-radius: 8px;
+    background: #ffffff;
+}
+
+.analyticsHeading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 20px;
+}
+
+.analyticsHeading h3 {
+    margin: 0;
+}
+
+.analyticsHeading > span {
+    color: #667085;
+    font-size: 13px;
+}
+
+.breakdownList,
+.activityList,
+.errorPanel {
+    display: grid;
+    gap: 16px;
+}
+
+.donutLayout {
+    display: grid;
+    grid-template-columns: minmax(150px, 190px) minmax(0, 1fr);
+    align-items: center;
+    gap: 24px;
+}
+
+.donutChart {
+    position: relative;
+    width: min(100%, 190px);
+    aspect-ratio: 1;
+    margin: 0 auto;
+}
+
+.donutTrack {
+    stroke: #eef2f6;
+    stroke-width: 7;
+}
+
+.donutSegment {
+    stroke-width: 7;
+}
+
+.donutChart > div {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-content: center;
+    text-align: center;
+}
+
+.donutChart > div strong {
+    font-size: 26px;
+}
+
+.donutChart > div span {
+    color: #667085;
+    font-size: 12px;
+}
+
+.chartLegend {
+    display: grid;
+    gap: 11px;
+}
+
+.chartLegend > div {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto auto;
+    align-items: center;
+    gap: 8px;
+}
+
+.chartLegend i {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+}
+
+.chartLegend span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: #475467;
+}
+
+.chartLegend small {
+    min-width: 46px;
+    color: #667085;
+    text-align: right;
+}
+
+.chartLegend em {
+    grid-column: 2 / -1;
+    color: #047857;
+    font-size: 12px;
+    font-style: normal;
+}
+
+.barChart {
+    min-height: 240px;
+    display: flex;
+    align-items: stretch;
+    justify-content: space-around;
+    gap: 14px;
+    padding-top: 8px;
+}
+
+.barColumn {
+    min-width: 0;
+    flex: 1;
+    display: grid;
+    grid-template-rows: auto 170px auto;
+    gap: 8px;
+    text-align: center;
+}
+
+.barColumn > strong {
+    font-size: 14px;
+}
+
+.barColumn > small {
+    color: #667085;
+    line-height: 1.35;
+}
+
+.barTrack {
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    border-bottom: 1px solid #dce3ee;
+    background: repeating-linear-gradient(to top, transparent 0, transparent 41px, #eef2f6 42px);
+}
+
+.barTrack span {
+    width: min(54px, 72%);
+    border-radius: 6px 6px 0 0;
+}
+
+.breakdownItem {
+    display: grid;
+    gap: 7px;
+}
+
+.breakdownLabel {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.breakdownLabel span {
+    color: #475467;
+}
+
+.breakdownItem small {
+    color: #047857;
+}
+
+.progressTrack {
+    height: 8px;
+    overflow: hidden;
+    border-radius: 999px;
+    background: #eef2f6;
+}
+
+.progressTrack span {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+    background: linear-gradient(90deg, #2563eb, #38bdf8);
+}
+
+.activityItem {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 12px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid #eef2f6;
+}
+
+.activityItem:last-child {
+    padding-bottom: 0;
+    border-bottom: 0;
+}
+
+.activityItem > div {
+    display: grid;
+    min-width: 0;
+    gap: 4px;
+}
+
+.activityItem > div span,
+.activityItem time {
+    color: #667085;
+    font-size: 13px;
+}
+
+.activityDot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #2563eb;
+    box-shadow: 0 0 0 5px #dbeafe;
+}
+
+.warningPanel {
+    color: #92400e;
+    border-color: #fcd34d;
+    background: #fffbeb;
+}
+
+.errorPanel {
+    color: #b42318;
+    border-color: #fda29b;
+    background: #fff6f5;
+}
+
+.errorPanel button {
+    justify-self: start;
+}
+
+.loadingPanel,
+.emptyText {
+    color: #667085;
+}
+
+.emptyText {
+    margin: 0;
+}
+
+.spinningIcon {
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@media (max-width: 1180px) {
+    .metricGrid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .moduleGrid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .analyticsGrid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 900px) {
+    .heroBand {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .heroActions {
+        justify-content: flex-start;
+    }
+}
+
+@media (max-width: 640px) {
+    .metricGrid,
+    .moduleGrid {
+        grid-template-columns: 1fr;
+    }
+
+    .activityItem {
+        grid-template-columns: auto minmax(0, 1fr);
+    }
+
+    .activityItem time {
+        grid-column: 2;
+    }
+
+    .donutLayout {
+        grid-template-columns: 1fr;
+    }
+
+    .barChart {
+        gap: 8px;
+    }
+
+    .barColumn {
+        grid-template-rows: auto 140px auto;
+    }
+}

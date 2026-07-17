@@ -1,13 +1,6 @@
 import { Module } from '@nestjs/common';
-import { JwtModule } from '@nestjs/jwt';
-
-import { DepartmentsService } from './departments.service';
 import { DepartmentsController } from './departments.controller';
+import { DepartmentsService } from './departments.service';
 
-@Module({
-    imports: [JwtModule.register({})],
-    controllers: [DepartmentsController],
-    providers: [DepartmentsService],
-    exports: [DepartmentsService]
-})
+@Module({ controllers: [DepartmentsController], providers: [DepartmentsService] })
 export class DepartmentsModule {}

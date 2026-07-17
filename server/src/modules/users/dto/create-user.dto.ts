@@ -1,91 +1,47 @@
-import {
-    IsDateString,
-    IsEmail,
-    IsEnum,
-    IsInt,
-    IsNotEmpty,
-    IsOptional,
-    IsString,
-    Matches,
-    Max,
-    Min,
-    MinLength
-} from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { Gender, UserStatus } from '@prisma/client';
+import { Gender, UserRole } from '@prisma/client';
+import { IsDateString, IsEmail, IsEnum, IsOptional, IsString, IsUUID, Length, Matches, MaxLength } from 'class-validator';
 
 export class CreateUserDto {
-    @ApiPropertyOptional({ example: '922210001', description: 'Bỏ trống để hệ thống tự sinh mã theo role và năm khóa' })
-    @IsOptional()
+    @ApiProperty({ example: 'Nguyễn Văn An' })
     @IsString()
-    code?: string;
-
-    @ApiProperty({ example: 'Student One' })
-    @IsString()
-    @IsNotEmpty()
+    @Length(2, 150)
     fullName: string;
 
-    @ApiProperty({ example: 'student1@lms.com' })
+    @ApiProperty({ example: 'an@example.com' })
     @IsEmail()
     email: string;
 
-    @ApiPropertyOptional({ example: '0901234567' })
+    @ApiPropertyOptional()
     @IsOptional()
     @IsString()
+    @Matches(/^0[35789]\d{8}$/, {
+        message: 'Số điện thoại phải gồm 10 chữ số và bắt đầu bằng 03, 05, 07, 08 hoặc 09'
+    })
     phone?: string;
 
-    @ApiPropertyOptional({ example: 'Lms@123' })
-    @IsOptional()
-    @IsString()
-    @MinLength(6)
-    @Matches(/[A-Z]/, { message: 'Mat khau phai co it nhat 1 chu hoa' })
-    @Matches(/[^A-Za-z0-9]/, { message: 'Mat khau phai co it nhat 1 ky tu dac biet' })
-    password?: string;
+    @ApiProperty({ enum: UserRole })
+    @IsEnum(UserRole)
+    role: UserRole;
 
-    @ApiPropertyOptional({ example: 'STUDENT' })
+    @ApiPropertyOptional({ nullable: true })
     @IsOptional()
-    @IsString()
-    role?: string;
+    @IsUUID()
+    departmentPublicId?: string | null;
 
-    @ApiPropertyOptional({ example: 4 })
-    @IsOptional()
-    @IsInt()
-    roleId?: number;
-
-    @ApiPropertyOptional({ enum: UserStatus, example: UserStatus.ACTIVE })
-    @IsOptional()
-    @IsEnum(UserStatus)
-    status?: UserStatus;
-
-    @ApiPropertyOptional({ enum: Gender, example: Gender.MALE })
+    @ApiPropertyOptional({ enum: Gender })
     @IsOptional()
     @IsEnum(Gender)
     gender?: Gender;
 
-    @ApiPropertyOptional({ example: 'https://example.com/avatar.png' })
-    @IsOptional()
-    @IsString()
-    avatarUrl?: string;
-
-    @ApiPropertyOptional({ example: '2004-01-01' })
+    @ApiPropertyOptional()
     @IsOptional()
     @IsDateString()
     dateOfBirth?: string;
 
-    @ApiPropertyOptional({ example: 'TP. Hồ Chí Minh' })
+    @ApiPropertyOptional()
     @IsOptional()
     @IsString()
+    @MaxLength(500)
     address?: string;
-
-    @ApiPropertyOptional({ example: 1 })
-    @IsOptional()
-    @IsInt()
-    departmentId?: number;
-
-    @ApiPropertyOptional({ example: 2022, description: 'Năm khóa/năm định danh để sinh mã người dùng' })
-    @IsOptional()
-    @IsInt()
-    @Min(2000)
-    @Max(2099)
-    cohortYear?: number;
 }

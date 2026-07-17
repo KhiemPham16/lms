@@ -25,8 +25,9 @@ export class ResetPasswordDto {
         example: 'Lms@123'
     })
     @IsString()
-    @MinLength(6)
-    @Matches(/[A-Z]/, { message: 'Mat khau phai co it nhat 1 chu hoa' })
-    @Matches(/[^A-Za-z0-9]/, { message: 'Mat khau phai co it nhat 1 ky tu dac biet' })
+    @MinLength(7)
+    @Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).+$/, {
+        message: 'Mật khẩu phải có chữ hoa, chữ thường, số và ký tự đặc biệt'
+    })
     newPassword: string;
 }

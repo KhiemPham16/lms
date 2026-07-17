@@ -1,14 +1,10 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
-
 import { PrismaService } from '~/prisma/prisma.service';
 import { QueryNotificationDto } from './dto/query-notification.dto';
 
-type NotificationTx = Prisma.TransactionClient | PrismaService;
-
-export type CreateNotificationInput = {
-    recipientIds: number[];
-    actorId?: number | null;
+type NotificationInput = {
+    recipientId: number;
     type: string;
     title: string;
     message: string;
@@ -19,136 +15,55 @@ export type CreateNotificationInput = {
 export class NotificationsService {
     constructor(private readonly prisma: PrismaService) {}
 
-    async createMany(input: CreateNotificationInput, tx: NotificationTx = this.prisma) {
-        const recipientIds = Array.from(new Set(input.recipientIds)).filter((id) => id > 0);
-        if (recipientIds.length === 0) return { count: 0 };
-
-        return tx.notification.createMany({
-            data: recipientIds.map((recipientId) => ({
-                recipientId,
-                actorId: input.actorId ?? null,
-                type: input.type,
-                title: input.title,
-                message: input.message,
-                data: input.data ?? Prisma.JsonNull
-            }))
-        });
+    create(input: NotificationInput) {
+        return this.prisma.notification.create({ data: input });
     }
 
-    async findMine(actorPublicId: string, query: QueryNotificationDto) {
-        const actor = await this.findUserByPublicIdOrThrow(actorPublicId);
-        const page = query.page ?? 1;
-        const limit = query.limit ?? 20;
-        const skip = (page - 1) * limit;
+    createMany(inputs: NotificationInput[]) {
+        if (!inputs.length) return Promise.resolve({ count: 0 });
+        return this.prisma.notification.createMany({ data: inputs });
+    }
+
+    async list(recipientPublicId: string, query: QueryNotificationDto) {
+        const recipient = await this.requireRecipient(recipientPublicId);
         const where: Prisma.NotificationWhereInput = {
-            recipientId: actor.id,
-            ...(query.unreadOnly ? { readAt: null } : {}),
-            ...(query.type ? { type: query.type } : {})
+            recipientId: recipient.id,
+            readAt: query.unreadOnly ? null : undefined
         };
-
-        const [items, total, unreadCount] = await Promise.all([
-            this.prisma.notification.findMany({
-                where,
-                skip,
-                take: limit,
-                orderBy: { createdAt: 'desc' },
-                select: this.notificationSelect()
-            }),
+        const skip = (query.page - 1) * query.limit;
+        const [items, total, unread] = await this.prisma.$transaction([
+            this.prisma.notification.findMany({ where, skip, take: query.limit, orderBy: { createdAt: 'desc' } }),
             this.prisma.notification.count({ where }),
-            this.prisma.notification.count({
-                where: {
-                    recipientId: actor.id,
-                    readAt: null
-                }
-            })
+            this.prisma.notification.count({ where: { recipientId: recipient.id, readAt: null } })
         ]);
-
         return {
-            items,
-            unreadCount,
-            meta: {
-                page,
-                limit,
-                total,
-                totalPages: Math.ceil(total / limit)
-            }
+            data: items.map((item) => ({ ...item, id: item.id.toString() })),
+            meta: { page: query.page, limit: query.limit, total, totalPages: Math.ceil(total / query.limit), unread }
         };
     }
 
-    async unreadCount(actorPublicId: string) {
-        const actor = await this.findUserByPublicIdOrThrow(actorPublicId);
-        const count = await this.prisma.notification.count({
-            where: {
-                recipientId: actor.id,
-                readAt: null
-            }
-        });
-
-        return { count };
+    async unreadCount(recipientPublicId: string) {
+        const recipient = await this.requireRecipient(recipientPublicId);
+        return { count: await this.prisma.notification.count({ where: { recipientId: recipient.id, readAt: null } }) };
     }
 
-    async markRead(publicId: string, actorPublicId: string) {
-        const actor = await this.findUserByPublicIdOrThrow(actorPublicId);
-        const notification = await this.prisma.notification.findFirst({
-            where: {
-                publicId,
-                recipientId: actor.id
-            },
-            select: { id: true }
-        });
-
+    async markRead(publicId: string, recipientPublicId: string) {
+        const recipient = await this.requireRecipient(recipientPublicId);
+        const notification = await this.prisma.notification.findFirst({ where: { publicId, recipientId: recipient.id } });
         if (!notification) throw new NotFoundException('Không tìm thấy thông báo');
-
-        return this.prisma.notification.update({
-            where: { id: notification.id },
-            data: { readAt: new Date() },
-            select: this.notificationSelect()
-        });
+        await this.prisma.notification.update({ where: { id: notification.id }, data: { readAt: notification.readAt ?? new Date() } });
+        return { message: 'Đã đánh dấu thông báo là đã đọc' };
     }
 
-    async markAllRead(actorPublicId: string) {
-        const actor = await this.findUserByPublicIdOrThrow(actorPublicId);
-        const result = await this.prisma.notification.updateMany({
-            where: {
-                recipientId: actor.id,
-                readAt: null
-            },
-            data: { readAt: new Date() }
-        });
-
-        return { updatedCount: result.count };
+    async markAllRead(recipientPublicId: string) {
+        const recipient = await this.requireRecipient(recipientPublicId);
+        const result = await this.prisma.notification.updateMany({ where: { recipientId: recipient.id, readAt: null }, data: { readAt: new Date() } });
+        return { message: 'Đã đọc toàn bộ thông báo', count: result.count };
     }
 
-    private async findUserByPublicIdOrThrow(publicId: string) {
-        const user = await this.prisma.user.findFirst({
-            where: {
-                publicId,
-                deletedAt: null
-            },
-            select: { id: true }
-        });
-
-        if (!user) throw new NotFoundException('Không tìm thấy người dùng.');
-        return user;
-    }
-
-    private notificationSelect() {
-        return {
-            publicId: true,
-            type: true,
-            title: true,
-            message: true,
-            data: true,
-            readAt: true,
-            createdAt: true,
-            actor: {
-                select: {
-                    publicId: true,
-                    code: true,
-                    fullName: true,
-                    email: true
-                }
-            }
-        } satisfies Prisma.NotificationSelect;
+    private async requireRecipient(publicId: string) {
+        const recipient = await this.prisma.user.findUnique({ where: { publicId }, select: { id: true } });
+        if (!recipient) throw new NotFoundException('Không tìm thấy người dùng');
+        return recipient;
     }
 }

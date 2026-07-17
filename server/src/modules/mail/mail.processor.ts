@@ -49,7 +49,11 @@ export class MailProcessor extends WorkerHost {
             typeof data === 'object' &&
             !Array.isArray(data) &&
             'status' in data &&
-            typeof (data as { status?: unknown }).status === 'string'
+            typeof (data as { status?: unknown }).status === 'string' &&
+            'account' in data &&
+            typeof (data as { account?: unknown }).account === 'string' &&
+            'password' in data &&
+            typeof (data as { password?: unknown }).password === 'string'
         );
     }
 }

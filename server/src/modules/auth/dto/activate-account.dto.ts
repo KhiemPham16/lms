@@ -6,4 +6,5 @@ export class ActivateAccountDto {
     @IsString()
     @IsNotEmpty()
     token: string;
+
 }

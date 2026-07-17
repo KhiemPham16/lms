@@ -139,7 +139,9 @@ vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 
 /server/uploads/avatars/**
+/server/storage/media/**
+!/server/storage/media/.gitkeep
 .vscode/**
 
 package-lock.json
-SRSBookStore.txt
+deliverables

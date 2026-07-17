@@ -4,20 +4,14 @@ import { ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
 import cookieParser from 'cookie-parser';
-import express from 'express';
 import helmet from 'helmet';
-import type { RequestHandler } from 'express';
-import { join } from 'node:path';
 import { AppHealthService } from './app-health.service';
-
-const helmetMiddleware = helmet as typeof helmet;
-const cookieParserMiddleware = cookieParser as () => RequestHandler;
-const staticMiddleware = express.static as unknown as (root: string) => RequestHandler;
 
 async function bootstrap() {
     const app = await NestFactory.create(AppModule);
     const configService = app.get(ConfigService);
 
+    const host = configService.get<string>('app.host') || '0.0.0.0';
     const port = configService.get<number>('app.port') || 3500;
     const corsOrigin = configService.get<string>('app.frontendUrl');
 
@@ -35,14 +29,19 @@ async function bootstrap() {
     );
 
     app.use(
-        helmetMiddleware({
-            crossOriginResourcePolicy: { policy: 'cross-origin' }
+        helmet({
+            crossOriginResourcePolicy: { policy: 'cross-origin' },
+            crossOriginOpenerPolicy: false,
+            originAgentCluster: false,
+            contentSecurityPolicy: {
+                directives: {
+                    upgradeInsecureRequests: null
+                }
+            }
         })
     );
 
-    app.use(cookieParserMiddleware());
-
-    app.use('/uploads', staticMiddleware(join(process.cwd(), 'uploads')));
+    app.use(cookieParser());
 
     app.enableCors({
         origin: corsOrigin,
@@ -64,10 +63,10 @@ async function bootstrap() {
 
     SwaggerModule.setup('api/docs', app, document);
 
-    await app.listen(port);
+    await app.listen(port, host);
 
-    console.log(`🚀 LMS API running at http://localhost:${port}/api/v1`);
-    console.log(`📚 Swagger running at http://localhost:${port}/api/docs`);
+    console.log(`🚀 LMS API running at http://${host}:${port}/api/v1`);
+    console.log(`📚 Swagger running at http://${host}:${port}/api/docs`);
 }
 
 void bootstrap();

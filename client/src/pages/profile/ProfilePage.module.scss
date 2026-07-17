@@ -1,0 +1,110 @@
+.grid {
+    display: grid;
+    grid-template-columns: 1.1fr 0.9fr;
+    gap: 16px;
+}
+
+.infoPanel {
+    display: grid;
+    gap: 16px;
+    padding: 22px;
+    border: 1px solid #dce3ee;
+    border-radius: 8px;
+    background: #ffffff;
+}
+
+.infoPanel h3 {
+    margin: 0;
+}
+
+.avatarPanel {
+    grid-column: 1 / -1;
+    grid-template-columns: auto 1fr;
+    align-items: center;
+}
+
+.avatarPreview {
+    width: 112px;
+    height: 112px;
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+    border-radius: 50%;
+    background: #eef4ff;
+    color: #2563eb;
+    font-size: 40px;
+}
+
+.avatarPreview img,
+.headerAvatar {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.headerAvatar {
+    border-radius: inherit;
+}
+
+.avatarContent {
+    display: grid;
+    gap: 16px;
+}
+
+.avatarContent p {
+    margin: 6px 0 0;
+    color: #667085;
+}
+
+.avatarActions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.fileInput {
+    display: none;
+}
+
+.definitionList {
+    display: grid;
+    gap: 14px;
+    margin: 0;
+}
+
+.definitionList dt {
+    color: #667085;
+    font-size: 13px;
+}
+
+.definitionList dd {
+    margin: 4px 0 0;
+    font-weight: 800;
+}
+
+.passwordModal {
+    width: min(100%, 560px);
+}
+
+.passwordFields {
+    display: grid;
+    gap: 16px;
+}
+
+@media (max-width: 900px) {
+    .grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 560px) {
+    .avatarPanel {
+        grid-template-columns: 1fr;
+        justify-items: center;
+        text-align: center;
+    }
+
+    .avatarActions {
+        justify-content: center;
+    }
+}

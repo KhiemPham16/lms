@@ -1,0 +1,427 @@
+.pageTitle,
+.welcomeBand,
+.filterBar,
+.panel,
+.registrationCard,
+.myClassList > article,
+.gradeList > article,
+.gradeSummary,
+.statePanel {
+    border: 1px solid #dce3ee;
+    border-radius: 8px;
+    background: #ffffff;
+}
+
+.pageTitle,
+.welcomeBand {
+    min-height: 104px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    padding: 22px 24px;
+}
+
+.pageTitle h2,
+.welcomeBand h2 {
+    margin: 5px 0 0;
+    font-size: 26px;
+    letter-spacing: 0;
+}
+
+.pageActions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.welcomeBand {
+    color: #f8fafc;
+    border-color: #183852;
+    background: #183852;
+}
+
+.welcomeBand p {
+    color: #70e1c1;
+}
+
+.welcomeBand > span {
+    color: #d9e5ee;
+    font-weight: 700;
+    text-transform: capitalize;
+}
+
+.metricGrid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 14px;
+}
+
+.metricGrid article {
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 18px;
+    border: 1px solid #dce3ee;
+    border-radius: 8px;
+    background: #ffffff;
+}
+
+.metricGrid article > span {
+    width: 44px;
+    height: 44px;
+    display: grid;
+    place-items: center;
+    flex: 0 0 auto;
+    border-radius: 8px;
+    font-size: 21px;
+}
+
+.metricGrid article div {
+    min-width: 0;
+    display: grid;
+    gap: 3px;
+}
+
+.metricGrid strong {
+    font-size: 25px;
+}
+
+.metricGrid div span {
+    color: #667085;
+    font-size: 13px;
+    font-weight: 750;
+}
+
+.metricIconBlue { color: #1d4ed8; background: #eaf1ff; }
+.metricIconGreen { color: #047857; background: #dff8ee; }
+.metricIconAmber { color: #b45309; background: #fff2cf; }
+.metricIconRose { color: #be123c; background: #ffe6ec; }
+
+.yearProgress {
+    display: grid;
+    grid-template-columns: 156px minmax(0, 1fr);
+    align-items: center;
+    gap: 28px;
+}
+
+.scoreRing {
+    --score-progress: 0%;
+    width: 142px;
+    aspect-ratio: 1;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    background: conic-gradient(#2563eb var(--score-progress), #e8eef8 0);
+    position: relative;
+}
+
+.scoreRing::before {
+    content: '';
+    position: absolute;
+    inset: 12px;
+    border-radius: inherit;
+    background: #ffffff;
+}
+
+.scoreRing div {
+    position: relative;
+    display: grid;
+    justify-items: center;
+    gap: 2px;
+}
+
+.scoreRing strong { font-size: 27px; }
+.scoreRing span { color: #667085; font-size: 12px; font-weight: 750; }
+
+.yearStats {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    border: 1px solid #e4e9f2;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.yearStats div {
+    display: grid;
+    gap: 7px;
+    padding: 18px;
+    border-left: 1px solid #e4e9f2;
+}
+
+.yearStats div:first-child { border-left: 0; }
+.yearStats span { color: #667085; font-size: 12px; font-weight: 750; }
+.yearStats strong { font-size: 22px; }
+
+.dashboardGrid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.15fr) minmax(320px, .85fr);
+    gap: 18px;
+}
+
+.panel {
+    padding: 20px;
+}
+
+.panelHeading {
+    min-height: 44px;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 15px;
+}
+
+.panelHeading h3 {
+    margin: 4px 0 0;
+}
+
+.panelHeading a {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: #1d4ed8;
+    font-weight: 800;
+}
+
+.timelineList,
+.deadlineList,
+.notificationGrid,
+.myClassList,
+.gradeList {
+    display: grid;
+    gap: 12px;
+}
+
+.timelineList article {
+    display: grid;
+    grid-template-columns: 64px minmax(0, 1fr);
+    gap: 14px;
+    padding: 13px 0;
+    border-top: 1px solid #edf0f5;
+}
+
+.timelineList article:first-child { border-top: 0; }
+.timelineList time { color: #1d4ed8; font-size: 18px; font-weight: 900; }
+.timelineList article div { display: grid; gap: 4px; }
+.timelineList span,
+.timelineList small { color: #667085; }
+.timelineList small { display: flex; align-items: center; gap: 5px; }
+
+.deadlineList a {
+    display: grid;
+    grid-template-columns: 94px minmax(0, 1fr);
+    align-items: center;
+    gap: 4px 12px;
+    padding: 12px;
+    border: 1px solid #e4e9f2;
+    border-radius: 8px;
+}
+
+.deadlineList a:hover { border-color: #9bb8fb; background: #f8faff; }
+.deadlineList strong,
+.deadlineList small { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.deadlineList small { grid-column: 2; color: #667085; }
+
+.assessmentType {
+    grid-row: 1 / span 2;
+    padding: 7px;
+    color: #81550a;
+    border-radius: 6px;
+    background: #fff3d3;
+    font-size: 12px;
+    font-weight: 900;
+    text-align: center;
+}
+
+.notificationGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.notificationGrid article { display: flex; gap: 12px; padding: 14px; border: 1px solid #e4e9f2; border-radius: 8px; }
+.notificationGrid article > span { width: 36px; height: 36px; display: grid; place-items: center; flex: 0 0 auto; border-radius: 8px; color: #475467; background: #f2f4f7; }
+.notificationGrid article div { min-width: 0; display: grid; gap: 5px; }
+.notificationGrid p { margin: 0; color: #667085; line-height: 1.45; }
+.notificationGrid small { color: #98a2b3; }
+.notificationGrid .unread { border-left: 4px solid #2563eb; }
+
+.filterBar {
+    display: grid;
+    grid-template-columns: minmax(240px, 1fr) repeat(2, minmax(190px, .55fr)) auto;
+    gap: 10px;
+    padding: 14px;
+}
+
+.filterBar label {
+    min-height: 42px;
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 0 11px;
+    border: 1px solid #d0d7e2;
+    border-radius: 8px;
+    color: #667085;
+    background: #ffffff;
+}
+
+.filterBar input,
+.filterBar select {
+    width: 100%;
+    min-width: 0;
+    border: 0;
+    outline: 0;
+    color: #172033;
+    background: transparent;
+}
+
+.filterBar .checkFilter { width: max-content; color: #344054; font-weight: 800; }
+.checkFilter input { width: 16px; height: 16px; accent-color: #2563eb; }
+
+.classGrid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+}
+
+.registrationCard { display: grid; gap: 16px; padding: 18px; }
+.cardTop,
+.classTitleRow,
+.cardFooter,
+.progressRow { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+.cardTop > span:first-child { color: #1d4ed8; font-weight: 900; }
+.registrationCard h3 { margin: 0; font-size: 19px; }
+.registrationCard p { margin: 5px 0 0; color: #667085; }
+
+.registrationCard dl { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 13px; margin: 0; }
+.registrationCard dl div { min-width: 0; display: grid; gap: 5px; }
+.registrationCard dt { display: flex; align-items: center; gap: 6px; color: #667085; font-size: 12px; font-weight: 800; }
+.registrationCard dd { margin: 0; color: #344054; font-weight: 700; line-height: 1.45; }
+.capacityBar,
+.progressTrack { height: 7px; overflow: hidden; border-radius: 999px; background: #e9edf3; }
+.capacityBar span,
+.progressTrack span { display: block; height: 100%; border-radius: inherit; background: #2da883; }
+.cardFooter { padding-top: 13px; border-top: 1px solid #edf0f5; }
+.cardFooter small { color: #667085; }
+
+.status {
+    min-width: max-content;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 28px;
+    padding: 0 9px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 900;
+}
+
+.statusGood { color: #047857; background: #dff8ee; }
+.statusWarning { color: #a15c08; background: #fff1c7; }
+.statusMuted { color: #475467; background: #e9edf3; }
+.statusDanger { color: #b42318; background: #fee4e2; }
+
+.myClassList > article {
+    display: grid;
+    grid-template-columns: 54px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 18px;
+    padding: 18px;
+}
+
+.classAccent { width: 54px; height: 54px; display: grid; place-items: center; border-radius: 8px; color: #0f766e; background: #dff8ee; font-size: 24px; }
+.classMain { min-width: 0; display: grid; gap: 13px; }
+.classTitleRow span { color: #667085; font-size: 12px; font-weight: 800; }
+.classTitleRow h3 { margin: 3px 0 0; font-size: 18px; }
+.classMeta { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; color: #667085; font-size: 13px; }
+.classMeta span { display: inline-flex; align-items: center; gap: 6px; }
+.progressRow > div:first-child { display: grid; gap: 2px; min-width: 170px; }
+.progressRow span { font-size: 13px; font-weight: 800; }
+.progressRow small { color: #98a2b3; }
+.progressTrack { width: min(100%, 420px); }
+
+.gradeList > article {
+    display: grid;
+    grid-template-columns: minmax(210px, .75fr) minmax(480px, 1.7fr) 130px;
+    align-items: center;
+    gap: 20px;
+    padding: 18px;
+}
+
+.gradeCourse span,
+.gradeCourse small { color: #667085; }
+.gradeCourse span { font-size: 12px; font-weight: 800; }
+.gradeCourse h3 { margin: 4px 0 6px; font-size: 17px; }
+.scoreGrid { display: grid; grid-template-columns: repeat(4, minmax(82px, 1fr)); gap: 8px; }
+.scoreGrid div { display: grid; gap: 6px; padding: 10px; border-left: 1px solid #e4e9f2; }
+.scoreGrid span,
+.scoreGrid small { color: #667085; font-size: 11px; font-weight: 800; }
+.scoreGrid strong { font-size: 17px; }
+.finalScore { display: grid; gap: 4px; padding-left: 16px; border-left: 2px solid #bcd0ff; text-align: center; }
+.finalScore > span { color: #667085; font-size: 12px; font-weight: 800; }
+.finalScore > strong { color: #1d4ed8; font-size: 26px; }
+.passText { color: #047857; font-weight: 900; }
+.failText { color: #b42318; font-weight: 900; }
+
+.gradeSummary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.gradeSummary div { display: grid; gap: 7px; padding: 18px; border-left: 1px solid #e4e9f2; }
+.gradeSummary div:first-child { border-left: 0; }
+.gradeSummary span { color: #667085; font-size: 12px; font-weight: 800; }
+.gradeSummary strong { font-size: 21px; }
+
+.statePanel {
+    min-height: 150px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 22px;
+    color: #667085;
+}
+
+.statePanel svg { font-size: 22px; }
+.spin { animation: spin .9s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+@media (max-width: 1180px) {
+    .metricGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .yearStats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .yearStats div:nth-child(3) { border-top: 1px solid #e4e9f2; border-left: 0; }
+    .yearStats div:nth-child(4) { border-top: 1px solid #e4e9f2; }
+    .filterBar { grid-template-columns: minmax(220px, 1fr) repeat(2, minmax(170px, .7fr)); }
+    .filterBar .checkFilter { grid-column: 1 / -1; }
+    .gradeList > article { grid-template-columns: minmax(220px, 1fr) 130px; }
+    .scoreGrid { grid-column: 1 / -1; grid-row: 2; }
+}
+
+@media (max-width: 850px) {
+    .dashboardGrid,
+    .classGrid { grid-template-columns: 1fr; }
+    .notificationGrid { grid-template-columns: 1fr; }
+    .filterBar { grid-template-columns: 1fr; }
+    .filterBar .checkFilter { grid-column: auto; }
+    .myClassList > article { grid-template-columns: 48px minmax(0, 1fr); }
+    .myClassList > article > a { grid-column: 1 / -1; }
+    .gradeSummary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .gradeSummary div:nth-child(3) { border-left: 0; border-top: 1px solid #e4e9f2; }
+    .gradeSummary div:nth-child(4) { border-top: 1px solid #e4e9f2; }
+}
+
+@media (max-width: 640px) {
+    .pageTitle,
+    .welcomeBand { align-items: flex-start; flex-direction: column; }
+    .metricGrid { grid-template-columns: 1fr; }
+    .yearProgress { grid-template-columns: 1fr; justify-items: center; }
+    .yearStats { width: 100%; grid-template-columns: 1fr; }
+    .yearStats div { border-top: 1px solid #e4e9f2; border-left: 0; }
+    .yearStats div:first-child { border-top: 0; }
+    .registrationCard dl { grid-template-columns: 1fr; }
+    .cardFooter,
+    .classTitleRow,
+    .progressRow { align-items: flex-start; flex-direction: column; }
+    .progressTrack { width: 100%; }
+    .gradeList > article { grid-template-columns: 1fr; }
+    .scoreGrid { grid-column: auto; grid-row: auto; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .finalScore { padding: 12px 0 0; border-top: 2px solid #bcd0ff; border-left: 0; text-align: left; }
+    .gradeSummary { grid-template-columns: 1fr; }
+    .gradeSummary div { border-top: 1px solid #e4e9f2; border-left: 0; }
+    .gradeSummary div:first-child { border-top: 0; }
+}

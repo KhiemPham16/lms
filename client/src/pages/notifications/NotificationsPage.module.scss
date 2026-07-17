@@ -1,0 +1,158 @@
+.notificationToolbar,
+.notificationItem,
+.notificationState {
+    border: 1px solid #dce3ee;
+    border-radius: 8px;
+    background: #ffffff;
+}
+
+.headerActions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-left: auto;
+}
+
+.notificationToolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 12px;
+}
+
+.filterTabs {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.filterTabs button {
+    min-height: 36px;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 12px;
+    border: 0;
+    border-radius: 6px;
+    color: #667085;
+    background: transparent;
+    font: inherit;
+    font-weight: 800;
+    cursor: pointer;
+}
+
+.filterTabs button span {
+    min-width: 22px;
+    padding: 2px 6px;
+    border-radius: 999px;
+    color: #475467;
+    background: #e9edf3;
+    font-size: 11px;
+    text-align: center;
+}
+
+.filterTabs .activeFilter {
+    color: #1d4ed8;
+    background: #eaf1ff;
+}
+
+.notificationList {
+    display: grid;
+    gap: 10px;
+}
+
+.notificationItem {
+    display: grid;
+    grid-template-columns: 42px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 14px;
+    padding: 16px;
+}
+
+.unreadItem {
+    border-left: 4px solid #2563eb;
+    background: #f8fbff;
+}
+
+.notificationIcon {
+    width: 42px;
+    height: 42px;
+    display: grid;
+    place-items: center;
+    border-radius: 8px;
+    color: #1d4ed8;
+    background: #eaf1ff;
+    font-size: 19px;
+}
+
+.notificationContent {
+    min-width: 0;
+    display: grid;
+    gap: 6px;
+}
+
+.notificationContent > div,
+.notificationContent small {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.notificationContent p {
+    margin: 0;
+    color: #475467;
+    line-height: 1.5;
+}
+
+.notificationContent small {
+    color: #98a2b3;
+    font-weight: 700;
+}
+
+.unreadMark {
+    padding: 2px 7px;
+    border-radius: 999px;
+    color: #1d4ed8;
+    background: #dbe8ff;
+    font-size: 10px;
+    font-weight: 900;
+}
+
+.notificationState {
+    min-height: 190px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    color: #667085;
+}
+
+.pagination {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+}
+
+.spin { animation: spin .9s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+@media (max-width: 900px) {
+    .headerActions {
+        width: 100%;
+        margin-left: 0;
+    }
+}
+
+@media (max-width: 700px) {
+    .notificationItem { grid-template-columns: 38px minmax(0, 1fr); padding: 12px; }
+    .notificationItem > button { grid-column: 1 / -1; justify-self: stretch; }
+    .notificationIcon { width: 38px; height: 38px; }
+}
+
+@media (max-width: 480px) {
+    .notificationToolbar { align-items: stretch; flex-direction: column; }
+    .filterTabs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .filterTabs button { justify-content: center; }
+}
