@@ -1,0 +1,220 @@
+.uploadPanel,
+.toolbar {
+    display: grid;
+    gap: 16px;
+    padding: 18px;
+    border: 1px solid #dce3ee;
+    border-radius: 8px;
+    background: #ffffff;
+}
+
+.uploadPanel {
+    grid-template-columns: minmax(260px, 360px) minmax(0, 1fr) auto;
+    align-items: end;
+}
+
+.uploadDrop {
+    position: relative;
+    min-height: 164px;
+    display: grid;
+    align-content: center;
+    justify-items: center;
+    gap: 12px;
+    padding: 18px;
+    border: 1px dashed #9db7eb;
+    border-radius: 8px;
+    background: #f8fbff;
+    text-align: center;
+}
+
+.uploadDrop svg {
+    width: 32px;
+    height: 32px;
+    color: #2563eb;
+}
+
+.uploadDrop strong,
+.uploadDrop span {
+    display: block;
+}
+
+.uploadDrop span {
+    margin-top: 4px;
+    color: #667085;
+    line-height: 1.45;
+}
+
+.uploadDrop input {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    cursor: pointer;
+}
+
+.formGrid,
+.toolbar {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.formGrid {
+    display: grid;
+    gap: 14px;
+}
+
+.toolbar {
+    grid-template-columns: minmax(240px, 1fr) minmax(160px, 220px) minmax(180px, 260px) auto;
+    align-items: end;
+}
+
+.fullField {
+    grid-column: 1 / -1;
+}
+
+.textarea {
+    width: 100%;
+    min-height: 92px;
+    padding: 12px;
+    border: 1px solid #d0d7e2;
+    border-radius: 8px;
+    color: #172033;
+    background: #ffffff;
+    font-family: var(--font-sans);
+    resize: vertical;
+}
+
+.select,
+.fileInput {
+    width: 100%;
+    min-height: 44px;
+    padding: 0 12px;
+    border: 1px solid #d0d7e2;
+    border-radius: 8px;
+    color: #172033;
+    background: #ffffff;
+    font-family: var(--font-sans);
+    font-weight: 650;
+}
+
+.fileInput {
+    padding: 10px 12px;
+}
+
+.mediaGrid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 14px;
+}
+
+.mediaCard {
+    min-width: 0;
+    display: grid;
+    grid-template-rows: 148px auto auto;
+    border: 1px solid #e4e9f2;
+    border-radius: 8px;
+    background: #ffffff;
+    overflow: hidden;
+}
+
+.preview {
+    display: grid;
+    place-items: center;
+    background: #f8fafc;
+    border-bottom: 1px solid #e4e9f2;
+}
+
+.preview img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.preview svg {
+    width: 42px;
+    height: 42px;
+    color: #2563eb;
+}
+
+.mediaBody {
+    min-width: 0;
+    display: grid;
+    gap: 6px;
+    padding: 14px;
+}
+
+.mediaBody strong,
+.mediaBody span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.mediaBody span {
+    color: #667085;
+    font-size: 13px;
+    font-weight: 650;
+}
+
+.mediaActions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    padding: 0 14px 14px;
+}
+
+.dangerIcon {
+    color: #b42318;
+    border-color: #fecdca;
+    background: #fff5f5;
+}
+
+.emptyState {
+    grid-column: 1 / -1;
+    padding: 28px;
+    color: #667085;
+    text-align: center;
+    font-weight: 750;
+}
+
+.pagination {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    padding-top: 16px;
+}
+
+.pagination > span {
+    color: #475467;
+    font-weight: 800;
+}
+
+.paginationActions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+@media (max-width: 1280px) {
+    .mediaGrid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 1080px) {
+    .uploadPanel,
+    .toolbar {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 760px) {
+    .uploadPanel,
+    .toolbar,
+    .formGrid,
+    .mediaGrid {
+        grid-template-columns: 1fr;
+    }
+}

@@ -5,16 +5,13 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
 import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
-import type { RequestHandler } from 'express';
 import { AppHealthService } from './app-health.service';
-
-const helmetMiddleware = helmet as () => RequestHandler;
-const cookieParserMiddleware = cookieParser as () => RequestHandler;
 
 async function bootstrap() {
     const app = await NestFactory.create(AppModule);
     const configService = app.get(ConfigService);
 
+    const host = configService.get<string>('app.host') || '0.0.0.0';
     const port = configService.get<number>('app.port') || 3500;
     const corsOrigin = configService.get<string>('app.frontendUrl');
 
@@ -31,9 +28,20 @@ async function bootstrap() {
         })
     );
 
-    app.use(helmetMiddleware());
+    app.use(
+        helmet({
+            crossOriginResourcePolicy: { policy: 'cross-origin' },
+            crossOriginOpenerPolicy: false,
+            originAgentCluster: false,
+            contentSecurityPolicy: {
+                directives: {
+                    upgradeInsecureRequests: null
+                }
+            }
+        })
+    );
 
-    app.use(cookieParserMiddleware());
+    app.use(cookieParser());
 
     app.enableCors({
         origin: corsOrigin,
@@ -55,10 +63,10 @@ async function bootstrap() {
 
     SwaggerModule.setup('api/docs', app, document);
 
-    await app.listen(port);
+    await app.listen(port, host);
 
-    console.log(`🚀 LMS API running at http://localhost:${port}/api/v1`);
-    console.log(`📚 Swagger running at http://localhost:${port}/api/docs`);
+    console.log(`🚀 LMS API running at http://${host}:${port}/api/v1`);
+    console.log(`📚 Swagger running at http://${host}:${port}/api/docs`);
 }
 
 void bootstrap();

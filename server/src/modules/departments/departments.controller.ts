@@ -1,53 +1,40 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
-
+import { UserRole } from '@prisma/client';
+import { CurrentUser } from '~/common/decorators/current-user.decorator';
+import { Roles } from '~/common/decorators/roles.decorator';
 import { JwtAuthGuard } from '~/common/guards/jwt-auth.guard';
-import { PermissionsGuard } from '~/common/guards/permissions.guard';
-import { Permissions } from '~/common/decorators/permissions.decorator';
-
+import type { JwtPayload } from '~/common/guards/jwt-auth.guard';
+import { RolesGuard } from '~/common/guards/roles.guard';
 import { DepartmentsService } from './departments.service';
 import { CreateDepartmentDto } from './dto/create-department.dto';
 import { UpdateDepartmentDto } from './dto/update-department.dto';
 
-@ApiTags('Departments')
-@ApiBearerAuth()
-@UseGuards(JwtAuthGuard, PermissionsGuard)
 @Controller('departments')
+@UseGuards(JwtAuthGuard, RolesGuard)
 export class DepartmentsController {
-    constructor(private readonly departmentsService: DepartmentsService) {}
-
-    @Post()
-    @Permissions('departments.create')
-    @ApiOperation({ summary: 'Tạo phòng ban/khoa' })
-    create(@Body() dto: CreateDepartmentDto) {
-        return this.departmentsService.create(dto);
-    }
+    constructor(private readonly departments: DepartmentsService) {}
 
     @Get()
-    @Permissions('departments.read')
-    @ApiOperation({ summary: 'Danh sách phòng ban/khoa' })
-    findAll() {
-        return this.departmentsService.findAll();
+    @Roles(UserRole.ADMIN, UserRole.HR, UserRole.PRINCIPAL, UserRole.TRAINING_OFFICER)
+    list() {
+        return this.departments.list();
     }
 
-    @Get(':publicId')
-    @Permissions('departments.read')
-    @ApiOperation({ summary: 'Chi tiết phòng ban/khoa' })
-    findOne(@Param('publicId') publicId: string) {
-        return this.departmentsService.findByPublicIdOrThrow(publicId);
+    @Post()
+    @Roles(UserRole.ADMIN, UserRole.PRINCIPAL, UserRole.TRAINING_OFFICER)
+    create(@Body() dto: CreateDepartmentDto, @CurrentUser() user: JwtPayload) {
+        return this.departments.create(dto, user.sub);
     }
 
     @Patch(':publicId')
-    @Permissions('departments.update')
-    @ApiOperation({ summary: 'Cập nhật phòng ban/khoa' })
-    update(@Param('publicId') publicId: string, @Body() dto: UpdateDepartmentDto) {
-        return this.departmentsService.update(publicId, dto);
+    @Roles(UserRole.ADMIN, UserRole.PRINCIPAL, UserRole.TRAINING_OFFICER)
+    update(@Param('publicId') publicId: string, @Body() dto: UpdateDepartmentDto, @CurrentUser() user: JwtPayload) {
+        return this.departments.update(publicId, dto, user.sub);
     }
 
     @Delete(':publicId')
-    @Permissions('departments.delete')
-    @ApiOperation({ summary: 'Xóa phòng ban/khoa' })
-    remove(@Param('publicId') publicId: string) {
-        return this.departmentsService.remove(publicId);
+    @Roles(UserRole.ADMIN, UserRole.PRINCIPAL, UserRole.TRAINING_OFFICER)
+    remove(@Param('publicId') publicId: string, @CurrentUser() user: JwtPayload) {
+        return this.departments.remove(publicId, user.sub);
     }
 }

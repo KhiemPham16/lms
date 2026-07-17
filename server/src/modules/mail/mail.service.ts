@@ -1,10 +1,10 @@
 import { Injectable } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import * as ejs from 'ejs';
 import * as nodemailer from 'nodemailer';
 import * as path from 'path';
 import { readFile } from 'fs/promises';
 import { ActivationMailData, ForgotPasswordMailData } from './mail.types';
+import { SystemSettingsService } from '../system-settings/system-settings.service';
 
 const templateRenderer = ejs as {
     render: (template: string, data: Record<string, unknown>) => string;
@@ -12,27 +12,9 @@ const templateRenderer = ejs as {
 
 @Injectable()
 export class MailService {
-    private readonly transporter: nodemailer.Transporter;
-    private readonly templatesPath = path.join(process.cwd(), 'src', 'modules', 'mail', 'templates');
+    private readonly templatesPath = path.join(__dirname, 'templates');
 
-    constructor(private readonly configService: ConfigService) {
-        this.transporter = nodemailer.createTransport({
-            host: this.configService.get<string>('mail.host'),
-            port: this.configService.get<number>('mail.port'),
-            secure: this.configService.get<boolean>('mail.secure'),
-            auth: {
-                user: this.configService.get<string>('mail.user'),
-                pass: this.configService.get<string>('mail.pass')
-            },
-            tls: {
-                rejectUnauthorized: false
-            }
-        });
-
-        this.transporter.verify().catch((error) => {
-            console.error('[MAIL_VERIFY_ERROR]', error);
-        });
-    }
+    constructor(private readonly settings: SystemSettingsService) {}
 
     async sendForgotPassword(data: ForgotPasswordMailData): Promise<void> {
         await this.sendMail({
@@ -49,20 +31,37 @@ export class MailService {
     async sendActivation(data: ActivationMailData): Promise<void> {
         await this.sendMail({
             to: data.email,
-            subject: '[LMS] Kich hoat tai khoan',
+            subject: '[LMS] Kích hoạt tài khoản',
             template: 'activation',
             data: {
                 fullName: data.fullName,
-                status: data.status
+                account: data.account,
+                password: data.password,
+                status: data.status,
+                activationUrl: data.activationUrl,
+                expiresAt: data.expiresAt
             }
         });
     }
 
-    private async sendMail(options: { to: string; subject: string; template: string; data: Record<string, unknown> }): Promise<void> {
+    private async sendMail(options: {
+        to: string;
+        subject: string;
+        template: string;
+        data: Record<string, unknown>;
+    }): Promise<void> {
         const html = await this.renderTemplate(options.template, options.data);
+        const config = await this.settings.mailRuntimeConfig();
+        const transporter = nodemailer.createTransport({
+            host: config.host,
+            port: config.port,
+            secure: config.secure,
+            auth: { user: config.user, pass: config.pass },
+            tls: { rejectUnauthorized: false }
+        });
 
-        await this.transporter.sendMail({
-            from: this.configService.get<string>('mail.from'),
+        await transporter.sendMail({
+            from: config.from,
             to: options.to,
             subject: options.subject,
             html

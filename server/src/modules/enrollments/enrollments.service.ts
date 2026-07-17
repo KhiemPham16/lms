@@ -1,323 +1,133 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
-import { AuditAction, ClassStatus, EnrollmentStatus } from '@prisma/client';
-
-import { AuditLogsService } from '~/modules/audit-logs/audit-logs.service';
-import { NotificationsService } from '~/modules/notifications/notifications.service';
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { AuditAction, ClassStatus, EnrollmentStatus, Prisma, UserRole } from '@prisma/client';
 import { PrismaService } from '~/prisma/prisma.service';
+import { AuditService } from '../audit/audit.service';
+import { CreateEnrollmentDto } from './dto/create-enrollment.dto';
 
 @Injectable()
 export class EnrollmentsService {
-    constructor(
-        private readonly prisma: PrismaService,
-        private readonly auditLogsService: AuditLogsService,
-        private readonly notificationsService: NotificationsService
-    ) {}
+    constructor(private readonly prisma: PrismaService, private readonly audit: AuditService) {}
 
-    async findMyEnrollments(studentPublicId: string) {
-        const student = await this.findStudentByPublicIdOrThrow(studentPublicId);
+    async availableClasses(studentPublicId: string) {
+        const student = await this.requireStudent(studentPublicId);
+        if (student.departmentId === null) return [];
+        const now = new Date();
+        const classes = await this.prisma.class.findMany({
+            where: {
+                departmentId: student.departmentId,
+                status: ClassStatus.OPEN_REGISTRATION,
+                registrationStart: { lte: now }, registrationEnd: { gte: now }
+            },
+            include: {
+                subject: { select: { publicId: true, code: true, name: true, credits: true } },
+                schedules: true,
+                lecturer: { select: { publicId: true, fullName: true } },
+                _count: { select: { enrollments: { where: { status: EnrollmentStatus.ACTIVE } } } }
+            }, orderBy: [{ createdAt: 'desc' }, { code: 'asc' }]
+        });
+        return classes.map((item) => ({ ...item, enrolledCount: item._count.enrollments, remainingSlots: Math.max(0, item.maxStudents - item._count.enrollments), _count: undefined }));
+    }
 
+    async myEnrollments(studentPublicId: string) {
+        const student = await this.requireStudent(studentPublicId);
         return this.prisma.enrollment.findMany({
-            where: {
-                studentId: student.id,
-                status: {
-                    not: EnrollmentStatus.DROPPED
-                }
-            },
-            orderBy: {
-                enrolledAt: 'desc'
-            },
-            select: {
-                id: true,
-                status: true,
-                enrolledAt: true,
-                class: {
-                    select: {
-                        publicId: true,
-                        code: true,
-                        name: true,
-                        maxStudents: true,
-                        startDate: true,
-                        endDate: true,
-                        status: true,
-                        course: {
-                            select: {
-                                publicId: true,
-                                code: true,
-                                name: true,
-                                credits: true
-                            }
-                        },
-                        lecturer: {
-                            select: {
-                                publicId: true,
-                                code: true,
-                                fullName: true,
-                                email: true
-                            }
-                        }
-                    }
-                }
-            }
+            where: { studentId: student.id }, orderBy: { enrolledAt: 'desc' },
+            include: { class: { include: { subject: true, schedules: true, lecturer: { select: { publicId: true, fullName: true } } } } }
         });
     }
 
-    async enroll(classPublicId: string, studentPublicId: string) {
-        const [classItem, student] = await Promise.all([
-            this.findClassRecordOrThrow(classPublicId),
-            this.findStudentByPublicIdOrThrow(studentPublicId)
-        ]);
+    async enroll(dto: CreateEnrollmentDto, studentPublicId: string) {
+        const student = await this.requireStudent(studentPublicId);
 
-        if (classItem.status !== ClassStatus.OPEN_REGISTRATION) {
-            throw new BadRequestException('Lớp học chưa mở đăng ký');
-        }
-
-        const approvedCount = await this.prisma.enrollment.count({
-            where: {
-                classId: classItem.id,
-                status: EnrollmentStatus.APPROVED
-            }
-        });
-
-        if (approvedCount >= classItem.maxStudents) {
-            throw new BadRequestException('Lớp học đã đủ số lượng sinh viên');
-        }
-
-        return this.prisma.$transaction(async (tx) => {
-            const enrollment = await tx.enrollment.upsert({
-                where: {
-                    studentId_classId: {
-                        studentId: student.id,
-                        classId: classItem.id
-                    }
-                },
-                update: {
-                    status: EnrollmentStatus.APPROVED,
-                    enrolledAt: new Date()
-                },
-                create: {
-                    studentId: student.id,
-                    classId: classItem.id,
-                    status: EnrollmentStatus.APPROVED
-                },
-                select: this.enrollmentSelect()
+        const enrollment = await this.prisma.$transaction(async (tx) => {
+            await tx.$queryRaw`SELECT id FROM \`Class\` WHERE publicId = ${dto.classPublicId} FOR UPDATE`;
+            const courseClass = await tx.class.findUnique({
+                where: { publicId: dto.classPublicId },
+                include: { subject: { include: { prerequisites: true } }, schedules: true }
             });
-
-            await this.auditLogsService.create(
-                {
-                    actorId: student.id,
-                    action: AuditAction.ENROLL,
-                    module: 'enrollments',
-                    targetType: 'Enrollment',
-                    targetId: enrollment.id,
-                    newValue: {
-                        classId: classItem.id,
-                        classPublicId: classItem.publicId,
-                        status: enrollment.status
-                    }
-                },
-                tx
-            );
-
-            if (classItem.autoCloseWhenFull && approvedCount + 1 >= classItem.maxStudents) {
-                await tx.class.update({
-                    where: { id: classItem.id },
-                    data: {
-                        status: ClassStatus.FULL,
-                        registrationClosedAt: new Date()
-                    }
-                });
+            if (!courseClass) throw new NotFoundException('Không tìm thấy lớp học');
+            if (student.departmentId === null || courseClass.departmentId !== student.departmentId || courseClass.subject.departmentId !== student.departmentId) {
+                throw new ForbiddenException('Bạn chỉ được đăng ký lớp thuộc ngành của mình');
             }
+            this.assertRegistrationOpen(courseClass);
 
-            await this.notificationsService.createMany(
-                {
-                    recipientIds: [student.id],
-                    actorId: student.id,
-                    type: 'ENROLLMENT_APPROVED',
-                    title: `Đăng ký thành công lớp ${classItem.code}`,
-                    message: `Bạn đã đăng ký thành công lớp ${classItem.name}.`,
-                    data: {
-                        classPublicId: classItem.publicId,
-                        status: enrollment.status
-                    }
-                },
-                tx
-            );
-            await this.notificationsService.createMany(
-                {
-                    recipientIds: [classItem.lecturerId, classItem.departmentHeadId].filter(
-                        (id): id is number => typeof id === 'number'
-                    ),
-                    actorId: student.id,
-                    type: 'CLASS_STUDENT_ENROLLED',
-                    title: `Sinh viên mới đăng ký lớp ${classItem.code}`,
-                    message: `${student.fullName} đã đăng ký lớp ${classItem.name}.`,
-                    data: {
-                        classPublicId: classItem.publicId,
-                        studentPublicId: student.publicId,
-                        status: enrollment.status
-                    }
-                },
-                tx
-            );
-
-            return enrollment;
-        });
-    }
-
-    async drop(classPublicId: string, studentPublicId: string) {
-        const [classItem, student] = await Promise.all([
-            this.findClassRecordOrThrow(classPublicId),
-            this.findStudentByPublicIdOrThrow(studentPublicId)
-        ]);
-
-        const enrollment = await this.prisma.enrollment.findUnique({
-            where: {
-                studentId_classId: {
-                    studentId: student.id,
-                    classId: classItem.id
-                }
-            }
-        });
-
-        if (!enrollment || enrollment.status === EnrollmentStatus.DROPPED) {
-            throw new NotFoundException('Sinh viên chưa đăng ký lớp này');
-        }
-
-        if (classItem.status === ClassStatus.COMPLETED) {
-            throw new BadRequestException('Lớp đã hoàn thành nên không thể hủy đăng ký');
-        }
-
-        if (!classItem.allowStudentDrop) {
-            throw new BadRequestException('Lớp không cho phép sinh viên hủy đăng ký');
-        }
-
-        return this.prisma.$transaction(async (tx) => {
-            const droppedEnrollment = await tx.enrollment.update({
+            const duplicateSubject = await tx.enrollment.findFirst({
                 where: {
-                    studentId_classId: {
-                        studentId: student.id,
-                        classId: classItem.id
-                    }
-                },
-                data: {
-                    status: EnrollmentStatus.DROPPED
-                },
-                select: this.enrollmentSelect()
-            });
-
-            await this.auditLogsService.create(
-                {
-                    actorId: student.id,
-                    action: AuditAction.DROP,
-                    module: 'enrollments',
-                    targetType: 'Enrollment',
-                    targetId: droppedEnrollment.id,
-                    oldValue: {
-                        status: enrollment.status
-                    },
-                    newValue: {
-                        classId: classItem.id,
-                        classPublicId: classItem.publicId,
-                        status: droppedEnrollment.status
-                    }
-                },
-                tx
-            );
-
-            const approvedCountAfterDrop = await tx.enrollment.count({
-                where: {
-                    classId: classItem.id,
-                    status: EnrollmentStatus.APPROVED
+                    studentId: student.id, status: EnrollmentStatus.ACTIVE,
+                    class: { subjectId: courseClass.subjectId }
                 }
             });
+            if (duplicateSubject) throw new ConflictException('Bạn đang tham gia một lớp học phần khác của môn học này');
 
-            if (classItem.status === ClassStatus.FULL && approvedCountAfterDrop < classItem.maxStudents) {
-                await tx.class.update({
-                    where: { id: classItem.id },
-                    data: {
-                        status: ClassStatus.OPEN_REGISTRATION,
-                        registrationClosedAt: null
-                    }
-                });
-            }
+            const passedSubject = await tx.enrollment.findFirst({
+                where: { studentId: student.id, passed: true, class: { subjectId: courseClass.subjectId } }
+            });
+            if (passedSubject) throw new ConflictException('Bạn đã hoàn thành môn học này');
 
-            return droppedEnrollment;
-        });
+            await this.assertPrerequisites(tx, student.id, courseClass.subject.prerequisites.map((item) => item.prerequisiteId));
+            await this.assertNoScheduleConflict(tx, student.id, courseClass.schedules);
+
+            const enrolledCount = await tx.enrollment.count({ where: { classId: courseClass.id, status: EnrollmentStatus.ACTIVE } });
+            if (enrolledCount >= courseClass.maxStudents) throw new ConflictException('Lớp học đã đủ số lượng sinh viên');
+
+            const value = await tx.enrollment.upsert({
+                where: { classId_studentId: { classId: courseClass.id, studentId: student.id } },
+                create: { classId: courseClass.id, studentId: student.id },
+                update: { status: EnrollmentStatus.ACTIVE, enrolledAt: new Date(), droppedAt: null }
+            });
+            await tx.notification.create({ data: {
+                recipientId: student.id, type: 'ENROLLMENT_SUCCESS', title: 'Đăng ký lớp thành công',
+                message: `Bạn đã đăng ký thành công lớp ${courseClass.code} - ${courseClass.name}.`,
+                data: { classPublicId: courseClass.publicId, enrollmentPublicId: value.publicId }
+            } });
+            return { enrollment: value, courseClass };
+        }, { isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted });
+
+        await this.audit.record({ actorPublicId: studentPublicId, action: AuditAction.ENROLL, module: 'dang-ky-lop', targetType: 'Enrollment', targetPublicId: enrollment.enrollment.publicId, newValue: { classPublicId: enrollment.courseClass.publicId } });
+        return { message: 'Đăng ký lớp thành công', enrollment: enrollment.enrollment };
     }
 
-    private async findStudentByPublicIdOrThrow(publicId: string) {
-        const user = await this.prisma.user.findFirst({
-            where: {
-                publicId,
-                deletedAt: null
-            },
-            select: {
-                id: true,
-                publicId: true,
-                fullName: true,
-                role: {
-                    select: {
-                        code: true
-                    }
-                }
-            }
-        });
-
-        if (!user) {
-            throw new NotFoundException('Không tìm thấy người dùng');
-        }
-
-        if (user.role?.code !== 'STUDENT') {
-            throw new ForbiddenException('Chỉ sinh viên mới được thao tác đăng ký lớp');
-        }
-
-        return user;
+    async drop(enrollmentPublicId: string, studentPublicId: string) {
+        const student = await this.requireStudent(studentPublicId);
+        const enrollment = await this.prisma.enrollment.findFirst({ where: { publicId: enrollmentPublicId, studentId: student.id }, include: { class: true } });
+        if (!enrollment || enrollment.status !== EnrollmentStatus.ACTIVE) throw new NotFoundException('Không tìm thấy đăng ký đang hoạt động');
+        if (new Date() > enrollment.class.registrationEnd) throw new BadRequestException('Đã hết thời gian hủy đăng ký');
+        const updated = await this.prisma.enrollment.update({ where: { id: enrollment.id }, data: { status: EnrollmentStatus.DROPPED, droppedAt: new Date() } });
+        await this.prisma.notification.create({ data: {
+            recipientId: student.id, type: 'ENROLLMENT_DROPPED', title: 'Đã hủy đăng ký lớp',
+            message: `Bạn đã hủy đăng ký lớp ${enrollment.class.code}.`, data: { classPublicId: enrollment.class.publicId }
+        } });
+        await this.audit.record({ actorPublicId: studentPublicId, action: AuditAction.DROP, module: 'dang-ky-lop', targetType: 'Enrollment', targetPublicId: enrollmentPublicId, newValue: { classPublicId: enrollment.class.publicId } });
+        return { message: 'Hủy đăng ký lớp thành công', enrollment: updated };
     }
 
-    private async findClassRecordOrThrow(publicId: string) {
-        const classItem = await this.prisma.class.findUnique({
-            where: { publicId },
-            select: {
-                id: true,
-                publicId: true,
-                code: true,
-                name: true,
-                status: true,
-                maxStudents: true,
-                autoCloseWhenFull: true,
-                allowStudentDrop: true,
-                lecturerId: true,
-                departmentHeadId: true
-            }
-        });
-
-        if (!classItem) {
-            throw new NotFoundException('Không tìm thấy lớp học');
-        }
-
-        return classItem;
+    private async requireStudent(publicId: string) {
+        const student = await this.prisma.user.findUnique({ where: { publicId } });
+        if (!student || student.role !== UserRole.STUDENT) throw new ForbiddenException('Chỉ sinh viên được đăng ký lớp');
+        return student;
     }
 
-    private enrollmentSelect() {
-        return {
-            id: true,
-            status: true,
-            enrolledAt: true,
-            student: {
-                select: {
-                    publicId: true,
-                    code: true,
-                    fullName: true,
-                    email: true
-                }
-            },
-            class: {
-                select: {
-                    publicId: true,
-                    code: true,
-                    name: true
-                }
-            }
-        };
+    private assertRegistrationOpen(courseClass: { status: ClassStatus; registrationStart: Date; registrationEnd: Date }) {
+        const now = new Date();
+        if (courseClass.status !== ClassStatus.OPEN_REGISTRATION) throw new BadRequestException('Lớp học chưa mở đăng ký');
+        if (now < courseClass.registrationStart || now > courseClass.registrationEnd) throw new BadRequestException('Không nằm trong thời gian đăng ký lớp');
+    }
+
+    private async assertPrerequisites(tx: Prisma.TransactionClient, studentId: number, prerequisiteIds: number[]) {
+        if (!prerequisiteIds.length) return;
+        const passedCount = await tx.enrollment.count({ where: { studentId, passed: true, class: { subjectId: { in: prerequisiteIds } } } });
+        if (passedCount < prerequisiteIds.length) throw new BadRequestException('Bạn chưa hoàn thành đầy đủ các môn học tiên quyết');
+    }
+
+    private async assertNoScheduleConflict(tx: Prisma.TransactionClient, studentId: number, schedules: Array<{ weekDay: string; startTime: string; endTime: string }>) {
+        if (!schedules.length) return;
+        const enrollments = await tx.enrollment.findMany({
+            where: { studentId, status: EnrollmentStatus.ACTIVE },
+            include: { class: { include: { schedules: true } } }
+        });
+        const conflict = enrollments.some((item) => item.class.schedules.some((existing) => schedules.some((incoming) =>
+            existing.weekDay === incoming.weekDay && existing.startTime < incoming.endTime && incoming.startTime < existing.endTime
+        )));
+        if (conflict) throw new ConflictException('Lịch học bị trùng với lớp đã đăng ký');
     }
 }

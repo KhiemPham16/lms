@@ -1,37 +1,20 @@
-import { Controller, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
-
+import { Body, Controller, Delete, Get, Param, Post, UseGuards } from '@nestjs/common';
+import { UserRole } from '@prisma/client';
 import { CurrentUser } from '~/common/decorators/current-user.decorator';
-import { Permissions } from '~/common/decorators/permissions.decorator';
-import { JwtAuthGuard, type JwtPayload } from '~/common/guards/jwt-auth.guard';
-import { PermissionsGuard } from '~/common/guards/permissions.guard';
+import { Roles } from '~/common/decorators/roles.decorator';
+import { JwtAuthGuard } from '~/common/guards/jwt-auth.guard';
+import type { JwtPayload } from '~/common/guards/jwt-auth.guard';
+import { RolesGuard } from '~/common/guards/roles.guard';
+import { CreateEnrollmentDto } from './dto/create-enrollment.dto';
 import { EnrollmentsService } from './enrollments.service';
 
-@ApiTags('Enrollments')
-@ApiBearerAuth()
-@UseGuards(JwtAuthGuard, PermissionsGuard)
 @Controller('enrollments')
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles(UserRole.STUDENT)
 export class EnrollmentsController {
-    constructor(private readonly enrollmentsService: EnrollmentsService) {}
-
-    @Get('my')
-    @Permissions('enrollments.read')
-    @ApiOperation({ summary: 'Danh sách lớp học sinh viên đã đăng ký' })
-    findMyEnrollments(@CurrentUser() user: JwtPayload) {
-        return this.enrollmentsService.findMyEnrollments(user.sub);
-    }
-
-    @Post('classes/:classPublicId')
-    @Permissions('enrollments.create')
-    @ApiOperation({ summary: 'Sinh viên đăng ký vào lớp' })
-    enroll(@Param('classPublicId') classPublicId: string, @CurrentUser() user: JwtPayload) {
-        return this.enrollmentsService.enroll(classPublicId, user.sub);
-    }
-
-    @Patch('classes/:classPublicId/drop')
-    @Permissions('enrollments.drop')
-    @ApiOperation({ summary: 'Sinh viên hủy đăng ký lớp' })
-    drop(@Param('classPublicId') classPublicId: string, @CurrentUser() user: JwtPayload) {
-        return this.enrollmentsService.drop(classPublicId, user.sub);
-    }
+    constructor(private readonly enrollments: EnrollmentsService) {}
+    @Get('available-classes') availableClasses(@CurrentUser() user: JwtPayload) { return this.enrollments.availableClasses(user.sub); }
+    @Get('me') myEnrollments(@CurrentUser() user: JwtPayload) { return this.enrollments.myEnrollments(user.sub); }
+    @Post() enroll(@Body() dto: CreateEnrollmentDto, @CurrentUser() user: JwtPayload) { return this.enrollments.enroll(dto, user.sub); }
+    @Delete(':publicId') drop(@Param('publicId') publicId: string, @CurrentUser() user: JwtPayload) { return this.enrollments.drop(publicId, user.sub); }
 }

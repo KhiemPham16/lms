@@ -1,0 +1,1908 @@
+.toolbarGrid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 14px;
+    padding: 18px;
+    border: 1px solid #dce3ee;
+    border-radius: 8px;
+    background: #ffffff;
+}
+
+.toolbarWide {
+    grid-column: span 2;
+}
+
+.filterAction {
+    display: flex;
+    align-items: flex-end;
+}
+
+.cardGrid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 16px;
+}
+
+.metricCard,
+.recordCard {
+    display: grid;
+    gap: 10px;
+    padding: 18px;
+    border: 1px solid #dce3ee;
+    border-radius: 8px;
+    background: #ffffff;
+}
+
+.metricCard strong {
+    font-size: 28px;
+    line-height: 1;
+}
+
+.metricCard span,
+.recordCard span,
+.hint {
+    color: #667085;
+    line-height: 1.55;
+}
+
+.table th,
+.table td {
+    padding: 13px 14px;
+    border-bottom: 1px solid #e4e9f2;
+    text-align: left;
+    vertical-align: top;
+}
+
+.table th {
+    color: #475467;
+    background: #f8fafc;
+    font-size: 13px;
+}
+
+.table td strong,
+.table td span {
+    display: block;
+}
+
+.table td span {
+    margin-top: 4px;
+    color: #667085;
+}
+
+.table td.subjectNameCell {
+    vertical-align: middle;
+}
+
+.table .subjectProposalRow td {
+    vertical-align: middle;
+}
+
+.table td button {
+    color: #344054;
+    border: 1px solid #d0d7e2;
+    background: #f8fafc;
+    box-shadow: none;
+}
+
+.table td button:hover {
+    background: #eef4ff;
+    border-color: #bfd0ff;
+}
+
+.table td button[class*='dangerButton'] {
+    color: #b42318;
+    border-color: #fecaca;
+    background: #fff5f5;
+}
+
+.table td button[class*='dangerButton']:hover {
+    background: #fee4e2;
+    border-color: #fda29b;
+}
+
+.emptyCell {
+    padding: 28px;
+    color: #667085;
+    text-align: center;
+    font-weight: 750;
+}
+
+.tableActions,
+.inlineActions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.proposalActions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.proposalDetailActions {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.proposalDetailActions .proposalReviewBlock {
+    flex: 1 0 100%;
+}
+
+.detailActionButton {
+    min-height: 40px;
+    padding-inline: 16px;
+}
+
+.proposalReviewInline {
+    display: grid;
+    gap: 10px;
+}
+
+.proposalReviewBlock {
+    width: 100%;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+}
+
+.proposalReviewBlock textarea {
+    width: 100%;
+    min-height: 96px;
+}
+
+.proposalReviewBlock .proposalActions {
+    justify-content: flex-end;
+}
+
+.tabs {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.tabButton {
+    min-height: 40px;
+    padding: 0 16px;
+    border: 1px solid #d0d7e2;
+    border-radius: 8px;
+    color: #475467;
+    background: #ffffff;
+    font-weight: 800;
+}
+
+.tabButtonActive {
+    color: #1d4ed8;
+    border-color: #bfd0ff;
+    background: #eef4ff;
+}
+
+.emptyState {
+    padding: 28px;
+    color: #667085;
+    text-align: center;
+    font-weight: 750;
+}
+
+.blockerPanel {
+    display: grid;
+    gap: 9px;
+    padding: 16px 18px;
+    border: 1px solid #f3c989;
+    border-radius: 8px;
+    color: #86550b;
+    background: #fffaf0;
+}
+
+.blockerPanel span {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    line-height: 1.5;
+}
+
+.blockerPanel svg {
+    flex: 0 0 auto;
+    margin-top: 3px;
+}
+
+.jsonPreview {
+    max-width: 460px;
+    max-height: 180px;
+    overflow: auto;
+    padding: 12px;
+    border: 1px solid #e4e9f2;
+    border-radius: 8px;
+    color: #334155;
+    background: #f8fafc;
+    font-size: 12px;
+    line-height: 1.5;
+    white-space: pre-wrap;
+}
+
+.textarea {
+    width: 100%;
+    min-height: 120px;
+    padding: 12px;
+    border: 1px solid #d0d7e2;
+    border-radius: 8px;
+    color: #172033;
+    background: #ffffff;
+    font-family: var(--font-sans);
+    resize: vertical;
+}
+
+.select {
+    width: 100%;
+    min-height: 44px;
+    padding: 0 12px;
+    border: 1px solid #d0d7e2;
+    border-radius: 8px;
+    color: #172033;
+    background: #ffffff;
+    font-family: var(--font-sans);
+    font-weight: 650;
+}
+
+.actionDropdown {
+    min-width: 144px;
+    min-height: 38px;
+    padding: 0 10px;
+    border: 1px solid #d0d7e2;
+    border-radius: 8px;
+    color: #344054;
+    background: #f8fafc;
+    font-family: var(--font-sans);
+    font-weight: 750;
+}
+
+.checkboxLine {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    color: #344054;
+    font-weight: 750;
+}
+
+.split {
+    display: grid;
+    grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
+    gap: 18px;
+}
+
+.listStack {
+    display: grid;
+    gap: 12px;
+}
+
+.detailGrid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    margin: 0;
+}
+
+.detailItem {
+    display: grid;
+    gap: 6px;
+    min-width: 0;
+    padding: 12px;
+    border: 1px solid #e4e9f2;
+    border-radius: 8px;
+    background: #f8fafc;
+}
+
+.detailItem dt {
+    color: #667085;
+    font-size: 12px;
+    font-weight: 800;
+}
+
+.detailItem dd {
+    min-width: 0;
+    margin: 0;
+    color: #172033;
+    font-weight: 750;
+    overflow-wrap: anywhere;
+}
+
+.detailWide {
+    grid-column: 1 / -1;
+}
+
+.classWorkspaceModal {
+    width: min(100%, 1040px);
+}
+
+.classWorkspacePage {
+    gap: 18px;
+}
+
+.classWorkspaceHero,
+.classWorkspaceShell {
+    border: 1px solid #dce3ee;
+    border-radius: 8px;
+    background: #ffffff;
+}
+
+.classWorkspaceHero {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18px;
+    padding: 20px;
+}
+
+.classWorkspaceTitle {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    min-width: 0;
+}
+
+.classWorkspaceTitle h2 {
+    margin: 4px 0;
+}
+
+.classWorkspaceTitle p:last-child {
+    margin: 0;
+    color: #667085;
+    line-height: 1.55;
+}
+
+.classWorkspaceShell {
+    display: grid;
+    gap: 16px;
+    padding: 18px;
+}
+
+.classWorkspaceHeader {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.classWorkspaceHeader > div,
+.classWorkspacePanel {
+    display: grid;
+    gap: 8px;
+    min-width: 0;
+    padding: 14px;
+    border: 1px solid #e4e9f2;
+    border-radius: 8px;
+    background: #f8fafc;
+}
+
+.classWorkspaceHeader span,
+.classWorkspacePanel span {
+    color: #667085;
+    line-height: 1.55;
+}
+
+.classWorkspacePanel {
+    min-height: 120px;
+    align-content: start;
+}
+
+.classWorkspaceTabs {
+    padding-bottom: 12px;
+    border-bottom: 1px solid #e4e9f2;
+}
+
+.classOverview {
+    display: grid;
+    gap: 16px;
+}
+
+.classSummaryGrid,
+.classOverviewGrid {
+    display: grid;
+    gap: 12px;
+}
+
+.classSummaryGrid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.classSummaryGrid > div,
+.classOverviewSection {
+    min-width: 0;
+    padding: 16px;
+    border: 1px solid #e4e9f2;
+    border-radius: 8px;
+    background: #ffffff;
+}
+
+.classSummaryGrid span {
+    display: block;
+    margin-bottom: 8px;
+    color: #667085;
+    font-weight: 800;
+}
+
+.classSummaryGrid strong {
+    display: block;
+    color: #172033;
+    font-size: 22px;
+    line-height: 1.2;
+    overflow-wrap: anywhere;
+}
+
+.classOverviewGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.classOverviewSection {
+    display: grid;
+    gap: 14px;
+}
+
+.compactDefinitionList {
+    display: grid;
+    gap: 10px;
+    margin: 0;
+}
+
+.compactDefinitionList > div {
+    display: grid;
+    grid-template-columns: 140px minmax(0, 1fr);
+    gap: 12px;
+    padding-top: 10px;
+    border-top: 1px solid #eef2f7;
+}
+
+.compactDefinitionList dt {
+    color: #667085;
+    font-size: 12px;
+    font-weight: 800;
+}
+
+.compactDefinitionList dd {
+    min-width: 0;
+    margin: 0;
+    color: #172033;
+    font-weight: 750;
+    overflow-wrap: anywhere;
+}
+
+.lessonBuilder {
+    display: grid;
+    grid-template-columns: minmax(260px, 320px) minmax(0, 1fr);
+    gap: 16px;
+    align-items: start;
+}
+
+.lessonLoadingState {
+    grid-column: 1 / -1;
+    padding: 12px 14px;
+    border: 1px solid #dbeafe;
+    border-radius: 8px;
+    background: #eff6ff;
+    color: #1d4ed8;
+    font-weight: 800;
+}
+
+.lessonChapterPanel,
+.lessonContentPanel,
+.studentPreviewPanel,
+.lessonEmptyCanvas,
+.gradedAssessmentPanel {
+    display: grid;
+    gap: 14px;
+    min-width: 0;
+    padding: 16px;
+    border: 1px solid #e4e9f2;
+    border-radius: 8px;
+    background: #ffffff;
+}
+
+.gradedAssessmentPanel {
+    grid-column: 1 / -1;
+}
+
+.lessonChapterCard {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
+    gap: 12px;
+    padding: 14px;
+    border: 1px solid #e4e9f2;
+    border-radius: 8px;
+    background: #f8fafc;
+    cursor: grab;
+}
+
+.lessonChapterCard:active,
+.lessonItemCard:active {
+    cursor: grabbing;
+}
+
+.lessonChapterCard strong,
+.lessonTypeButton strong,
+.studentPreviewPanel strong,
+.lessonEmptyCanvas strong {
+    color: #172033;
+}
+
+.lessonChapterCard span,
+.lessonTypeButton span,
+.studentPreviewPanel span,
+.studentPreviewPanel p,
+.lessonEmptyCanvas span {
+    color: #667085;
+    line-height: 1.55;
+}
+
+.lessonChapterCardActive {
+    border-color: #bfd0ff;
+    background: #eef4ff;
+}
+
+.lessonChapterActions {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+}
+
+.lessonChapterActions button {
+    min-width: 0;
+    padding: 0 10px;
+}
+
+.previewToggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    color: #344054;
+    font-weight: 800;
+}
+
+.learningModuleCreator {
+    display: grid;
+    gap: 16px;
+    padding: 14px;
+    border: 1px solid #e4e9f2;
+    border-radius: 8px;
+    background: #ffffff;
+}
+
+.learningModuleCreator > section {
+    display: grid;
+    gap: 12px;
+}
+
+.creatorHeader {
+    display: grid;
+    gap: 4px;
+}
+
+.creatorHeader span {
+    color: #667085;
+    line-height: 1.5;
+}
+
+.moduleSelectRow {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: end;
+    gap: 12px;
+}
+
+.moduleSelectRow label {
+    display: grid;
+    flex: 1 1 220px;
+    gap: 8px;
+    color: #344054;
+    font-weight: 800;
+}
+
+.moduleSelectRow select {
+    width: 100%;
+    min-width: 0;
+    height: 42px;
+    border: 1px solid #d0d7e2;
+    border-radius: 8px;
+    padding: 0 12px;
+    color: #172033;
+    background: #ffffff;
+    font: inherit;
+}
+
+.moduleSelectRow button {
+    min-width: max-content;
+}
+
+.lessonTypeGrid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.lessonTypeButton {
+    display: grid;
+    gap: 8px;
+    min-height: 112px;
+    padding: 14px;
+    border: 1px solid #d0d7e2;
+    border-radius: 8px;
+    background: #f8fafc;
+    text-align: left;
+}
+
+.lessonTypeButton:hover {
+    border-color: #bfd0ff;
+    background: #eef4ff;
+}
+
+.assessmentOptionGrid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.assessmentOptionGroup {
+    display: grid;
+    gap: 10px;
+    min-width: 0;
+    padding: 12px;
+    border: 1px solid #d0d7e2;
+    border-radius: 8px;
+    background: #f8fafc;
+}
+
+.assessmentOptionGroup > span {
+    color: #667085;
+    line-height: 1.5;
+}
+
+.assessmentOptionGroup > div {
+    display: grid;
+    gap: 8px;
+}
+
+.assessmentOptionGroup .lessonTypeButton {
+    min-height: 92px;
+    background: #ffffff;
+}
+
+.studentPreviewPanel,
+.lessonEmptyCanvas {
+    min-height: 180px;
+    align-content: center;
+}
+
+.studentPreviewPanel {
+    background: #f8fafc;
+}
+
+.studentPreviewSection,
+.lessonItemList {
+    display: grid;
+    gap: 10px;
+}
+
+.studentPreviewSection {
+    padding-top: 12px;
+    border-top: 1px solid #e4e9f2;
+}
+
+.studentPreviewSection p {
+    margin: 0;
+}
+
+.studentPreviewLesson,
+.richLessonContent {
+    display: grid;
+    gap: 8px;
+}
+
+.studentPreviewLesson {
+    padding: 12px;
+    border: 1px solid #e4e9f2;
+    border-radius: 8px;
+    background: #ffffff;
+}
+
+.studentAssessmentPreview {
+    display: grid;
+    gap: 6px;
+    padding: 10px 12px;
+    border: 1px solid #d0d7e2;
+    border-radius: 8px;
+    background: #f8fafc;
+}
+
+.studentAssessmentPreview span {
+    color: #2563eb;
+    font-weight: 900;
+}
+
+.studentAssessmentPreview p {
+    margin: 0;
+    color: #475467;
+}
+
+.richLessonContent {
+    color: #344054;
+    line-height: 1.65;
+}
+
+.richLessonContent :where(p, ul, ol, blockquote, pre, table) {
+    margin-top: 0;
+    margin-bottom: 10px;
+}
+
+.richLessonContent :where(ul, ol) {
+    padding-left: 22px;
+}
+
+.lessonItemCard {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 14px;
+    border: 1px solid #e4e9f2;
+    border-radius: 8px;
+    background: #ffffff;
+    cursor: grab;
+}
+
+.lessonItemCard > div:first-child > span {
+    display: block;
+    margin-top: 4px;
+    color: #667085;
+}
+
+.lessonItemActions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.lessonItemActions button {
+    min-width: 0;
+    padding: 0 10px;
+}
+
+.textLessonEditor {
+    grid-column: 1 / -1;
+    min-width: 0;
+    padding-top: 4px;
+}
+
+.textLessonEditor :global(.tox-tinymce) {
+    border-color: #d0d7e2;
+    border-radius: 8px;
+}
+
+.videoLessonConfig {
+    grid-column: 1 / -1;
+    display: grid;
+    gap: 12px;
+    min-width: 0;
+    padding-top: 4px;
+}
+
+.videoLessonConfig label,
+.pdfLessonConfig label {
+    display: grid;
+    gap: 8px;
+    color: #344054;
+    font-weight: 800;
+}
+
+.videoLessonConfig input,
+.pdfLessonConfig select {
+    width: 100%;
+    min-width: 0;
+    border: 1px solid #d0d7e2;
+    border-radius: 8px;
+    padding: 10px 12px;
+    color: #172033;
+    font: inherit;
+}
+
+.videoLessonConfig span,
+.pdfLessonConfig span {
+    color: #667085;
+    line-height: 1.55;
+}
+
+.youtubeEmbed {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    overflow: hidden;
+    border: 1px solid #d0d7e2;
+    border-radius: 8px;
+    background: #111827;
+}
+
+.youtubeEmbed iframe {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    border: 0;
+}
+
+.pdfLessonConfig,
+.pdfSelectedPreview {
+    display: grid;
+    gap: 12px;
+    min-width: 0;
+}
+
+.pdfLessonConfig {
+    grid-column: 1 / -1;
+    padding-top: 4px;
+}
+
+.pdfPickerHeader {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.pdfPickerHeader > div:first-child,
+.pdfSelectedPreview {
+    min-width: 0;
+}
+
+.pdfPickerActions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.pdfLessonConfig .pdfUploadDrop {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+    padding: 12px;
+    border: 1px dashed #9aa8bc;
+    border-radius: 8px;
+    background: #f8fafc;
+    cursor: pointer;
+}
+
+.pdfLessonConfig .pdfUploadDrop input {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    cursor: pointer;
+}
+
+.pdfLessonConfig .pdfUploadDrop strong {
+    color: #172033;
+}
+
+.pdfUploadButton {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 38px;
+    padding: 0 14px;
+    border: 1px solid #9aa8bc;
+    border-radius: 8px;
+    background: transparent;
+    color: #344054;
+    font-weight: 800;
+    line-height: 1;
+    white-space: nowrap;
+}
+
+.pdfUploadFileName {
+    min-width: 0;
+    color: #344054;
+    font-weight: 800;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.pdfSelectedPreview {
+    padding: 12px;
+    border: 1px solid #e4e9f2;
+    border-radius: 8px;
+    background: #f8fafc;
+}
+
+.pdfSelectedPreview a {
+    color: #2563eb;
+    font-weight: 800;
+}
+
+.pdfEmbed {
+    width: 100%;
+    min-height: 520px;
+    overflow: hidden;
+    border: 1px solid #d0d7e2;
+    border-radius: 8px;
+    background: #ffffff;
+}
+
+.pdfEmbed iframe {
+    display: block;
+    width: 100%;
+    height: 520px;
+    border: 0;
+}
+
+.gradedLessonConfig {
+    grid-column: 1 / -1;
+    display: grid;
+    gap: 12px;
+    min-width: 0;
+    padding: 14px;
+    border: 1px solid #d0d7e2;
+    border-radius: 8px;
+    background: #f8fafc;
+}
+
+.gradedLessonConfig label,
+.codeTestCaseRow label {
+    display: grid;
+    gap: 8px;
+    color: #344054;
+    font-weight: 800;
+}
+
+.gradedLessonConfig input,
+.gradedLessonConfig select,
+.gradedLessonConfig textarea,
+.codeTestCaseRow input {
+    width: 100%;
+    min-width: 0;
+    border: 1px solid #d0d7e2;
+    border-radius: 8px;
+    padding: 10px 12px;
+    color: #172033;
+    font: inherit;
+}
+
+.gradedLessonConfig textarea {
+    min-height: 92px;
+    resize: vertical;
+}
+
+.gradedConfigGrid,
+.codeTestCaseRow {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.codeTestCaseRow {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.gradedOptionList {
+    display: grid;
+    gap: 10px;
+}
+
+.gradedOptionRow {
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+}
+
+.gradedOptionRow input[type='checkbox'] {
+    width: 18px;
+    height: 18px;
+    padding: 0;
+}
+
+.quizAssessmentWorkspace,
+.quizQuestionList,
+.quizQuestionCard,
+.quizOptionList,
+.quizSettingsGrid > section {
+    display: grid;
+    gap: 12px;
+}
+
+.quizAssessmentToolbar,
+.quizAssessmentToolbar > div,
+.quizQuestionCard > header,
+.quizQuestionCard > header > div {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.quizAssessmentToolbar,
+.quizQuestionCard > header {
+    justify-content: space-between;
+}
+
+.quizAssessmentToolbar {
+    padding: 12px 14px;
+    border: 1px solid #dbe3ef;
+    border-radius: 8px;
+    background: #ffffff;
+}
+
+.quizAssessmentToolbar > div span {
+    color: #667085;
+    font-size: 13px;
+    font-weight: 750;
+}
+
+.quizQuestionCard {
+    padding: 16px;
+    border: 1px solid #dbe3ef;
+    border-radius: 8px;
+    background: #ffffff;
+}
+
+.quizQuestionCard > header {
+    padding-bottom: 12px;
+    border-bottom: 1px solid #e8edf4;
+}
+
+.quizQuestionCard > header > strong {
+    min-width: 72px;
+    color: #172033;
+    font-size: 16px;
+}
+
+.quizQuestionCard > header label {
+    grid-template-columns: auto minmax(112px, 170px);
+    align-items: center;
+    font-size: 12px;
+}
+
+.quizQuestionCard > header label:nth-child(2) {
+    grid-template-columns: auto 84px;
+}
+
+.quizQuestionCard > header input,
+.quizQuestionCard > header select {
+    padding: 8px 10px;
+}
+
+.quizOptionRow {
+    display: grid;
+    grid-template-columns: 20px minmax(0, 1fr) 36px;
+    align-items: center;
+    gap: 10px;
+}
+
+.quizOptionRow > input[type='checkbox'],
+.quizOptionRow > input[type='radio'] {
+    width: 18px;
+    height: 18px;
+    margin: 0;
+    padding: 0;
+}
+
+.quizOptionRow > input[type='text']:disabled {
+    color: #344054;
+    background: #f2f4f7;
+}
+
+.quizQuestionCard > .secondaryButton {
+    justify-self: start;
+}
+
+.quizSettingsGrid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.quizSettingsGrid > section {
+    align-content: start;
+    padding: 14px;
+    border: 1px solid #dbe3ef;
+    border-radius: 8px;
+    background: #ffffff;
+}
+
+.codeConfigSection {
+    display: grid;
+    gap: 12px;
+    padding: 14px;
+    border: 1px solid #e4e9f2;
+    border-radius: 8px;
+    background: #ffffff;
+}
+
+.codeConfigSection > div:first-child,
+.codeSectionHeader,
+.inlineCheck {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.codeConfigSection > div:first-child > span,
+.codeSectionHeader > div > span {
+    display: inline-grid;
+    width: 26px;
+    height: 26px;
+    place-items: center;
+    border-radius: 50%;
+    background: #2563eb;
+    color: #ffffff;
+    font-size: 13px;
+    font-weight: 900;
+}
+
+.codeSectionHeader {
+    justify-content: space-between;
+}
+
+.codeSectionHeader > div {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.codeTestCaseCard {
+    display: grid;
+    gap: 12px;
+    padding: 12px;
+    border: 1px solid #d0d7e2;
+    border-radius: 8px;
+    background: #f8fafc;
+}
+
+.codeAssessmentWorkspace {
+    display: grid;
+    gap: 16px;
+    min-width: 0;
+}
+
+.codeAssessmentHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 16px;
+    border-radius: 8px;
+    background: #172033;
+    color: #ffffff;
+}
+
+.codeAssessmentIdentity,
+.codeAssessmentBadges,
+.codeRuntimeStatus,
+.codeEditorBlock > div:first-child,
+.webPreviewPanel > div:first-child,
+.codeSettingsPanel > div:first-child {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.codeAssessmentIdentity > span {
+    display: grid;
+    width: 42px;
+    height: 42px;
+    flex: 0 0 42px;
+    place-items: center;
+    border-radius: 8px;
+    background: #ffffff;
+    color: #172033;
+    font-size: 20px;
+}
+
+.codeAssessmentIdentity p,
+.codeAssessmentIdentity h4 {
+    margin: 0;
+}
+
+.codeAssessmentIdentity p {
+    color: #a7f3d0;
+    font-size: 12px;
+    font-weight: 800;
+}
+
+.codeAssessmentIdentity h4 {
+    margin-top: 4px;
+    color: #ffffff;
+    font-size: 17px;
+}
+
+.codeAssessmentBadges {
+    justify-content: flex-end;
+    flex-wrap: wrap;
+}
+
+.codeAssessmentLayout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
+    align-items: start;
+}
+
+.codeAssessmentMain,
+.codeAssessmentSidebar,
+.codeTestCaseList {
+    display: grid;
+    gap: 14px;
+    min-width: 0;
+}
+
+.codeAssessmentSidebar {
+    grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+    border: 1px solid #d0d7e2;
+    border-radius: 8px;
+    background: #ffffff;
+}
+
+.codeConfigHeading {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+}
+
+.codeConfigHeading > div,
+.codeConfigHeading strong,
+.codeConfigHeading small {
+    display: block;
+    min-width: 0;
+}
+
+.codeConfigHeading small {
+    margin-top: 3px;
+    color: #667085;
+    font-weight: 600;
+}
+
+.codeProblemInput {
+    min-height: 150px !important;
+}
+
+.codeRuntimeGrid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+    align-items: end;
+}
+
+.codeRuntimeStatus {
+    min-height: 42px;
+    padding: 10px 12px;
+    border: 1px solid #bbf7d0;
+    border-radius: 8px;
+    background: #f0fdf4;
+    color: #166534;
+}
+
+.codeRuntimeStatus strong {
+    margin-left: auto;
+    color: #475467;
+    font-size: 12px;
+}
+
+.codeEditorBlock {
+    display: grid;
+    gap: 0;
+    overflow: hidden;
+    border: 1px solid #344054;
+    border-radius: 8px;
+    background: #111827;
+}
+
+.codeEditorBlock > div:first-child {
+    min-height: 42px;
+    padding: 0 12px;
+    border-bottom: 1px solid #344054;
+    color: #f8fafc;
+}
+
+.codeEditorBlock > div:first-child span {
+    margin-left: auto;
+    color: #98a2b3;
+    font-size: 12px;
+}
+
+.codeEditorShell {
+    min-width: 0;
+    overflow: hidden;
+    background: #1e1e1e;
+}
+
+.webCodeWorkspace {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(300px, auto) auto minmax(340px, auto);
+    gap: 0;
+    min-width: 0;
+}
+
+.codeFileTabs {
+    display: flex;
+    min-width: 0;
+    overflow-x: auto;
+    border: 1px solid #344054;
+    border-bottom: 0;
+    border-radius: 8px 8px 0 0;
+    background: #111827;
+}
+
+.codeFileTabs button {
+    min-height: 40px;
+    padding: 0 14px;
+    border: 0;
+    border-right: 1px solid #344054;
+    background: transparent;
+    color: #98a2b3;
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.codeFileTabs button.activeCodeFileTab {
+    background: #1e1e1e;
+    color: #ffffff;
+    box-shadow: inset 0 -2px #22c55e;
+}
+
+.webCodeWorkspace > .codeEditorShell {
+    border: 1px solid #344054;
+    border-radius: 0 0 8px 8px;
+}
+
+.webPreviewPanel {
+    display: grid;
+    grid-row: 3 / span 2;
+    grid-column: 1;
+    grid-template-rows: 42px minmax(300px, 1fr);
+    overflow: hidden;
+    border: 1px solid #d0d7e2;
+    border-radius: 8px;
+    background: #ffffff;
+    margin-top: 12px;
+}
+
+.webPreviewPanel > div:first-child {
+    padding: 0 12px;
+    border-bottom: 1px solid #e4e9f2;
+    background: #f8fafc;
+    color: #344054;
+}
+
+.webPreviewPanel iframe {
+    width: 100%;
+    height: 100%;
+    min-height: 300px;
+    border: 0;
+    background: #ffffff;
+}
+
+.codeTestCaseCard header,
+.codeTestCaseCard header > div {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.codeTestCaseCard header {
+    justify-content: space-between;
+}
+
+.codeTestCaseCard header > div:first-child > span {
+    display: grid;
+    width: 30px;
+    height: 30px;
+    place-items: center;
+    border-radius: 6px;
+    background: #e0f2fe;
+    color: #075985;
+    font-size: 12px;
+    font-weight: 900;
+}
+
+.iconDangerButton {
+    display: inline-grid;
+    width: 34px;
+    height: 34px;
+    place-items: center;
+    border: 1px solid #fecaca;
+    border-radius: 8px;
+    background: transparent;
+    color: #dc2626;
+    cursor: pointer;
+}
+
+.iconDangerButton:disabled {
+    cursor: not-allowed;
+    opacity: 0.45;
+}
+
+.codeSettingsPanel {
+    display: grid;
+    gap: 12px;
+    padding: 16px;
+    border-bottom: 1px solid #e4e9f2;
+}
+
+.codeSettingsPanel:last-child {
+    border-bottom: 0;
+}
+
+.codeSettingsPanel > div:first-child {
+    color: #172033;
+}
+
+.codeSettingsPanel > div:first-child svg {
+    color: #2563eb;
+}
+
+.codeSettingsPanel label {
+    gap: 6px;
+    font-size: 13px;
+}
+
+.backendRuleNote {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 10px;
+    border-radius: 8px;
+    background: #ecfdf3;
+    color: #067647;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.starterFileGrid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.starterFileGrid textarea {
+    min-height: 180px;
+    font-family: Consolas, 'Courier New', monospace;
+}
+
+.inlineCheck {
+    color: #475467;
+    font-weight: 800;
+}
+
+.inlineCheck input {
+    width: 18px;
+    height: 18px;
+    padding: 0;
+}
+
+.gradedLessonConfig input:disabled {
+    background: #eef2f7;
+    color: #667085;
+}
+
+.recordHeader {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 14px;
+}
+
+.pagination {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding-top: 16px;
+    flex-wrap: wrap;
+}
+
+.pagination > span,
+.paginationControls strong {
+    color: #475467;
+    font-weight: 800;
+}
+
+.paginationControls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.paginationPageSize {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    color: #475467;
+    font-weight: 800;
+}
+
+.paginationPageSize select {
+    width: 88px;
+}
+
+.paginationIconButton {
+    width: 40px;
+    min-width: 40px;
+    padding: 0;
+    justify-content: center;
+}
+
+.actionIconButton {
+    width: 38px;
+    min-width: 38px;
+    height: 38px;
+    padding: 0;
+    justify-content: center;
+}
+
+@media (max-width: 1180px) {
+    .toolbarGrid,
+    .cardGrid,
+    .split {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .codeAssessmentLayout {
+        grid-template-columns: 1fr;
+    }
+
+}
+
+@media (max-width: 760px) {
+    .toolbarGrid,
+    .cardGrid,
+    .split,
+    .classWorkspaceHeader,
+    .classSummaryGrid,
+    .classOverviewGrid,
+    .lessonBuilder,
+    .lessonTypeGrid,
+    .assessmentOptionGrid,
+    .gradedConfigGrid,
+    .quizSettingsGrid,
+    .codeTestCaseRow,
+    .codeRuntimeGrid,
+    .starterFileGrid,
+    .detailGrid {
+        grid-template-columns: 1fr;
+    }
+
+    .codeAssessmentHeader {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .codeAssessmentBadges {
+        justify-content: flex-start;
+    }
+
+    .codeAssessmentSidebar {
+        grid-template-columns: 1fr;
+    }
+
+    .codeTestCaseCard header {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .quizAssessmentToolbar,
+    .quizQuestionCard > header,
+    .quizQuestionCard > header > div {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .quizQuestionCard > header label,
+    .quizQuestionCard > header label:nth-child(2) {
+        grid-template-columns: 1fr;
+    }
+
+    .classWorkspaceHero,
+    .classWorkspaceTitle {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .lessonChapterActions {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .compactDefinitionList > div {
+        grid-template-columns: 1fr;
+    }
+
+    .lessonItemCard {
+        grid-template-columns: 1fr;
+    }
+
+    .lessonContentPanel,
+    .lessonItemCard {
+        padding: 10px;
+    }
+
+    .gradedLessonConfig {
+        padding: 8px;
+    }
+
+    .codeConfigSection,
+    .codeSettingsPanel {
+        padding: 10px;
+    }
+
+    .lessonItemActions {
+        justify-content: flex-start;
+    }
+
+    .pdfPickerHeader {
+        flex-direction: column;
+    }
+
+    .pdfPickerActions {
+        justify-content: flex-start;
+    }
+
+    .proposalReviewBlock {
+        grid-template-columns: 1fr;
+    }
+
+    .toolbarWide {
+        grid-column: auto;
+    }
+}
+
+.workspaceDataSection {
+    display: grid;
+    gap: 16px;
+    padding: 20px;
+}
+
+.workspaceSectionHeading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.workspaceSectionHeading h3 { margin: 4px 0 0; }
+
+.workspaceAssessmentList,
+.workspaceGradingList,
+.workspaceRiskList { display: grid; gap: 12px; }
+
+.workspaceAssessmentList article {
+    display: grid;
+    grid-template-columns: 46px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 14px;
+    padding: 15px;
+    border: 1px solid #dce3ee;
+    border-radius: 8px;
+    background: #ffffff;
+}
+
+.workspaceAssessmentIcon {
+    width: 46px;
+    height: 46px;
+    display: grid;
+    place-items: center;
+    border-radius: 8px;
+    color: #9a5d06;
+    background: #fff1c7;
+    font-size: 21px;
+}
+
+.workspaceAssessmentList article > div:nth-child(2) { min-width: 0; }
+.workspaceAssessmentList h4,
+.workspaceGradingList h4 { margin: 4px 0; }
+.workspaceAssessmentList article > div:nth-child(2) > span,
+.workspaceAssessmentList small,
+.workspaceGradingList header span,
+.workspaceGradingList header small { color: #667085; font-size: 12px; }
+.workspaceAssessmentList dl { display: flex; gap: 18px; margin: 0; }
+.workspaceAssessmentList dl div { min-width: 70px; display: grid; gap: 4px; }
+.workspaceAssessmentList dt { color: #667085; font-size: 11px; font-weight: 800; }
+.workspaceAssessmentList dd { margin: 0; font-weight: 850; }
+
+.workspaceGradingList > article {
+    overflow: hidden;
+    border: 1px solid #dce3ee;
+    border-radius: 8px;
+    background: #ffffff;
+}
+
+.workspaceViolationReview {
+    display: grid;
+    gap: 12px;
+    padding: 14px;
+    border: 1px solid #f3c989;
+    border-radius: 8px;
+    background: #fffaf0;
+}
+
+.workspaceViolationReview > header,
+.workspaceViolationReview > header > div,
+.workspaceViolationReview > header span {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+}
+
+.workspaceViolationReview > header {
+    justify-content: space-between;
+}
+
+.workspaceViolationReview > header > div > svg {
+    color: #b45309;
+    font-size: 22px;
+}
+
+.workspaceViolationReview > header span {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.workspaceViolationReview > header small {
+    color: #86550b;
+    font-weight: 600;
+}
+
+.workspaceViolationList {
+    display: grid;
+    gap: 10px;
+}
+
+.workspaceViolationList > article {
+    display: grid;
+    grid-template-columns: minmax(180px, 0.35fr) minmax(0, 1fr);
+    gap: 14px;
+    padding: 12px;
+    border: 1px solid #ead8b8;
+    border-radius: 8px;
+    background: #ffffff;
+}
+
+.workspaceViolationList > article > div {
+    display: grid;
+    align-content: start;
+    gap: 3px;
+}
+
+.workspaceViolationList > article > div span,
+.workspaceViolationList small {
+    color: #667085;
+    font-size: 11px;
+}
+
+.workspaceViolationList ol {
+    display: grid;
+    gap: 7px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.workspaceViolationList li {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: start;
+    gap: 8px;
+    padding: 8px 10px;
+    border-radius: 6px;
+    background: #fffaf0;
+}
+
+.workspaceViolationList li > svg {
+    margin-top: 2px;
+    color: #b45309;
+}
+
+.workspaceViolationList li > span {
+    display: grid;
+    gap: 2px;
+}
+
+.workspaceGradingList header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 14px 16px;
+    border-bottom: 1px solid #e4e9f2;
+    background: #f8fafc;
+}
+
+.workspaceAnswerGrid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 300px;
+    gap: 18px;
+    padding: 17px;
+}
+
+.workspaceAnswerGrid > section:first-child { min-width: 0; display: grid; align-content: start; gap: 10px; }
+.workspaceQuestionContent { color: #344054; line-height: 1.55; }
+.workspaceAnswerGrid pre {
+    max-height: 320px;
+    margin: 0;
+    padding: 12px;
+    overflow: auto;
+    border-radius: 8px;
+    color: #d1fae5;
+    background: #111827;
+    font-family: Consolas, monospace;
+    font-size: 12px;
+    white-space: pre-wrap;
+}
+.workspaceAnswerGrid p { margin: 0; color: #344054; line-height: 1.6; white-space: pre-wrap; }
+
+.workspaceGradeForm {
+    display: grid;
+    align-content: start;
+    gap: 12px;
+    padding-left: 18px;
+    border-left: 1px solid #e4e9f2;
+}
+.workspaceGradeForm label { display: grid; gap: 6px; color: #344054; font-size: 12px; font-weight: 850; }
+.workspaceGradeForm input,
+.workspaceGradeForm textarea { width: 100%; padding: 10px; border: 1px solid #cfd6e2; border-radius: 8px; outline: 0; font: inherit; }
+.workspaceGradeForm textarea { min-height: 110px; resize: vertical; }
+
+.judgeSummary { display: grid; gap: 8px; padding-top: 8px; border-top: 1px solid #e4e9f2; }
+.judgeSummary > span { display: flex; align-items: center; gap: 6px; color: #475467; font-weight: 850; }
+.judgeSummary .judgeError { color: #fecaca; }
+
+.workspaceBlockers { display: grid; gap: 7px; padding: 13px; border: 1px solid #f3c989; border-radius: 8px; background: #fffaf0; }
+.workspaceBlockers span { display: flex; align-items: center; gap: 7px; color: #86550b; }
+
+.workspaceMetricGrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.workspaceMetricGrid article {
+    display: grid;
+    grid-template-columns: 36px minmax(0, 1fr);
+    align-items: center;
+    gap: 3px 10px;
+    padding: 15px;
+    border: 1px solid #dce3ee;
+    border-radius: 8px;
+    background: #ffffff;
+}
+.workspaceMetricGrid article > svg { grid-row: 1 / span 2; width: 36px; height: 36px; padding: 8px; border-radius: 8px; color: #1d4ed8; background: #eaf1ff; }
+.workspaceMetricGrid span { color: #667085; font-size: 11px; font-weight: 800; }
+.workspaceMetricGrid strong { font-size: 20px; }
+
+.workspaceRiskList { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.workspaceRiskList div { display: grid; grid-template-columns: 80px minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 11px; border: 1px solid #efc0bd; border-radius: 8px; background: #fff8f7; }
+.workspaceRiskList span,
+.workspaceRiskList small { color: #667085; }
+
+@media (max-width: 900px) {
+    .workspaceAssessmentList article { grid-template-columns: 42px minmax(0, 1fr); }
+    .workspaceAssessmentList dl { grid-column: 1 / -1; }
+    .workspaceAnswerGrid { grid-template-columns: 1fr; }
+    .workspaceGradeForm { padding: 14px 0 0; border-top: 1px solid #e4e9f2; border-left: 0; }
+    .workspaceMetricGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .workspaceRiskList { grid-template-columns: 1fr; }
+    .workspaceViolationList > article { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 560px) {
+    .workspaceSectionHeading { align-items: flex-start; flex-direction: column; }
+    .workspaceViolationReview > header { align-items: flex-start; flex-direction: column; }
+    .workspaceMetricGrid { grid-template-columns: 1fr; }
+    .workspaceRiskList div { grid-template-columns: 1fr; }
+}

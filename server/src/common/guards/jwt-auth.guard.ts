@@ -7,15 +7,13 @@ import {
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
-import { UserStatus } from '@prisma/client';
+import { UserRole, UserStatus } from '@prisma/client';
 import { Request } from 'express';
 import { PrismaService } from '~/prisma/prisma.service';
 
 export type JwtPayload = {
     sub: string;
-    role?: string;
-    roleId?: number;
-    permissions?: string[];
+    role: UserRole;
 };
 
 export type AuthenticatedRequest = Request & {
@@ -35,7 +33,7 @@ export class JwtAuthGuard implements CanActivate {
         const authHeader = request.headers.authorization;
 
         if (!authHeader || !authHeader.startsWith('Bearer ')) {
-            throw new UnauthorizedException('Token khong ton tai');
+            throw new UnauthorizedException('Mã truy cập không tồn tại');
         }
 
         const token = authHeader.split(' ')[1];
@@ -49,8 +47,7 @@ export class JwtAuthGuard implements CanActivate {
             const payload = await this.jwtService.verifyAsync<JwtPayload>(token, { secret });
             const user = await this.prisma.user.findFirst({
                 where: {
-                    publicId: payload.sub,
-                    deletedAt: null
+                    publicId: payload.sub
                 },
                 select: {
                     status: true
@@ -61,14 +58,13 @@ export class JwtAuthGuard implements CanActivate {
                 throw new ForbiddenException({
                     code: 'ACCOUNT_NOT_ACTIVE',
                     status: user?.status ?? 'DELETED',
-                    message: 'Tai khoan khong hoat dong'
+                    message: 'Tài khoản không hoạt động'
                 });
             }
 
             request.user = {
                 sub: payload.sub,
-                role: payload.role,
-                roleId: payload.roleId
+                role: payload.role
             };
 
             return true;
@@ -77,7 +73,7 @@ export class JwtAuthGuard implements CanActivate {
                 throw error;
             }
 
-            throw new UnauthorizedException('Token khong hop le');
+            throw new UnauthorizedException('Mã truy cập không hợp lệ');
         }
     }
 }

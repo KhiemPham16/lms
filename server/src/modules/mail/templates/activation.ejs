@@ -1,12 +1,27 @@
 <!doctype html>
 <html lang="vi">
-    <body>
-        <h2>Xin chao <%= fullName %>,</h2>
+    <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #111827;">
+        <h2>Xin chào <%= fullName %>,</h2>
+        <p>Tài khoản LMS của bạn đã được tạo và đang chờ kích hoạt.</p>
 
-        <p>Yeu cau kich hoat tai khoan LMS cua ban da duoc gui lai.</p>
+        <p>Nhấp vào nút bên dưới để kích hoạt tài khoản:</p>
+        <p>
+            <a href="<%= activationUrl %>" style="display: inline-block; padding: 11px 18px; border-radius: 6px; background: #111827; color: #ffffff; text-decoration: none; font-weight: 600;">
+                Kích hoạt tài khoản
+            </a>
+        </p>
 
-        <p>Trang thai hien tai cua tai khoan: <strong><%= status %></strong>.</p>
+        <p>Nếu nút không hoạt động, hãy sao chép và mở đường liên kết sau:</p>
+        <p style="word-break: break-all;"><a href="<%= activationUrl %>"><%= activationUrl %></a></p>
 
-        <p>Neu ban can ho tro them, vui long lien he bo phan quan tri LMS.</p>
+        <div style="margin: 24px 0; padding: 16px; border: 1px solid #d1d5db; border-radius: 8px; background: #f9fafb;">
+            <p style="margin: 0 0 8px;"><strong>Thông tin đăng nhập</strong></p>
+            <p style="margin: 4px 0;">Tài khoản: <strong><%= account %></strong></p>
+            <p style="margin: 4px 0;">Mật khẩu: <strong><%= password %></strong></p>
+        </div>
+
+        <p>Liên kết kích hoạt hết hạn lúc: <strong><%= expiresAt %></strong>.</p>
+        <p>Vui lòng giữ kín thông tin đăng nhập và đổi mật khẩu sau lần đăng nhập đầu tiên.</p>
+        <p>Nếu bạn không yêu cầu tài khoản này, vui lòng bỏ qua thư.</p>
     </body>
 </html>

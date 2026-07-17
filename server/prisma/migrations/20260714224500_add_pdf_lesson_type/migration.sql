@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE `Lesson` MODIFY `type` ENUM('TEXT', 'VIDEO', 'DOCUMENT', 'PDF', 'LINK', 'CODE') NOT NULL DEFAULT 'TEXT';

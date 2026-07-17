@@ -7,7 +7,11 @@ export type ForgotPasswordMailData = {
 export type ActivationMailData = {
     email: string;
     fullName: string;
+    account: string;
+    password: string;
     status: string;
+    activationUrl: string;
+    expiresAt: string;
 };
 
 export type MailJob =

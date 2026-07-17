@@ -1,16 +1,20 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsString, MaxLength } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { IsOptional, IsString, Length, MaxLength } from 'class-validator';
 
 export class CreateDepartmentDto {
     @ApiProperty({ example: 'CNTT' })
     @IsString()
-    @IsNotEmpty()
-    @MaxLength(20)
+    @Length(2, 30)
     code: string;
 
-    @ApiProperty({ example: 'Khoa Công Nghệ Thông Tin' })
+    @ApiProperty({ example: 'Công nghệ thông tin' })
     @IsString()
-    @IsNotEmpty()
-    @MaxLength(255)
+    @Length(2, 150)
     name: string;
+
+    @ApiPropertyOptional()
+    @IsOptional()
+    @IsString()
+    @MaxLength(1000)
+    description?: string;
 }
